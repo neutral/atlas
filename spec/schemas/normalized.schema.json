@@ -1,0 +1,300 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:atlas:schema:normalized:1",
+  "type": "object",
+  "required": ["format", "atlas", "maps", "points", "checks", "publicationProfiles", "relatedMaps"],
+  "properties": {
+    "format": { "const": 1 },
+    "atlas": { "$ref": "#/$defs/atlas" },
+    "maps": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/map" }
+    },
+    "points": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/point" }
+    },
+    "checks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/check" }
+    },
+    "publicationProfiles": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/publicationProfile" }
+    },
+    "relatedMaps": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/relatedMaps" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "identifier": {
+      "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+    },
+    "nonBlankString": {
+      "$ref": "urn:atlas:schema:common:1#/$defs/nonBlankString"
+    },
+    "extensions": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^x-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
+      },
+      "additionalProperties": true
+    },
+    "content": {
+      "type": "array",
+      "items": { "$ref": "urn:atlas:schema:common:1#/$defs/contentTarget" }
+    },
+    "references": {
+      "type": "array",
+      "items": { "$ref": "urn:atlas:schema:common:1#/$defs/reference" }
+    },
+    "navigation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["title", "maps"],
+        "properties": {
+          "title": { "$ref": "#/$defs/nonBlankString" },
+          "maps": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/$defs/identifier" }
+          }
+        },
+        "patternProperties": {
+          "^x-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$": true
+        },
+        "additionalProperties": false
+      }
+    },
+    "atlas": {
+      "type": "object",
+      "required": ["id", "title", "summary", "navigation", "resources", "content", "references", "extensions", "body"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "title": { "$ref": "#/$defs/nonBlankString" },
+        "summary": { "$ref": "urn:atlas:schema:common:1#/$defs/summary" },
+        "navigation": { "$ref": "#/$defs/navigation" },
+        "resources": {
+          "type": "array",
+          "items": { "$ref": "urn:atlas:schema:common:1#/$defs/resource" }
+        },
+        "content": { "$ref": "#/$defs/content" },
+        "references": { "$ref": "#/$defs/references" },
+        "extensions": { "$ref": "#/$defs/extensions" },
+        "body": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "map": {
+      "type": "object",
+      "required": ["id", "title", "summary", "question", "status", "path", "areas", "content", "references", "extensions", "body", "pointIds", "anchorPointIds", "contextPointIds"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "title": { "$ref": "#/$defs/nonBlankString" },
+        "summary": { "$ref": "urn:atlas:schema:common:1#/$defs/summary" },
+        "question": { "$ref": "urn:atlas:schema:common:1#/$defs/question" },
+        "status": { "enum": ["draft", "active", "archived"] },
+        "path": { "$ref": "#/$defs/nonBlankString" },
+        "areas": {
+          "type": "array",
+          "items": { "$ref": "urn:atlas:schema:common:1#/$defs/area" }
+        },
+        "content": { "$ref": "#/$defs/content" },
+        "references": { "$ref": "#/$defs/references" },
+        "extensions": { "$ref": "#/$defs/extensions" },
+        "body": { "type": "string" },
+        "pointIds": { "$ref": "#/$defs/identifierList" },
+        "anchorPointIds": { "$ref": "#/$defs/identifierList" },
+        "contextPointIds": { "$ref": "#/$defs/identifierList" }
+      },
+      "additionalProperties": false
+    },
+    "identifierList": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/identifier" }
+    },
+    "areaMembershipList": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "urn:atlas:schema:common:1#/$defs/areaMembership" }
+    },
+    "pointRecord": {
+      "type": "object",
+      "required": ["kind", "map", "path", "summary", "areas", "content", "references", "extensions", "body"],
+      "properties": {
+        "kind": { "enum": ["anchor", "context"] },
+        "map": { "$ref": "#/$defs/identifier" },
+        "path": { "$ref": "#/$defs/nonBlankString" },
+        "summary": { "$ref": "urn:atlas:schema:common:1#/$defs/summary" },
+        "areas": { "$ref": "#/$defs/areaMembershipList" },
+        "content": { "$ref": "#/$defs/content" },
+        "references": { "$ref": "#/$defs/references" },
+        "extensions": { "$ref": "#/$defs/extensions" },
+        "body": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "relation": {
+      "type": "object",
+      "required": ["sourcePoint", "sourceMap", "sourcePath", "type", "targetPoint", "note", "extensions"],
+      "properties": {
+        "sourcePoint": { "$ref": "#/$defs/identifier" },
+        "sourceMap": { "$ref": "#/$defs/identifier" },
+        "sourcePath": { "$ref": "#/$defs/nonBlankString" },
+        "type": {
+          "anyOf": [
+            { "enum": ["supersedes", "depends-on", "supports", "contradicts", "refines", "implements"] },
+            { "$ref": "urn:atlas:schema:common:1#/$defs/extensionIdentifier" }
+          ]
+        },
+        "targetPoint": { "$ref": "#/$defs/identifier" },
+        "note": { "$ref": "#/$defs/nonBlankString" },
+        "extensions": { "$ref": "#/$defs/extensions" }
+      },
+      "additionalProperties": false
+    },
+    "point": {
+      "type": "object",
+      "required": ["id", "title", "summary", "kinds", "posture", "lifecycle", "primaryMap", "anchorPath", "records", "relations", "incomingRelations", "review", "extensions"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "title": { "$ref": "#/$defs/nonBlankString" },
+        "summary": { "$ref": "urn:atlas:schema:common:1#/$defs/summary" },
+        "kinds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "anyOf": [
+              { "enum": ["decision", "constraint", "observation", "question", "proposal", "direction", "implementation", "requirement", "risk", "goal", "practice"] },
+              { "$ref": "urn:atlas:schema:common:1#/$defs/extensionIdentifier" }
+            ]
+          }
+        },
+        "posture": { "enum": ["asserted", "open", "proposed", "intended"] },
+        "lifecycle": { "enum": ["active", "historical", "superseded", "withdrawn"] },
+        "primaryMap": { "$ref": "#/$defs/identifier" },
+        "anchorPath": { "$ref": "#/$defs/nonBlankString" },
+        "records": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/pointRecord" },
+          "contains": { "type": "object", "properties": { "kind": { "const": "anchor" } }, "required": ["kind"] },
+          "minContains": 1,
+          "maxContains": 1
+        },
+        "relations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/relation" }
+        },
+        "incomingRelations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/relation" }
+        },
+        "review": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "urn:atlas:schema:common:1#/$defs/review" }
+          ]
+        },
+        "extensions": { "$ref": "#/$defs/extensions" }
+      },
+      "additionalProperties": false
+    },
+    "check": {
+      "type": "object",
+      "required": ["id", "title", "summary", "status", "level", "appliesTo", "path", "extensions", "body"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "title": { "$ref": "#/$defs/nonBlankString" },
+        "summary": { "$ref": "urn:atlas:schema:common:1#/$defs/summary" },
+        "status": { "enum": ["draft", "active", "retired"] },
+        "level": { "enum": ["required", "advisory"] },
+        "appliesTo": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["atlas", "map", "area", "point-anchor", "point-context", "resource", "check", "publication"] }
+        },
+        "path": { "$ref": "#/$defs/nonBlankString" },
+        "extensions": { "$ref": "#/$defs/extensions" },
+        "body": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "publicationProfile": {
+      "type": "object",
+      "required": ["id", "title", "summary", "path", "selection", "extensions", "body"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "title": { "$ref": "#/$defs/nonBlankString" },
+        "summary": { "$ref": "urn:atlas:schema:common:1#/$defs/summary" },
+        "path": { "$ref": "#/$defs/nonBlankString" },
+        "selection": {
+          "type": "object",
+          "required": ["atlas", "maps", "points", "resources", "checks"],
+          "properties": {
+            "atlas": { "type": "boolean" },
+            "maps": { "$ref": "#/$defs/identifierList" },
+            "points": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "required": ["id", "records"],
+                "properties": {
+                  "id": { "$ref": "#/$defs/identifier" },
+                  "records": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "object",
+                      "required": ["map", "kind", "path"],
+                      "properties": {
+                        "map": { "$ref": "#/$defs/identifier" },
+                        "kind": { "enum": ["anchor", "context"] },
+                        "path": { "$ref": "#/$defs/nonBlankString" }
+                      },
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "resources": { "$ref": "#/$defs/identifierList" },
+            "checks": { "$ref": "#/$defs/identifierList" }
+          },
+          "additionalProperties": false
+        },
+        "extensions": { "$ref": "#/$defs/extensions" },
+        "body": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "relatedMaps": {
+      "type": "object",
+      "required": ["maps", "pointIds"],
+      "properties": {
+        "maps": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/identifier" }
+        },
+        "pointIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/identifier" }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

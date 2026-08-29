@@ -1,0 +1,310 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:atlas:schema:common:1",
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
+    },
+    "extensionIdentifier": {
+      "type": "string",
+      "pattern": "^x-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
+    },
+    "nonBlankString": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "pattern": "\\S"
+    },
+    "question": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "pattern": "\\S"
+    },
+    "selector": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "contentTarget": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "resource"
+          ],
+          "properties": {
+            "resource": {
+              "$ref": "#/$defs/identifier"
+            },
+            "selector": {
+              "$ref": "#/$defs/selector"
+            },
+            "label": {
+              "$ref": "#/$defs/nonBlankString"
+            }
+          },
+          "patternProperties": {
+            "^x-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$": true
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "uri"
+          ],
+          "properties": {
+            "uri": {
+              "$ref": "#/$defs/nonBlankString"
+            },
+            "label": {
+              "$ref": "#/$defs/nonBlankString"
+            }
+          },
+          "patternProperties": {
+            "^x-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$": true
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "referenceRole": {
+      "enum": [
+        "evidence",
+        "supporting",
+        "implementation",
+        "historical",
+        "example"
+      ]
+    },
+    "reference": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "resource",
+            "role"
+          ],
+          "properties": {
+            "resource": {
+              "$ref": "#/$defs/identifier"
+            },
+            "selector": {
+              "$ref": "#/$defs/selector"
+            },
+            "role": {
+              "$ref": "#/$defs/referenceRole"
+            },
+            "label": {
+              "$ref": "#/$defs/nonBlankString"
+            },
+            "note": {
+              "$ref": "#/$defs/nonBlankString"
+            }
+          },
+          "patternProperties": {
+            "^x-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$": true
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "uri",
+            "role"
+          ],
+          "properties": {
+            "uri": {
+              "$ref": "#/$defs/nonBlankString"
+            },
+            "role": {
+              "$ref": "#/$defs/referenceRole"
+            },
+            "label": {
+              "$ref": "#/$defs/nonBlankString"
+            },
+            "note": {
+              "$ref": "#/$defs/nonBlankString"
+            }
+          },
+          "patternProperties": {
+            "^x-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$": true
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "contentList": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/contentTarget"
+      }
+    },
+    "referenceList": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/reference"
+      }
+    },
+    "area": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "summary",
+        "question"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "title": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "summary": {
+          "$ref": "#/$defs/summary"
+        },
+        "question": {
+          "$ref": "#/$defs/question"
+        },
+        "content": {
+          "$ref": "#/$defs/contentList"
+        },
+        "references": {
+          "$ref": "#/$defs/referenceList"
+        }
+      },
+      "patternProperties": {
+        "^x-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$": true
+      },
+      "additionalProperties": false
+    },
+    "areaMembership": {
+      "type": "object",
+      "required": [
+        "area",
+        "context"
+      ],
+      "properties": {
+        "area": {
+          "$ref": "#/$defs/identifier"
+        },
+        "context": {
+          "$ref": "#/$defs/summary"
+        }
+      },
+      "patternProperties": {
+        "^x-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$": true
+      },
+      "additionalProperties": false
+    },
+    "resource": {
+      "type": "object",
+      "required": [
+        "id",
+        "uri",
+        "title"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "uri": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "title": {
+          "$ref": "#/$defs/nonBlankString"
+        },
+        "summary": {
+          "$ref": "#/$defs/summary"
+        },
+        "media-type": {
+          "$ref": "#/$defs/nonBlankString"
+        }
+      },
+      "patternProperties": {
+        "^x-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$": true
+      },
+      "additionalProperties": false
+    },
+    "relation": {
+      "type": "object",
+      "required": [
+        "type",
+        "point",
+        "note"
+      ],
+      "properties": {
+        "type": {
+          "anyOf": [
+            {
+              "enum": [
+                "supersedes",
+                "depends-on",
+                "supports",
+                "contradicts",
+                "refines",
+                "implements"
+              ]
+            },
+            {
+              "$ref": "#/$defs/extensionIdentifier"
+            }
+          ]
+        },
+        "point": {
+          "$ref": "#/$defs/identifier"
+        },
+        "note": {
+          "$ref": "#/$defs/nonBlankString"
+        }
+      },
+      "patternProperties": {
+        "^x-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$": true
+      },
+      "additionalProperties": false
+    },
+    "relationList": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/relation"
+      }
+    },
+    "review": {
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "reviewed-at": {
+          "type": "string",
+          "format": "date"
+        },
+        "review-after": {
+          "type": "string",
+          "format": "date"
+        },
+        "by": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/nonBlankString"
+          }
+        }
+      },
+      "patternProperties": {
+        "^x-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$": true
+      },
+      "additionalProperties": false
+    }
+  }
+}

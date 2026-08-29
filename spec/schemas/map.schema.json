@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:atlas:schema:map:1",
+  "type": "object",
+  "required": [
+    "type",
+    "id",
+    "title",
+    "summary",
+    "question",
+    "status"
+  ],
+  "properties": {
+    "type": {
+      "const": "map"
+    },
+    "id": {
+      "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+    },
+    "title": {
+      "$ref": "urn:atlas:schema:common:1#/$defs/nonBlankString"
+    },
+    "summary": {
+      "$ref": "urn:atlas:schema:common:1#/$defs/summary"
+    },
+    "question": {
+      "$ref": "urn:atlas:schema:common:1#/$defs/question"
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "active",
+        "archived"
+      ]
+    },
+    "areas": {
+      "type": "array",
+      "items": {
+        "$ref": "urn:atlas:schema:common:1#/$defs/area"
+      }
+    },
+    "content": {
+      "$ref": "urn:atlas:schema:common:1#/$defs/contentList"
+    },
+    "references": {
+      "$ref": "urn:atlas:schema:common:1#/$defs/referenceList"
+    }
+  },
+  "patternProperties": {
+    "^x-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$": true
+  },
+  "additionalProperties": false
+}

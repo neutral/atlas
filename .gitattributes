@@ -1,0 +1,3 @@
+# Preserve byte-sensitive fixture content and exclude it from whitespace-error checks.
+spec/examples/** -whitespace
+spec/examples/valid/crlf/** -text

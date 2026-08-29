@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:atlas:schema:fixture-manifest:1",
+  "type": "object",
+  "required": ["format", "profile", "fixtures"],
+  "properties": {
+    "format": { "const": 1 },
+    "profile": {
+      "enum": ["neutral.atlas-validator.structural", "neutral.atlas-validator.resolved"]
+    },
+    "fixtures": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/fixture" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "fixture": {
+      "type": "object",
+      "required": ["path", "complete", "valid", "description", "diagnostics"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "profile": {
+          "enum": ["neutral.atlas-validator.structural", "neutral.atlas-validator.resolved"]
+        },
+        "complete": { "type": "boolean" },
+        "valid": { "type": "boolean" },
+        "description": { "type": "string", "minLength": 1 },
+        "diagnostics": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^atlas\\.[a-z0-9.-]+$" }
+        },
+        "expected": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "valid": { "const": false } }, "required": ["valid"] },
+          "then": { "not": { "properties": { "expected": true }, "required": ["expected"] } }
+        }
+      ]
+    }
+  }
+}

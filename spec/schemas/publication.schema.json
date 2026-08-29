@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:atlas:schema:publication:1",
+  "title": "Atlas publication profile front matter",
+  "description": "An explicit selection of Atlas source records and registered Resources that may be published.",
+  "type": "object",
+  "required": ["type", "id", "title", "summary", "selection"],
+  "properties": {
+    "type": { "const": "publication" },
+    "id": { "$ref": "urn:atlas:schema:common:1#/$defs/identifier" },
+    "title": { "$ref": "urn:atlas:schema:common:1#/$defs/nonBlankString" },
+    "summary": { "$ref": "urn:atlas:schema:common:1#/$defs/summary" },
+    "selection": {
+      "type": "object",
+      "required": ["atlas", "maps", "points", "resources", "checks"],
+      "properties": {
+        "atlas": { "type": "boolean" },
+        "maps": { "$ref": "#/$defs/identifierList" },
+        "points": {
+          "type": "object",
+          "propertyNames": { "$ref": "urn:atlas:schema:common:1#/$defs/identifier" },
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "$ref": "urn:atlas:schema:common:1#/$defs/identifier" }
+          }
+        },
+        "resources": { "$ref": "#/$defs/identifierList" },
+        "checks": { "$ref": "#/$defs/identifierList" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "patternProperties": {
+    "^x-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$": true
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "identifierList": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "urn:atlas:schema:common:1#/$defs/identifier" }
+    }
+  }
+}

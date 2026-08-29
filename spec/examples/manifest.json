@@ -1,0 +1,659 @@
+{
+  "format": 1,
+  "profile": "neutral.atlas-validator.resolved",
+  "fixtures": [
+    {
+      "path": "valid/minimal",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": true,
+      "description": "Minimal valid Atlas with one anchored Point.",
+      "diagnostics": []
+    },
+    {
+      "path": "valid/cross-map",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": true,
+      "description": "Valid cross-Map Point identity, active Check, Resources, relations, and overlap.",
+      "diagnostics": [],
+      "expected": "valid/cross-map/expected.normalized.json"
+    },
+    {
+      "path": "valid/explained-area-context",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": true,
+      "description": "A bodyless context record can contribute an explained Area membership.",
+      "diagnostics": []
+    },
+    {
+      "path": "valid/unlisted-map",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": true,
+      "description": "An unlisted Map is valid and reported.",
+      "diagnostics": [
+        "atlas.map.unlisted"
+      ]
+    },
+    {
+      "path": "valid/postures",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": true,
+      "description": "All standard posture and non-current lifecycle values are accepted.",
+      "diagnostics": []
+    },
+    {
+      "path": "valid/nested-atlas-boundary",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": true,
+      "description": "Parent discovery stops at a nested Atlas.",
+      "diagnostics": [
+        "atlas.discovery.nested-atlas-boundary"
+      ]
+    },
+    {
+      "path": "valid/external-local",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": true,
+      "description": "External-local relative targets are reported and not read.",
+      "diagnostics": [
+        "atlas.reference.external-local"
+      ]
+    },
+    {
+      "path": "valid/crlf",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": true,
+      "description": "CRLF structural text is accepted.",
+      "diagnostics": []
+    },
+    {
+      "path": "valid/checks",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": true,
+      "description": "A valid active Check can include a bounded Exceptions section.",
+      "diagnostics": []
+    },
+    {
+      "path": "valid/publication-profile",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": true,
+      "description": "A publication profile resolves exact Atlas, Map, Point-record, Resource, and Check selections.",
+      "diagnostics": []
+    },
+    {
+      "path": "invalid/empty-anchor-body",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "An anchor body must contain a substantive Markdown block.",
+      "diagnostics": [
+        "atlas.point.anchor-body-empty"
+      ]
+    },
+    {
+      "path": "invalid/empty-context-body",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "If a context body is authored, it must contain a substantive Markdown block.",
+      "diagnostics": [
+        "atlas.point.context-body-empty"
+      ]
+    },
+    {
+      "path": "invalid/bare-area-membership",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "A Point record cannot name an Area without explaining the semantic connection.",
+      "diagnostics": [
+        "atlas.frontmatter.schema"
+      ]
+    },
+    {
+      "path": "invalid/empty-context",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for empty context.",
+      "diagnostics": [
+        "atlas.point.context-empty"
+      ]
+    },
+    {
+      "path": "invalid/missing-anchor",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for missing anchor.",
+      "diagnostics": [
+        "atlas.point.missing-anchor"
+      ]
+    },
+    {
+      "path": "invalid/multiple-anchors",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for multiple anchors.",
+      "diagnostics": [
+        "atlas.point.multiple-anchors"
+      ]
+    },
+    {
+      "path": "invalid/context-in-primary-map",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for context in primary map.",
+      "diagnostics": [
+        "atlas.map.duplicate-id",
+        "atlas.point.context-in-primary-map",
+        "atlas.point.duplicate-map-record"
+      ]
+    },
+    {
+      "path": "invalid/unknown-area",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for unknown area.",
+      "diagnostics": [
+        "atlas.area.unknown"
+      ]
+    },
+    {
+      "path": "invalid/duplicate-area",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for duplicate area.",
+      "diagnostics": [
+        "atlas.area.duplicate-id"
+      ]
+    },
+    {
+      "path": "invalid/duplicate-map-question",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Map deposit questions must be unique within an Atlas.",
+      "diagnostics": [
+        "atlas.map.duplicate-question"
+      ]
+    },
+    {
+      "path": "invalid/duplicate-area-question",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Area routing questions must be unique within a Map.",
+      "diagnostics": [
+        "atlas.area.duplicate-question"
+      ]
+    },
+    {
+      "path": "invalid/duplicate-area-membership",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "A Point record can explain each Map-local Area membership only once.",
+      "diagnostics": [
+        "atlas.area.duplicate-membership"
+      ]
+    },
+    {
+      "path": "invalid/unknown-navigation-map",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for unknown navigation map.",
+      "diagnostics": [
+        "atlas.navigation.unknown-map"
+      ]
+    },
+    {
+      "path": "invalid/duplicate-navigation-map",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for duplicate navigation map.",
+      "diagnostics": [
+        "atlas.navigation.duplicate-map"
+      ]
+    },
+    {
+      "path": "invalid/unknown-resource",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for unknown resource.",
+      "diagnostics": [
+        "atlas.reference.unknown-resource"
+      ]
+    },
+    {
+      "path": "invalid/missing-local-target",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for missing local target.",
+      "diagnostics": [
+        "atlas.reference.missing-local-target"
+      ]
+    },
+    {
+      "path": "invalid/path-case-mismatch",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "A local target must match filename case and Unicode normalization exactly.",
+      "diagnostics": [
+        "atlas.reference.path-case-mismatch"
+      ]
+    },
+    {
+      "path": "invalid/prohibited-target",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for prohibited target.",
+      "diagnostics": [
+        "atlas.reference.prohibited-target"
+      ]
+    },
+    {
+      "path": "invalid/duplicate-reference",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for duplicate reference.",
+      "diagnostics": [
+        "atlas.reference.duplicate"
+      ]
+    },
+    {
+      "path": "invalid/invalid-uri-backslash",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for invalid uri backslash.",
+      "diagnostics": [
+        "atlas.reference.invalid-uri"
+      ]
+    },
+    {
+      "path": "invalid/invalid-uri-encoded-separator",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for invalid uri encoded separator.",
+      "diagnostics": [
+        "atlas.reference.invalid-uri"
+      ]
+    },
+    {
+      "path": "invalid/unknown-relation",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for unknown relation.",
+      "diagnostics": [
+        "atlas.relation.unknown-point"
+      ]
+    },
+    {
+      "path": "invalid/missing-relation-note",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Every authored relation must explain its semantic edge.",
+      "diagnostics": [
+        "atlas.frontmatter.schema"
+      ]
+    },
+    {
+      "path": "invalid/self-relation",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for self relation.",
+      "diagnostics": [
+        "atlas.relation.self"
+      ]
+    },
+    {
+      "path": "invalid/duplicate-relation",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for duplicate relation.",
+      "diagnostics": [
+        "atlas.relation.duplicate"
+      ]
+    },
+    {
+      "path": "invalid/superseded-without-replacement",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for superseded without replacement.",
+      "diagnostics": [
+        "atlas.lifecycle.superseded-without-replacement"
+      ]
+    },
+    {
+      "path": "invalid/supersedes-active-target",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for supersedes active target.",
+      "diagnostics": [
+        "atlas.lifecycle.supersedes-target-not-superseded"
+      ]
+    },
+    {
+      "path": "invalid/supersession-cycle",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for supersession cycle.",
+      "diagnostics": [
+        "atlas.relation.supersedes-cycle"
+      ]
+    },
+    {
+      "path": "invalid/invalid-review-window",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for invalid review window.",
+      "diagnostics": [
+        "atlas.point.invalid-review-window"
+      ]
+    },
+    {
+      "path": "invalid/invalid-calendar-date",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for invalid calendar date.",
+      "diagnostics": [
+        "atlas.frontmatter.schema"
+      ]
+    },
+    {
+      "path": "invalid/missing-map-question",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Every Map requires a deposit question.",
+      "diagnostics": [
+        "atlas.frontmatter.schema"
+      ]
+    },
+    {
+      "path": "invalid/missing-area-question",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Every Area requires a placement question.",
+      "diagnostics": [
+        "atlas.frontmatter.schema"
+      ]
+    },
+    {
+      "path": "invalid/missing-frontmatter",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for missing frontmatter.",
+      "diagnostics": [
+        "atlas.frontmatter.missing"
+      ]
+    },
+    {
+      "path": "invalid/unclosed-frontmatter",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for unclosed frontmatter.",
+      "diagnostics": [
+        "atlas.frontmatter.unclosed"
+      ]
+    },
+    {
+      "path": "invalid/yaml-anchor",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for yaml anchor.",
+      "diagnostics": [
+        "atlas.frontmatter.invalid-yaml"
+      ]
+    },
+    {
+      "path": "invalid/yaml-duplicate-key",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for yaml duplicate key.",
+      "diagnostics": [
+        "atlas.frontmatter.invalid-yaml"
+      ]
+    },
+    {
+      "path": "invalid/yaml-explicit-tag",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for yaml explicit tag.",
+      "diagnostics": [
+        "atlas.frontmatter.invalid-yaml"
+      ]
+    },
+    {
+      "path": "invalid/yaml-merge-key",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for yaml merge key.",
+      "diagnostics": [
+        "atlas.frontmatter.invalid-yaml"
+      ]
+    },
+    {
+      "path": "invalid/yaml-non-string-key",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for yaml non string key.",
+      "diagnostics": [
+        "atlas.frontmatter.invalid-yaml"
+      ]
+    },
+    {
+      "path": "invalid/bom",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for bom.",
+      "diagnostics": [
+        "atlas.text.bom"
+      ]
+    },
+    {
+      "path": "invalid/nul",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for nul.",
+      "diagnostics": [
+        "atlas.text.nul"
+      ]
+    },
+    {
+      "path": "invalid/invalid-utf8",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for invalid utf8.",
+      "diagnostics": [
+        "atlas.text.invalid-utf8"
+      ]
+    },
+    {
+      "path": "invalid/invalid-points-entry",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for invalid points entry.",
+      "diagnostics": [
+        "atlas.point.invalid-location"
+      ]
+    },
+    {
+      "path": "invalid/invalid-checks-entry",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for invalid checks entry.",
+      "diagnostics": [
+        "atlas.check.invalid-location"
+      ]
+    },
+    {
+      "path": "invalid/check-filename-mismatch",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "A Check identifier must match its filename.",
+      "diagnostics": [
+        "atlas.check.filename-mismatch"
+      ]
+    },
+    {
+      "path": "invalid/check-missing-section",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for check missing section.",
+      "diagnostics": [
+        "atlas.check.required-section"
+      ]
+    },
+    {
+      "path": "invalid/check-extra-section",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for check extra section.",
+      "diagnostics": [
+        "atlas.check.section-order"
+      ]
+    },
+    {
+      "path": "invalid/check-empty-section",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for check empty section.",
+      "diagnostics": [
+        "atlas.check.section-empty"
+      ]
+    },
+    {
+      "path": "invalid/publication-entry",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "A publication profile cannot occur below the direct root profile directory.",
+      "diagnostics": [
+        "atlas.publication.invalid-location"
+      ]
+    },
+    {
+      "path": "invalid/publication-filename-mismatch",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "A publication profile id must match its filename.",
+      "diagnostics": [
+        "atlas.publication.filename-mismatch"
+      ]
+    },
+    {
+      "path": "invalid/publication-unknown-selection",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Every selected Map, Point record, Resource, and Check must resolve.",
+      "diagnostics": [
+        "atlas.publication.unknown-check",
+        "atlas.publication.unknown-map",
+        "atlas.publication.unknown-point",
+        "atlas.publication.unknown-point-record",
+        "atlas.publication.unknown-resource"
+      ]
+    },
+    {
+      "path": "invalid/unsupported-format",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for unsupported format.",
+      "diagnostics": [
+        "atlas.format.unsupported"
+      ]
+    },
+    {
+      "path": "invalid/root-map",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for root map.",
+      "diagnostics": [
+        "atlas.map.invalid-location"
+      ]
+    },
+    {
+      "path": "invalid/point-outside",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for point outside.",
+      "diagnostics": [
+        "atlas.point.invalid-location"
+      ]
+    },
+    {
+      "path": "invalid/filename-mismatch",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for filename mismatch.",
+      "diagnostics": [
+        "atlas.point.filename-mismatch"
+      ]
+    },
+    {
+      "path": "invalid/duplicate-resource",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Invalid fixture for duplicate resource.",
+      "diagnostics": [
+        "atlas.resource.duplicate-id"
+      ]
+    }
+  ]
+}

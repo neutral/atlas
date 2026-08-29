@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:atlas:schema:point:1",
+  "type": "object",
+  "required": [
+    "type",
+    "record",
+    "id"
+  ],
+  "properties": {
+    "type": {
+      "const": "point"
+    },
+    "record": {
+      "enum": [
+        "anchor",
+        "context"
+      ]
+    },
+    "id": {
+      "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "record": {
+            "const": "anchor"
+          }
+        },
+        "required": [
+          "record"
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/anchor"
+      },
+      "else": {
+        "$ref": "#/$defs/context"
+      }
+    }
+  ],
+  "unevaluatedProperties": false,
+  "$defs": {
+    "anchor": {
+      "type": "object",
+      "required": [
+        "type",
+        "record",
+        "id",
+        "title",
+        "summary",
+        "posture",
+        "lifecycle"
+      ],
+      "properties": {
+        "type": {
+          "const": "point"
+        },
+        "record": {
+          "const": "anchor"
+        },
+        "id": {
+          "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+        },
+        "title": {
+          "$ref": "urn:atlas:schema:common:1#/$defs/nonBlankString"
+        },
+        "summary": {
+          "$ref": "urn:atlas:schema:common:1#/$defs/summary"
+        },
+        "kinds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "anyOf": [
+              {
+                "enum": [
+                  "decision",
+                  "constraint",
+                  "observation",
+                  "question",
+                  "proposal",
+                  "direction",
+                  "implementation",
+                  "requirement",
+                  "risk",
+                  "goal",
+                  "practice"
+                ]
+              },
+              {
+                "$ref": "urn:atlas:schema:common:1#/$defs/extensionIdentifier"
+              }
+            ]
+          }
+        },
+        "posture": {
+          "enum": [
+            "asserted",
+            "open",
+            "proposed",
+            "intended"
+          ]
+        },
+        "lifecycle": {
+          "enum": [
+            "active",
+            "historical",
+            "superseded",
+            "withdrawn"
+          ]
+        },
+        "areas": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "urn:atlas:schema:common:1#/$defs/areaMembership"
+          }
+        },
+        "content": {
+          "$ref": "urn:atlas:schema:common:1#/$defs/contentList"
+        },
+        "references": {
+          "$ref": "urn:atlas:schema:common:1#/$defs/referenceList"
+        },
+        "relations": {
+          "$ref": "urn:atlas:schema:common:1#/$defs/relationList"
+        },
+        "review": {
+          "$ref": "urn:atlas:schema:common:1#/$defs/review"
+        }
+      },
+      "patternProperties": {
+        "^x-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$": true
+      }
+    },
+    "context": {
+      "type": "object",
+      "required": [
+        "type",
+        "record",
+        "id",
+        "summary"
+      ],
+      "properties": {
+        "type": {
+          "const": "point"
+        },
+        "record": {
+          "const": "context"
+        },
+        "id": {
+          "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+        },
+        "summary": {
+          "$ref": "urn:atlas:schema:common:1#/$defs/summary"
+        },
+        "areas": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "urn:atlas:schema:common:1#/$defs/areaMembership"
+          }
+        },
+        "content": {
+          "$ref": "urn:atlas:schema:common:1#/$defs/contentList"
+        },
+        "references": {
+          "$ref": "urn:atlas:schema:common:1#/$defs/referenceList"
+        }
+      },
+      "patternProperties": {
+        "^x-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$": true
+      }
+    }
+  }
+}

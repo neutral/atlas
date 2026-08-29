@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:atlas:schema:check-evaluation:1",
+  "type": "object",
+  "required": ["contract", "atlas", "baseline", "changeSet", "complete", "compliant", "evaluator", "evaluations"],
+  "properties": {
+    "contract": { "const": "urn:atlas:schema:check-evaluation:1" },
+    "atlas": { "$ref": "#/$defs/nonBlankString" },
+    "baseline": { "$ref": "#/$defs/nonBlankString" },
+    "changeSet": { "$ref": "#/$defs/changeSet" },
+    "complete": { "type": "boolean" },
+    "compliant": { "type": "boolean" },
+    "evaluator": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonBlankString" },
+        "version": { "$ref": "#/$defs/nonBlankString" }
+      },
+      "additionalProperties": false
+    },
+    "evaluations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evaluation" }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "complete": { "const": false } }, "required": ["complete"] },
+      "then": { "properties": { "compliant": { "const": false } } }
+    },
+    {
+      "if": { "properties": { "complete": { "const": true } }, "required": ["complete"] },
+      "then": {
+        "properties": {
+          "evaluations": {
+            "not": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "outcome": { "const": "unable" } },
+                "required": ["outcome"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "compliant": { "const": true } }, "required": ["compliant"] },
+      "then": {
+        "properties": {
+          "complete": { "const": true },
+          "evaluations": {
+            "not": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "status": { "const": "active" },
+                  "level": { "const": "required" },
+                  "outcome": { "enum": ["fail", "unable", "not-applicable"] }
+                },
+                "required": ["status", "level", "outcome"]
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "nonBlankString": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "changeSet": {
+      "type": "object",
+      "required": ["id", "paths"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonBlankString" },
+        "paths": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/nonBlankString" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "subject": {
+      "type": "object",
+      "required": ["kind", "path"],
+      "properties": {
+        "kind": { "enum": ["atlas", "map", "area", "point-anchor", "point-context", "resource", "check", "publication"] },
+        "id": { "$ref": "#/$defs/nonBlankString" },
+        "map": { "$ref": "#/$defs/nonBlankString" },
+        "path": { "$ref": "#/$defs/nonBlankString" }
+      },
+      "additionalProperties": false
+    },
+    "diagnostic": {
+      "type": "object",
+      "required": ["message"],
+      "properties": {
+        "message": { "$ref": "#/$defs/nonBlankString" },
+        "path": { "$ref": "#/$defs/nonBlankString" }
+      },
+      "additionalProperties": false
+    },
+    "evaluation": {
+      "type": "object",
+      "required": ["check", "revision", "status", "level", "subjects", "outcome", "summary", "evidence", "diagnostics"],
+      "properties": {
+        "check": { "$ref": "#/$defs/nonBlankString" },
+        "revision": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "status": { "enum": ["draft", "active", "retired"] },
+        "level": { "enum": ["required", "advisory"] },
+        "subjects": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/subject" }
+        },
+        "outcome": { "enum": ["pass", "fail", "unable", "not-applicable"] },
+        "summary": { "$ref": "#/$defs/nonBlankString" },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonBlankString" }
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/diagnostic" }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "enum": ["draft", "retired"] } }, "required": ["status"] },
+          "then": { "properties": { "outcome": { "const": "not-applicable" } } }
+        },
+        {
+          "if": { "properties": { "status": { "const": "active" } }, "required": ["status"] },
+          "then": { "properties": { "outcome": { "enum": ["pass", "fail", "unable"] } } }
+        },
+        {
+          "if": { "properties": { "outcome": { "const": "pass" } }, "required": ["outcome"] },
+          "then": { "properties": { "evidence": { "type": "array", "minItems": 1 } } }
+        },
+        {
+          "if": { "properties": { "outcome": { "enum": ["fail", "unable"] } }, "required": ["outcome"] },
+          "then": { "properties": { "diagnostics": { "type": "array", "minItems": 1 } } }
+        },
+        {
+          "if": { "properties": { "outcome": { "enum": ["pass", "not-applicable"] } }, "required": ["outcome"] },
+          "then": { "properties": { "diagnostics": { "type": "array", "maxItems": 0 } } }
+        }
+      ],
+      "additionalProperties": false
+    }
+  }
+}
