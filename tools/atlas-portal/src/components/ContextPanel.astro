@@ -1,0 +1,160 @@
+---
+const { corpus, route } = Astro.props;
+const mapById = new Map(corpus.maps.map((map) => [map.id, map]));
+const pointById = new Map(corpus.points.map((point) => [point.id, point]));
+const currentMap = route.mapId ? mapById.get(route.mapId) : null;
+const currentArea = route.areaId ? corpus.areas.find((area) => area.mapId === route.mapId && area.id === route.areaId) : null;
+const currentPoint = route.pointId ? pointById.get(route.pointId) : null;
+const currentResource = route.resourceId ? corpus.resources.find((resource) => resource.id === route.resourceId) : null;
+const currentCheck = route.checkId ? corpus.checks.find((check) => check.id === route.checkId) : null;
+const overlaps = currentMap ? corpus.relatedMaps.filter((item) => item.maps.includes(currentMap.id)).slice(0, 5) : [];
+const areaMemberships = currentPoint ? currentPoint.records.flatMap((record) => record.areas.map((area) => ({ ...area, mapId: record.map }))) : [];
+const searchFilterLabels = { map: 'Maps', area: 'Areas', point: 'Points', resource: 'Resources' };
+---
+
+{route.kind === 'atlas' && (
+  <div class="context-content">
+    <section>
+      <h2>Begin with a question</h2>
+      <ul class="context-link-list">
+        {corpus.maps.slice(0, 4).map((map) => <li><a href={`/maps/${map.id}/`}>{map.question}</a></li>)}
+      </ul>
+    </section>
+  </div>
+)}
+
+{route.kind === 'map' && currentMap && (
+  <div class="context-content">
+    <section>
+      <h2>Area questions</h2>
+      <ul class="context-link-list">
+        {currentMap.areas.map((area) => <li><a href={`/maps/${currentMap.id}/areas/${area.id}/`}><strong>{area.title}</strong><span>{area.question}</span></a></li>)}
+      </ul>
+    </section>
+    {overlaps.length > 0 && (
+      <section>
+        <h2>Related Maps</h2>
+        <ul class="context-link-list compact">
+          {overlaps.map((overlap) => {
+            const otherId = overlap.maps.find((id) => id !== currentMap.id);
+            return <li><a href={`/maps/${otherId}/`}>{mapById.get(otherId)?.title ?? otherId}<span>{overlap.pointIds.length} shared {overlap.pointIds.length === 1 ? 'Point' : 'Points'}</span></a></li>;
+          })}
+        </ul>
+      </section>
+    )}
+  </div>
+)}
+
+{route.kind === 'area' && currentArea && currentMap && (
+  <div class="context-content">
+    <section>
+      <h2>Containing Map</h2>
+      <p><a href={`/maps/${currentMap.id}/`}>{currentMap.title}</a></p>
+    </section>
+    <section>
+      <h2>Area question</h2>
+      <p>{currentArea.question}</p>
+    </section>
+  </div>
+)}
+
+{route.kind === 'point' && currentPoint && (
+  <div class="context-content">
+    <section>
+      <h2>Maps</h2>
+      <ul class="context-link-list compact">
+        {currentPoint.records.map((record) => {
+          const map = mapById.get(record.map);
+          return <li>{map ? <a href={`/maps/${record.map}/`}>{map.title}</a> : <p><strong>{record.map}</strong></p>}</li>;
+        })}
+      </ul>
+    </section>
+    {areaMemberships.length > 0 && (
+      <section>
+        <h2>Areas</h2>
+        <ul class="explanation-list">
+          {areaMemberships.slice(0, 8).map((membership) => {
+            const area = corpus.areas.find((item) => item.mapId === membership.mapId && item.id === membership.area);
+            return <li><a href={`/maps/${membership.mapId}/areas/${membership.area}/`}>{area?.title ?? membership.area}</a><p>{membership.context}</p></li>;
+          })}
+        </ul>
+      </section>
+    )}
+    {(currentPoint.relations.length > 0 || currentPoint.incomingRelations.length > 0) && (
+      <section>
+        <h2>Relations</h2>
+        <ul class="relation-list">
+          {currentPoint.relations.map((relation) => {
+            const target = pointById.get(relation.targetPoint);
+            return <li><span>{relation.type}</span>{target ? <a href={`/points/${target.id}/`}>{target.title}</a> : <strong>{relation.targetPoint}</strong>}<p>{relation.note}</p></li>;
+          })}
+          {currentPoint.incomingRelations.map((relation) => <li><span>{relation.type} from</span><a href={`/points/${relation.sourcePoint}/`}>{pointById.get(relation.sourcePoint)?.title ?? relation.sourcePoint}</a><p>{relation.note}</p></li>)}
+        </ul>
+      </section>
+    )}
+  </div>
+)}
+
+{route.kind === 'resource' && currentResource && (
+  <div class="context-content">
+    <section>
+      <h2>Why this is here</h2>
+      {currentResource.uses.length === 0
+        ? <p>This Resource is included directly. No Atlas, Map, Area, or Point links to it.</p>
+        : <ul class="explanation-list uses-list">
+            {currentResource.uses.slice(0, 12).map((use) => (
+              <li><a href={use.source.route}>{use.source.title}</a><p>{use.use === 'content' ? 'Primary material' : use.role}{use.note ? ` · ${use.note}` : ''}</p></li>
+            ))}
+          </ul>}
+    </section>
+  </div>
+)}
+
+{route.kind === 'search' && (
+  <div class="context-content">
+    <section>
+      <h2>Show</h2>
+      <fieldset class="search-filters">
+        <legend class="visually-hidden">Filter search results by type</legend>
+        {['map', 'area', 'point', 'resource'].map((type) => (
+          <label><input type="checkbox" value={type} checked data-search-filter /> <span>{searchFilterLabels[type]}</span></label>
+        ))}
+      </fieldset>
+    </section>
+    <section>
+      <h2>Search meaning</h2>
+      <p>Results preserve one Atlas-wide identity per Point and one identity per Resource. A lexical match does not invent a semantic connection.</p>
+    </section>
+  </div>
+)}
+
+{route.kind === 'check-index' && (
+  <div class="context-content">
+    <section>
+      <h2>Check boundary</h2>
+      <p>Checks govern authored changes. They do not grant authority and do not become Map or Point context.</p>
+    </section>
+  </div>
+)}
+
+{route.kind === 'check' && currentCheck && (
+  <div class="context-content">
+    <section>
+      <h2>Check definition</h2>
+      <dl class="stacked-facts">
+        <div><dt>Status</dt><dd>{currentCheck.status}</dd></div>
+        <div><dt>Level</dt><dd>{currentCheck.level}</dd></div>
+      </dl>
+    </section>
+    <section><p>This page presents an authored Check. It does not claim that the Check passed.</p></section>
+  </div>
+)}
+
+{route.kind === 'not-found' && (
+  <div class="context-content">
+    <section>
+      <h2>Continue reading</h2>
+      <p><a href="/">Open the Atlas</a> or choose a Map from the Navigation Panel.</p>
+    </section>
+  </div>
+)}

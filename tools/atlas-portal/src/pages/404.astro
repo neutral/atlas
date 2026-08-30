@@ -1,0 +1,9 @@
+---
+import PortalShell from '../components/PortalShell.astro';
+import { loadCorpus } from '../lib/corpus.mjs';
+
+const corpus = loadCorpus();
+const route = { kind: 'not-found', path: '/404.html', title: 'Page not found' };
+---
+
+<PortalShell {corpus} {route} />

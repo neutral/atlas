@@ -1,0 +1,25 @@
+packages:
+  - "atlas-portal"
+  - "validator"
+
+minimumReleaseAge: 10080
+minimumReleaseAgeStrict: true
+minimumReleaseAgeIgnoreMissingTime: false
+trustPolicy: no-downgrade
+trustPolicyIgnoreAfter: 525600
+trustLockfile: false
+blockExoticSubdeps: true
+engineStrict: true
+nodeVersion: 22.23.2
+pmOnFail: error
+autoInstallPeers: false
+strictPeerDependencies: true
+verifyStoreIntegrity: true
+strictStorePkgContentCheck: true
+verifyDepsBeforeRun: error
+strictDepBuilds: true
+savePrefix: ""
+
+allowBuilds:
+  esbuild: true
+  workerd: true

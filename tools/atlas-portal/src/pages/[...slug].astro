@@ -1,0 +1,16 @@
+---
+import PortalShell from '../components/PortalShell.astro';
+import { loadCorpus } from '../lib/corpus.mjs';
+
+export function getStaticPaths() {
+  const corpus = loadCorpus();
+  return corpus.routes.map((route) => ({
+    params: { slug: route.path === '/' ? undefined : route.path.replace(/^\//u, '').replace(/\/$/u, '') },
+    props: { corpus, route },
+  }));
+}
+
+const { corpus, route } = Astro.props;
+---
+
+<PortalShell {corpus} {route} />

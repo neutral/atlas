@@ -1,0 +1,68 @@
+---
+import { Menu, PanelRightClose, PanelRightOpen, X } from '@lucide/astro';
+import NavigationPanel from './NavigationPanel.astro';
+import ReaderPanel from './ReaderPanel.astro';
+import ContextPanel from './ContextPanel.astro';
+import '../styles/global.css';
+
+const { corpus, route } = Astro.props;
+const pageTitle = route.kind === 'atlas' ? corpus.atlas.title : `${route.title} · ${corpus.atlas.title}`;
+const searchData = JSON.stringify(corpus.searchItems).replace(/</gu, '\\u003c');
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="description" content={route.kind === 'atlas' ? corpus.atlas.summary : route.title} />
+    <meta name="generator" content={Astro.generator} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{pageTitle}</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#reader">Skip to content</a>
+    <portal-shell class="portal-shell">
+      <header class="mobile-header">
+        <button class="icon-button" type="button" data-open-panel="navigation" aria-controls="navigation-panel" aria-expanded="false" aria-label="Open Navigation Panel">
+          <Menu size={19} stroke-width={1.7} aria-hidden="true" />
+        </button>
+        <a href="/">{corpus.atlas.title}</a>
+        <button class="icon-button" type="button" data-open-panel="context" aria-controls="context-panel" aria-expanded="false" aria-label="Open Context Panel">
+          <PanelRightOpen size={19} stroke-width={1.7} aria-hidden="true" />
+        </button>
+      </header>
+
+      <nav id="navigation-panel" class="navigation-panel" aria-label="Navigation Panel">
+        <button class="mobile-panel-close icon-button" type="button" data-close-panel aria-label="Close Navigation Panel"><X size={19} aria-hidden="true" /></button>
+        <NavigationPanel {corpus} {route} />
+      </nav>
+
+      <main id="reader" class="reader-panel" tabindex="-1" aria-label="Reader Panel">
+        <ReaderPanel {corpus} {route} />
+      </main>
+
+      <aside id="context-panel" class="context-panel" aria-label="Context Panel">
+        <div class="panel-heading context-heading">
+          <span>Context</span>
+          <button class="icon-button desktop-context-close" type="button" data-close-context aria-label="Close Context Panel" aria-expanded="true" aria-controls="context-panel">
+            <PanelRightClose size={17} stroke-width={1.7} aria-hidden="true" />
+          </button>
+          <button class="mobile-panel-close icon-button" type="button" data-close-panel aria-label="Close Context Panel"><X size={19} aria-hidden="true" /></button>
+        </div>
+        <ContextPanel {corpus} {route} />
+      </aside>
+
+      <button class="context-reopen icon-button" type="button" data-open-context aria-label="Open Context Panel" aria-expanded="false" aria-controls="context-panel">
+        <PanelRightOpen size={18} stroke-width={1.7} aria-hidden="true" />
+      </button>
+      <button class="panel-backdrop" type="button" data-close-panel aria-label="Close side panel"></button>
+    </portal-shell>
+
+    {route.kind === 'search' && <script id="atlas-search-data" type="application/json" set:html={searchData} />}
+    <script>
+      import '../browser/portal-shell.js';
+      import '../browser/search.js';
+    </script>
+  </body>
+</html>

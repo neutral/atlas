@@ -1,0 +1,276 @@
+---
+import { ArrowRight, ExternalLink } from '@lucide/astro';
+import { introductoryMarkdown, renderMarkdown, withoutLeadingTitle } from '../lib/markdown.mjs';
+
+const { corpus, route } = Astro.props;
+const mapById = new Map(corpus.maps.map((map) => [map.id, map]));
+const pointById = new Map(corpus.points.map((point) => [point.id, point]));
+const resourceById = new Map(corpus.resources.map((resource) => [resource.id, resource]));
+const currentMap = route.mapId ? mapById.get(route.mapId) : null;
+const currentArea = route.areaId ? corpus.areas.find((area) => area.mapId === route.mapId && area.id === route.areaId) : null;
+const currentPoint = route.pointId ? pointById.get(route.pointId) : null;
+const currentResource = route.resourceId ? resourceById.get(route.resourceId) : null;
+const currentCheck = route.checkId ? corpus.checks.find((check) => check.id === route.checkId) : null;
+const sourceRoutes = new Map([
+  ['atlas.md', '/'],
+  ...corpus.maps.map((map) => [map.path, `/maps/${map.id}/`]),
+  ...corpus.points.flatMap((point) => point.records.map((record) => [record.path, `/points/${point.id}/`])),
+  ...corpus.resources
+    .filter((resource) => !/^[a-z][a-z0-9+.-]*:/iu.test(resource.uri))
+    .map((resource) => [resource.uri.split('#')[0], `/resources/${resource.id}/`]),
+  ...corpus.checks.map((check) => [check.path, `/checks/${check.id}/`]),
+]);
+const portalRoutes = new Set(corpus.routes.map((item) => item.path));
+const groups = corpus.atlas.navigation
+  .map((group) => ({ ...group, maps: group.maps.map((id) => mapById.get(id)).filter(Boolean) }))
+  .filter((group) => group.maps.length > 0);
+
+function sourceLinks(items = []) {
+  return items.map((item) => {
+    if (item.resource) {
+      const resource = resourceById.get(item.resource);
+      return resource
+        ? { href: `/resources/${resource.id}/`, title: item.label ?? resource.title, meta: item.role ?? 'Content', external: false }
+        : { href: null, title: item.label ?? item.resource, meta: `${item.role ?? 'Content'} · Resource unavailable in this portal`, external: false };
+    }
+    if (item.uri) {
+      const unsafeScheme = /^[a-z][a-z0-9+.-]*:/iu.test(item.uri) && !/^(?:https?:|mailto:)/iu.test(item.uri);
+      const unsafeProtocolRelative = item.uri.startsWith('//');
+      return {
+        href: unsafeScheme || unsafeProtocolRelative ? null : item.uri,
+        title: item.label ?? item.uri,
+        meta: item.role ?? 'Direct link',
+        external: /^https?:/iu.test(item.uri),
+      };
+    }
+    return null;
+  }).filter(Boolean);
+}
+
+function renderSource(source, sourcePath) {
+  return renderMarkdown(source, { sourcePath, sourceRoutes, portalRoutes });
+}
+---
+
+{route.kind === 'atlas' && (
+  <article class="reader-article atlas-index">
+    <header class="reader-header">
+      <p class="destination-type">Atlas</p>
+      <h1>{corpus.atlas.title}</h1>
+      <p class="summary">{corpus.atlas.summary}</p>
+    </header>
+    <div class="prose intro-prose" set:html={renderSource(introductoryMarkdown(corpus.atlas.body, 3), 'atlas.md')} />
+    <section class="reader-section map-question-groups" aria-label="Atlas questions">
+      {groups.map((group) => (
+        <div class="question-group">
+          <h3>{group.title}</h3>
+          {group.maps.map((map) => (
+            <a class="question-row" href={`/maps/${map.id}/`}>
+              <span>
+                <strong>{map.title}</strong>
+                <span>{map.question}</span>
+              </span>
+              <ArrowRight size={16} stroke-width={1.6} aria-hidden="true" />
+            </a>
+          ))}
+        </div>
+      ))}
+    </section>
+  </article>
+)}
+
+{route.kind === 'map' && currentMap && (
+  <article class="reader-article">
+    <header class="reader-header">
+      <p class="destination-type">Map</p>
+      <h1>{currentMap.title}</h1>
+      <p class="question">{currentMap.question}</p>
+      <p class="summary compact">{currentMap.summary}</p>
+    </header>
+    <div class="prose intro-prose" set:html={renderSource(introductoryMarkdown(currentMap.body, 2), currentMap.path)} />
+    <section class="reader-section" aria-labelledby="map-areas">
+      <div class="section-heading-row">
+        <h2 id="map-areas">Areas</h2>
+      </div>
+      <div class="area-question-list">
+        {currentMap.areas.map((area) => {
+          const projectedArea = corpus.areas.find((item) => item.mapId === currentMap.id && item.id === area.id);
+          return (
+            <article class="area-question-row">
+              <div>
+                <h3><a href={`/maps/${currentMap.id}/areas/${area.id}/`}>{area.title}</a></h3>
+                <p>{area.question}</p>
+              </div>
+              <div class="area-sample">
+                <span>{projectedArea?.pointIds.length ?? 0} {(projectedArea?.pointIds.length ?? 0) === 1 ? 'Point' : 'Points'}</span>
+                {(projectedArea?.memberships ?? []).slice(0, 3).map((membership) => (
+                  <a href={`/points/${membership.pointId}/`}>{membership.pointTitle}</a>
+                ))}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  </article>
+)}
+
+{route.kind === 'area' && currentArea && currentMap && (
+  <article class="reader-article">
+    <header class="reader-header">
+      <p class="destination-type"><a href={`/maps/${currentMap.id}/`}>{currentMap.title}</a> <span>·</span> Area</p>
+      <h1>{currentArea.title}</h1>
+      <p class="summary compact">{currentArea.summary}</p>
+    </header>
+    <section class="reader-section" aria-labelledby="area-points">
+      <div class="section-heading-row">
+        <h2 id="area-points">Points in this Area</h2>
+      </div>
+      <div class="connection-list">
+        {currentArea.memberships.slice(0, 16).map((membership) => (
+          <article class="connection-row">
+            <h3><a href={`/points/${membership.pointId}/`}>{membership.pointTitle}</a></h3>
+            <p>{membership.context}</p>
+          </article>
+        ))}
+      </div>
+      {currentArea.memberships.length > 16 && (
+        <p class="more-link"><a href={`/search/?map=${currentMap.id}&q=${encodeURIComponent(currentArea.title)}`}>Search the remaining connections</a></p>
+      )}
+    </section>
+  </article>
+)}
+
+{route.kind === 'point' && currentPoint && (
+  <article class="reader-article point-article">
+    <header class="reader-header">
+      <p class="destination-type">Point</p>
+      <h1>{currentPoint.title}</h1>
+      <p class="summary">{currentPoint.summary}</p>
+    </header>
+    {currentPoint.records.map((record, index) => {
+      const recordMap = mapById.get(record.map);
+      const material = sourceLinks([...(record.content ?? []), ...(record.references ?? [])]);
+      return (
+        <section class:list={['point-contribution', { anchor: record.kind === 'anchor' }]} aria-labelledby={`record-${index}`}>
+          <div class="contribution-heading">
+            <div>
+              <h2 id={`record-${index}`}>{recordMap ? <a href={`/maps/${record.map}/`}>{recordMap.title}</a> : record.map}</h2>
+            </div>
+          </div>
+          {record.kind === 'context' && <p class="record-summary">{record.summary}</p>}
+          {withoutLeadingTitle(record.body) && <div class="prose" set:html={renderSource(withoutLeadingTitle(record.body), record.path)} />}
+          {record.areas.length > 0 && (
+            <div class="membership-notes">
+              {record.areas.map((membership) => {
+                const area = corpus.areas.find((item) => item.mapId === record.map && item.id === membership.area);
+                return (
+                  <p>{area ? <a href={`/maps/${record.map}/areas/${membership.area}/`}>{area.title}</a> : <strong>{membership.area}</strong>}<span>{membership.context}</span></p>
+                );
+              })}
+            </div>
+          )}
+          {material.length > 0 && (
+            <div class="material-links">
+              {material.map((item) => (
+                item.href ? (
+                  <a href={item.href} target={item.external ? '_blank' : undefined} rel={item.external ? 'noreferrer' : undefined}>
+                    <span>{item.title}</span><small>{item.meta}</small>{item.external && <ExternalLink size={13} aria-hidden="true" />}
+                  </a>
+                ) : (
+                  <div class="material-link"><span>{item.title}</span><small>{item.meta} · link unavailable</small></div>
+                )
+              ))}
+            </div>
+          )}
+        </section>
+      );
+    })}
+  </article>
+)}
+
+{route.kind === 'resource' && currentResource && (
+  <article class="reader-article resource-article">
+    <header class="reader-header resource-header">
+      <p class="destination-type">Resource</p>
+      <h1>{currentResource.title}</h1>
+      <p class="summary">{currentResource.summary}</p>
+    </header>
+    {currentResource.format === 'markdown' && currentResource.body && (
+      <div class="prose resource-body" set:html={renderSource(withoutLeadingTitle(currentResource.body), currentResource.uri.split('#')[0])} />
+    )}
+    {['text', 'code'].includes(currentResource.format) && currentResource.body && (
+      <pre class="source-body"><code>{currentResource.body}</code></pre>
+    )}
+    {currentResource.format === 'external' && currentResource.href && (
+      <div class="unavailable-state">
+        <p>This Resource is available outside this portal.</p>
+        <a href={currentResource.href} target="_blank" rel="noreferrer">Open Resource <ExternalLink size={14} aria-hidden="true" /></a>
+      </div>
+    )}
+    {currentResource.format === 'external' && !currentResource.href && (
+      <div class="unavailable-state"><p>This Resource does not provide a browser-safe link.</p></div>
+    )}
+    {!currentResource.body && currentResource.format !== 'external' && (
+      <div class="unavailable-state"><p>This Resource is not available as readable text in the portal.</p></div>
+    )}
+  </article>
+)}
+
+{route.kind === 'search' && (
+  <article class="reader-article search-page">
+    <header class="reader-header">
+      <p class="destination-type">Search</p>
+      <h1>Find context and material</h1>
+      <p class="summary compact">Search Points, Map questions, Area connections, and Resources.</p>
+    </header>
+    <form class="reader-search-form" action="/search/" role="search">
+      <input name="q" type="search" placeholder="Search this Atlas" aria-label="Search this Atlas" data-reader-search autofocus />
+      <button type="submit">Search</button>
+    </form>
+    <p class="search-status" data-search-status>Enter a term to search this Atlas.</p>
+    <div class="search-results" data-search-results></div>
+  </article>
+)}
+
+{route.kind === 'check-index' && (
+  <article class="reader-article check-page">
+    <header class="reader-header">
+      <p class="destination-type">Checks</p>
+      <h1>Checks that govern changes</h1>
+      <p class="summary compact">Checks are project-local authoring policy. They remain separate from the mapped reader context.</p>
+    </header>
+    <section class="reader-section">
+      <div class="connection-list check-list">
+        {corpus.checks.map((check) => (
+          <article class="connection-row">
+            <h2><a href={`/checks/${check.id}/`}>{check.title}</a></h2>
+            <p>{check.summary}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  </article>
+)}
+
+{route.kind === 'check' && currentCheck && (
+  <article class="reader-article check-page">
+    <header class="reader-header">
+      <p class="destination-type"><a href="/checks/">Check</a></p>
+      <h1>{currentCheck.title}</h1>
+      <p class="summary">{currentCheck.summary}</p>
+    </header>
+    <div class="prose" set:html={renderSource(withoutLeadingTitle(currentCheck.body), currentCheck.path)} />
+  </article>
+)}
+
+{route.kind === 'not-found' && (
+  <article class="reader-article">
+    <header class="reader-header">
+      <p class="destination-type">Atlas Portal</p>
+      <h1>Page not found</h1>
+      <p class="summary compact">This address is not part of the generated publication.</p>
+    </header>
+    <p class="more-link"><a href="/">Return to the Atlas</a></p>
+  </article>
+)}

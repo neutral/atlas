@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:atlas:schema:check:1",
+  "type": "object",
+  "required": [
+    "type",
+    "id",
+    "title",
+    "summary",
+    "status",
+    "level",
+    "applies-to"
+  ],
+  "properties": {
+    "type": {
+      "const": "check"
+    },
+    "id": {
+      "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+    },
+    "title": {
+      "$ref": "urn:atlas:schema:common:1#/$defs/nonBlankString"
+    },
+    "summary": {
+      "$ref": "urn:atlas:schema:common:1#/$defs/summary"
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "active",
+        "retired"
+      ]
+    },
+    "level": {
+      "enum": [
+        "required",
+        "advisory"
+      ]
+    },
+    "applies-to": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "atlas",
+          "map",
+          "area",
+          "point-anchor",
+          "point-context",
+          "resource",
+          "check",
+          "publication"
+        ]
+      }
+    }
+  },
+  "patternProperties": {
+    "^x-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$": true
+  },
+  "additionalProperties": false
+}

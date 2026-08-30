@@ -1,0 +1,10 @@
+import { TextDecoder } from 'node:util';
+export const STRUCTURAL_PROFILE = 'neutral.atlas-validator.structural';
+export const RESOLVED_PROFILE = 'neutral.atlas-validator.resolved';
+export const SUPPORTED_PROFILES = new Set([STRUCTURAL_PROFILE, RESOLVED_PROFILE]);
+export const REFERENCE_FIELDS = ['content', 'references'];
+export const IGNORED_DIRECTORIES = new Set(['.git', 'node_modules', 'dist', 'build', 'coverage', '.cache']);
+export const REQUIRED_CHECK_SECTIONS = ['Requirement', 'Verification', 'Failure'];
+export const ALLOWED_CHECK_SECTIONS = [...REQUIRED_CHECK_SECTIONS, 'Exceptions'];
+export const UTF8 = new TextDecoder('utf-8', { fatal: true });
+export const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf]);

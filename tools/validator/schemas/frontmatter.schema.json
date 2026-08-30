@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:atlas:schema:frontmatter:1",
+  "oneOf": [
+    {
+      "$ref": "urn:atlas:schema:atlas:1"
+    },
+    {
+      "$ref": "urn:atlas:schema:map:1"
+    },
+    {
+      "$ref": "urn:atlas:schema:point:1"
+    },
+    {
+      "$ref": "urn:atlas:schema:check:1"
+    },
+    {
+      "$ref": "urn:atlas:schema:publication:1"
+    }
+  ]
+}

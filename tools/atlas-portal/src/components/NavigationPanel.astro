@@ -1,0 +1,75 @@
+---
+import { Search } from '@lucide/astro';
+
+const { corpus, route } = Astro.props;
+const currentPoint = route.pointId ? corpus.points.find((point) => point.id === route.pointId) : null;
+const currentResource = route.resourceId ? corpus.resources.find((resource) => resource.id === route.resourceId) : null;
+const currentMapId = route.mapId ?? currentPoint?.primaryMap ?? null;
+const relatedMapIds = new Set([
+  ...(currentPoint?.records.map((record) => record.map) ?? []),
+  ...(currentResource?.uses.map((use) => use.source.mapId).filter(Boolean) ?? []),
+]);
+const mapById = new Map(corpus.maps.map((map) => [map.id, map]));
+const authoredGroups = corpus.atlas.navigation
+  .map((group) => ({ ...group, maps: group.maps.map((id) => mapById.get(id)).filter(Boolean) }))
+  .filter((group) => group.maps.length > 0);
+const groupedMapIds = new Set(authoredGroups.flatMap((group) => group.maps.map((map) => map.id)));
+const ungroupedMaps = corpus.maps.filter((map) => !groupedMapIds.has(map.id));
+const groups = ungroupedMaps.length > 0 ? [...authoredGroups, { title: 'Other questions', maps: ungroupedMaps }] : authoredGroups;
+---
+
+<div class="panel-heading navigation-heading">
+  <a class="atlas-wordmark" href="/" aria-label={`${corpus.atlas.title} home`}>
+    <span class="atlas-mark" aria-hidden="true">A</span>
+    <span>
+      <strong>{corpus.atlas.title}</strong>
+    </span>
+  </a>
+</div>
+
+<form class="nav-search" action="/search/" role="search">
+  <Search size={15} stroke-width={1.7} aria-hidden="true" />
+  <input name="q" type="search" placeholder="Search this Atlas" aria-label="Search this Atlas" data-global-search />
+  <kbd>/</kbd>
+</form>
+
+<div class="navigation-groups">
+  {groups.map((group) => (
+    <section class="navigation-group" aria-labelledby={`nav-${group.title.replace(/\W+/gu, '-').toLowerCase()}`}>
+      <h2 id={`nav-${group.title.replace(/\W+/gu, '-').toLowerCase()}`}>{group.title}</h2>
+      <ul>
+        {group.maps.map((map) => {
+          const active = ['map', 'area'].includes(route.kind) && route.mapId === map.id;
+          const related = relatedMapIds.has(map.id);
+          const showAreas = currentMapId === map.id && ['map', 'area'].includes(route.kind);
+          return (
+            <li>
+              <a class:list={['navigation-link', { active, related }]} href={`/maps/${map.id}/`} aria-current={active ? 'page' : undefined}>
+                <span>{map.title}</span>
+              </a>
+              {showAreas && (
+                <ul class="area-navigation">
+                  {map.areas.map((area) => {
+                    const areaActive = route.kind === 'area' && route.areaId === area.id;
+                    return (
+                      <li>
+                        <a class:list={['area-navigation-link', { active: areaActive }]} href={`/maps/${map.id}/areas/${area.id}/`} aria-current={areaActive ? 'page' : undefined}>
+                          {area.title}
+                        </a>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  ))}
+</div>
+
+<div class="navigation-footer">
+  <a class:list={{ active: route.kind === 'search' }} href="/search/">Search</a>
+  <a class:list={{ active: ['check-index', 'check'].includes(route.kind) }} href="/checks/">Checks</a>
+</div>
