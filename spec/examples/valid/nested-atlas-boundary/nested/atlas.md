@@ -1,13 +1,19 @@
 ---
-type: atlas
-format: 1
-id: fixture
-title: Fixture Atlas
-summary: Executable Atlas format 1 fixture.
-navigation:
-- title: Maps
-  maps:
-  - nested-map
+{
+  "type": "atlas",
+  "format": 1,
+  "id": "fixture",
+  "title": "Fixture Atlas",
+  "summary": "Executable Atlas format 1 fixture.",
+  "navigation": [
+    {
+      "title": "Maps",
+      "maps": [
+        "nested-map"
+      ]
+    }
+  ]
+}
 ---
 
 # Fixture Atlas

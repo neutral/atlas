@@ -14,24 +14,31 @@ const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 
 export function usage() {
   return `Usage:
-  atlas-portal-cloudflare build --atlas <path> --profile <id> [--resource-root <path>] [--config <path>] [--out-dir <path>]
-  atlas-portal-cloudflare dev --atlas <path> --profile <id> [--resource-root <path>] [--config <path>] [--out-dir <path>] [--host <host>] [--port <port>] [--name <name>]
-  atlas-portal-cloudflare deploy --atlas <path> --profile <id> [--resource-root <path>] [--config <path>] [--out-dir <path>] [--name <name>] [--dry-run]`;
+  atlas-portal-cloudflare build --atlas <path> --profile <id> --portal-config <path> [--resource-root <path>] [--config <path>] [--out-dir <path>]
+  atlas-portal-cloudflare dev --atlas <path> --profile <id> --portal-config <path> [--resource-root <path>] [--config <path>] [--out-dir <path>] [--host <host>] [--port <port>] [--name <name>]
+  atlas-portal-cloudflare deploy --atlas <path> --profile <id> --portal-config <path> [--resource-root <path>] [--config <path>] [--out-dir <path>] [--name <name>] [--dry-run]`;
 }
 
+/** @param {string[]} arguments_ @param {number} index @param {string} argument */
 function optionValue(arguments_, index, argument) {
   const value = arguments_[index + 1];
-  if (value === undefined || value.startsWith('--')) throw new Error(`${argument} requires a value.\n${usage()}`);
+  if (!value || value.startsWith('-')) throw new Error(`${argument} requires a value.\n${usage()}`);
   return value;
 }
 
+/** @param {string[]} arguments_ */
 export function parseArguments(arguments_) {
-  const [command, ...rest] = arguments_;
+  const [command = '', ...rest] = arguments_;
+  /** @type {{resourceRoots: string[], dryRun: boolean, help: boolean, atlas?: string, profile?: string, portalConfig?: string, config?: string, outDir?: string, host?: string, port?: string, name?: string}} */
   const options = { resourceRoots: [], dryRun: false, help: false };
+  const seen = new Set();
 
   for (let index = 0; index < rest.length; index += 1) {
     const argument = rest[index];
+    if (!argument) continue;
     if (argument === '--') continue;
+    if (seen.has(argument) && argument !== '--resource-root') throw new Error(`${argument} can be supplied only once.`);
+    seen.add(argument);
     if (argument === '--dry-run') {
       options.dryRun = true;
       continue;
@@ -44,6 +51,7 @@ export function parseArguments(arguments_) {
     const value = optionValue(rest, index, argument);
     if (argument === '--atlas') options.atlas = value;
     else if (argument === '--profile') options.profile = value;
+    else if (argument === '--portal-config') options.portalConfig = value;
     else if (argument === '--resource-root') options.resourceRoots.push(value);
     else if (argument === '--config') options.config = value;
     else if (argument === '--out-dir') options.outDir = value;
@@ -54,9 +62,11 @@ export function parseArguments(arguments_) {
     index += 1;
   }
 
+  if (command === '--help' || command === '-h') options.help = true;
   return { command, options };
 }
 
+/** @param {string} command @param {string[]} arguments_ @param {string} cwd @param {NodeJS.ProcessEnv} [environment] @returns {Promise<void>} */
 function runProcess(command, arguments_, cwd, environment = process.env) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, arguments_, { cwd, env: environment, stdio: 'inherit' });
@@ -69,14 +79,17 @@ function runProcess(command, arguments_, cwd, environment = process.env) {
   });
 }
 
+/** @param {string[]} arguments_ */
 export async function run(arguments_) {
   const { command, options } = parseArguments(arguments_);
   if (options.help) {
     console.log(usage());
     return;
   }
-  if (!['build', 'dev', 'deploy'].includes(command) || !options.atlas || !options.profile) throw new Error(usage());
+  if (!['build', 'dev', 'deploy'].includes(command) || !options.atlas || !options.profile || !options.portalConfig) throw new Error(usage());
   if (command !== 'deploy' && options.dryRun) throw new Error('--dry-run is available only for cloudflare:deploy.');
+  if (command !== 'dev' && (options.host || options.port)) throw new Error('--host and --port are available only for cloudflare:dev.');
+  if (command === 'build' && options.name) throw new Error('--name sets the Worker name for cloudflare:dev or cloudflare:deploy.');
 
   const config = path.resolve(options.config ?? defaultConfig);
   const output = path.resolve(options.outDir ?? defaultOutput);
@@ -87,6 +100,7 @@ export async function run(arguments_) {
     'build',
     '--atlas', path.resolve(options.atlas),
     '--profile', options.profile,
+    '--portal-config', path.resolve(options.portalConfig),
     '--out-dir', output,
   ];
   for (const root of options.resourceRoots) buildArguments.push('--resource-root', path.resolve(root));
@@ -98,6 +112,7 @@ export async function run(arguments_) {
   const configDirectory = path.dirname(config);
   const wranglerLogDirectory = path.join(configDirectory, '.wrangler/logs');
   fs.mkdirSync(wranglerLogDirectory, { recursive: true });
+  /** @type {NodeJS.ProcessEnv} */
   const wranglerEnvironment = {
     ...process.env,
     WRANGLER_LOG_PATH: process.env.WRANGLER_LOG_PATH ?? wranglerLogDirectory,

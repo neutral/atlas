@@ -1,5 +1,9 @@
 import MarkdownIt from 'markdown-it';
+import GithubSlugger from 'github-slugger';
 import path from 'node:path';
+
+/** @typedef {import('markdown-it/lib/token.mjs').default} Token */
+/** @typedef {{sourcePath?: string, sourceRoutes?: Map<string,string>, portalRoutes?: Set<string>, headingPrefix?: string, sourceHeadingPrefixes?: Map<string,string>, omitLeadingTitle?: boolean}} MarkdownEnvironment */
 
 const markdown = new MarkdownIt({
   html: false,
@@ -7,39 +11,38 @@ const markdown = new MarkdownIt({
   typographer: false,
 });
 
+/** @type {import('markdown-it/lib/renderer.mjs').RenderRule} */
 const defaultLinkOpen = markdown.renderer.rules.link_open
   ?? ((tokens, index, options, _environment, self) => self.renderToken(tokens, index, options));
 
-markdown.renderer.rules.link_open = (tokens, index, options, environment, self) => {
-  const href = tokens[index].attrGet('href') ?? '';
+/** @type {import('markdown-it/lib/renderer.mjs').RenderRule} */
+const renderLink = (tokens, index, options, environment, self) => {
+  const token = tokens[index];
+  if (!token) return '';
+  const href = token.attrGet('href') ?? '';
   const rewritten = rewriteLocalResourceHref(href, environment);
   if (unavailableLocalHref(href, rewritten, environment)) {
-    const hrefIndex = tokens[index].attrIndex('href');
-    if (hrefIndex >= 0) tokens[index].attrs.splice(hrefIndex, 1);
-    tokens[index].attrSet('class', 'unavailable-local-link');
-    tokens[index].attrSet('aria-disabled', 'true');
-    tokens[index].attrSet('title', 'Not available in this portal');
+    const hrefIndex = token.attrIndex('href');
+    if (hrefIndex >= 0) token.attrs?.splice(hrefIndex, 1);
+    token.attrSet('class', 'unavailable-local-link');
+    token.attrSet('aria-disabled', 'true');
+    token.attrSet('title', 'Not available in this portal');
   } else {
-    tokens[index].attrSet('href', rewritten);
+    token.attrSet('href', rewritten);
   }
   if (/^https?:/iu.test(href)) {
-    tokens[index].attrSet('rel', 'noreferrer');
+    token.attrSet('rel', 'noreferrer');
   }
   return defaultLinkOpen(tokens, index, options, environment, self);
 };
+
+markdown.renderer.rules.link_open = renderLink;
 
 export function withoutLeadingTitle(source = '') {
   return source.replace(/^\s*#\s+[^\n]+\n+/u, '').trim();
 }
 
-export function introductoryMarkdown(source = '', paragraphCount = 2) {
-  const blocks = withoutLeadingTitle(source)
-    .split(/\n\s*\n/u)
-    .map((block) => block.trim())
-    .filter((block) => block && !block.startsWith('#') && !block.startsWith('- '));
-  return blocks.slice(0, paragraphCount).join('\n\n');
-}
-
+/** @param {string} value */
 function decodedPath(value) {
   try {
     return decodeURIComponent(value);
@@ -48,6 +51,7 @@ function decodedPath(value) {
   }
 }
 
+/** @param {string} href @param {string} sourcePath */
 function relativeLocalTarget(href, sourcePath) {
   if (!href || href.startsWith('#') || href.startsWith('?') || href.startsWith('/') || /^[a-z][a-z0-9+.-]*:/iu.test(href) || href.startsWith('//')) return null;
   const match = /^([^?#]*)(\?[^#]*)?(#.*)?$/u.exec(href);
@@ -55,6 +59,7 @@ function relativeLocalTarget(href, sourcePath) {
   return path.posix.normalize(path.posix.join(path.posix.dirname(decodedPath(sourcePath)), decodedPath(match[1])));
 }
 
+/** @param {string} href @param {string} rewritten @param {MarkdownEnvironment} [environment] */
 function unavailableLocalHref(href, rewritten, { sourcePath = '', sourceRoutes = new Map(), portalRoutes = new Set() } = {}) {
   if (href.startsWith('/')) {
     const match = /^([^?#]*)(?:[?#].*)?$/u.exec(href);
@@ -66,16 +71,44 @@ function unavailableLocalHref(href, rewritten, { sourcePath = '', sourceRoutes =
   return target !== null && rewritten === href && !sourceRoutes.has(target);
 }
 
-export function rewriteLocalResourceHref(href, { sourcePath = '', sourceRoutes = new Map() } = {}) {
-  if (!href || href.startsWith('#') || href.startsWith('/') || /^[a-z][a-z0-9+.-]*:/iu.test(href) || href.startsWith('//')) return href;
+/** @param {string} href @param {MarkdownEnvironment} [environment] */
+export function rewriteLocalResourceHref(href, { sourcePath = '', sourceRoutes = new Map(), headingPrefix = '', sourceHeadingPrefixes = new Map() } = {}) {
+  if (href.startsWith('#')) return href === '#' ? href : `#${headingPrefix}${href.slice(1)}`;
+  if (!href || href.startsWith('/') || /^[a-z][a-z0-9+.-]*:/iu.test(href)) return href;
 
   const match = /^([^?#]*)(\?[^#]*)?(#.*)?$/u.exec(href);
   if (!match || !match[1]) return href;
   const target = path.posix.normalize(path.posix.join(path.posix.dirname(decodedPath(sourcePath)), decodedPath(match[1])));
   const route = sourceRoutes.get(target);
-  return route ? `${route}${match[2] ?? ''}${match[3] ?? ''}` : href;
+  const fragment = match[3] ? `#${sourceHeadingPrefixes.get(target) ?? ''}${match[3].slice(1)}` : '';
+  return route ? `${route}${match[2] ?? ''}${fragment}` : href;
 }
 
+/** @param {Token[]} tokens @returns {string} */
+function headingText(tokens) {
+  return tokens.map((token) => {
+    if (token.children) return headingText(token.children);
+    if (token.type === 'softbreak' || token.type === 'hardbreak') return ' ';
+    return token.content;
+  }).join('');
+}
+
+/** @param {string} [source] @param {MarkdownEnvironment} [environment] */
 export function renderMarkdown(source = '', environment = {}) {
-  return markdown.render(source, environment);
+  const tokens = markdown.parse(source, environment);
+  const slugger = new GithubSlugger();
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    const inline = tokens[index + 1];
+    const close = tokens[index + 2];
+    if (token?.type !== 'heading_open' || !inline || !close) continue;
+    token.attrSet('id', `${environment.headingPrefix ?? ''}${slugger.slug(headingText(inline.children ?? []))}`);
+    if (index === 0 && token.tag === 'h1' && environment.omitLeadingTitle) {
+      // Keep the source title's fragment target without repeating the reader title.
+      token.tag = close.tag = 'span';
+      inline.children = [];
+      inline.content = '';
+    }
+  }
+  return markdown.renderer.render(tokens, markdown.options, environment);
 }

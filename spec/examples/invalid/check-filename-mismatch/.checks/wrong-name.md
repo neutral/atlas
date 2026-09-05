@@ -1,12 +1,15 @@
 ---
-type: check
-id: expected-name
-title: Require a matching Check filename
-summary: A Check identifier must match its Markdown filename.
-status: active
-level: required
-applies-to:
-- check
+{
+  "type": "check",
+  "id": "expected-name",
+  "title": "Require a matching Check filename",
+  "summary": "A Check identifier must match its Markdown filename.",
+  "status": "active",
+  "level": "required",
+  "applies-to": [
+    "check"
+  ]
+}
 ---
 
 # Require a matching Check filename

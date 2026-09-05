@@ -1,42 +1,51 @@
+/** @import {PortalCorpus, PortalRoute, PortalPoint, TargetUse, UnroutedSource, ResourceRegistration, ContentTarget, ReferenceTarget} from './types' */
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { RESOLVED_PROFILE, validateAtlas } from 'atlas-reference-validator';
+import { validatePortalConfig } from './config.mjs';
 
 const textExtensions = new Set(['.css', '.js', '.json', '.md', '.mjs', '.txt', '.ts', '.yaml', '.yml']);
 
+/** @template T @param {T[]} values */
 function unique(values) {
   return [...new Set(values)];
 }
 
+/** @param {string} candidate @param {string} root */
 function within(candidate, root) {
   const relative = path.relative(root, candidate);
-  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+  return relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
 }
 
+/** @param {string} uri */
 function isExternalUri(uri) {
   return /^[a-z][a-z0-9+.-]*:/iu.test(uri) || uri.startsWith('//');
 }
 
+/** @param {string} uri */
 function safeExternalHref(uri) {
   return /^(?:https?:|mailto:)/iu.test(uri) ? uri : null;
 }
 
+/** @param {UnroutedSource} source */
 function routeForSource(source) {
   if (source.kind === 'atlas') return '/';
   if (source.kind === 'map') return `/maps/${source.mapId}/`;
   if (source.kind === 'area') return `/maps/${source.mapId}/areas/${source.areaId}/`;
-  if (source.kind === 'point-record') return `/points/${source.pointId}/`;
+  if (source.kind === 'point-record') return `/points/${source.pointId}/#record-${source.recordIndex}`;
   return '/';
 }
 
+/** @param {ResourceRegistration} registration @param {string} atlasDirectory @param {string[]} allowedRoots
+ * @returns {Pick<PortalCorpus["resources"][number], "availability" | "format" | "href" | "body" | "byteLength">} */
 function readSelectedResource(registration, atlasDirectory, allowedRoots) {
   const uri = registration.uri;
   if (isExternalUri(uri)) {
     return { availability: 'external', format: 'external', href: safeExternalHref(uri), body: null };
   }
 
-  const relativeTarget = decodeURIComponent(uri.split('#')[0]);
+  const relativeTarget = decodeURIComponent(uri.split('#')[0] ?? uri);
   const target = path.resolve(atlasDirectory, relativeTarget);
   let canonicalTarget;
   try {
@@ -61,6 +70,7 @@ function readSelectedResource(registration, atlasDirectory, allowedRoots) {
   return { availability: 'readable', format, href: null, body, byteLength: stat.size };
 }
 
+/** @param {TargetUse[]} collection @param {UnroutedSource} source @param {ContentTarget[]} [content] @param {ReferenceTarget[]} [references] */
 function addTargetUses(collection, source, content = [], references = []) {
   for (const item of content) {
     collection.push({
@@ -88,16 +98,20 @@ function addTargetUses(collection, source, content = [], references = []) {
   }
 }
 
+/** @param {Pick<PortalCorpus,"maps" | "areas" | "points" | "resources">} input
+ * @returns {PortalCorpus["searchItems"]} */
 function createSearchItems({ maps, areas, points, resources }) {
+  /** @type {PortalCorpus["searchItems"]} */
   const items = [];
   const mapTitleById = new Map(maps.map((map) => [map.id, map.title]));
+  /** @param {string[]} mapIds */
   const mapTitles = (mapIds) => mapIds.map((id) => mapTitleById.get(id) ?? id);
   for (const map of maps) {
     items.push({
       id: `map:${map.id}`,
       type: 'map',
       title: map.title,
-      summary: map.question,
+      summary: map.summary,
       route: `/maps/${map.id}/`,
       mapIds: [map.id],
       mapTitles: [map.title],
@@ -109,7 +123,7 @@ function createSearchItems({ maps, areas, points, resources }) {
       id: `area:${area.mapId}:${area.id}`,
       type: 'area',
       title: area.title,
-      summary: area.question,
+      summary: area.summary,
       route: `/maps/${area.mapId}/areas/${area.id}/`,
       mapIds: [area.mapId],
       mapTitles: mapTitles([area.mapId]),
@@ -139,7 +153,7 @@ function createSearchItems({ maps, areas, points, resources }) {
     });
   }
   for (const resource of resources) {
-    const mapIds = unique(resource.uses.map((use) => use.source.mapId).filter(Boolean));
+    const mapIds = unique(resource.uses.map((use) => ('mapId' in use.source ? use.source.mapId : undefined)).filter((id) => id !== undefined));
     items.push({
       id: `resource:${resource.id}`,
       type: 'resource',
@@ -154,25 +168,31 @@ function createSearchItems({ maps, areas, points, resources }) {
   return items;
 }
 
+/** @param {PortalPoint[]} points */
 function buildRelatedMaps(points) {
+  /** @type {Map<string, PortalCorpus['relatedMaps'][number]>} */
   const pairs = new Map();
   for (const point of points) {
     const mapIds = unique(point.records.map((record) => record.map)).sort();
-    for (let left = 0; left < mapIds.length; left += 1) {
-      for (let right = left + 1; right < mapIds.length; right += 1) {
-        const key = `${mapIds[left]}\u0000${mapIds[right]}`;
-        if (!pairs.has(key)) pairs.set(key, { maps: [mapIds[left], mapIds[right]], pointIds: [] });
-        pairs.get(key).pointIds.push(point.id);
+    for (const [index, left] of mapIds.entries()) {
+      for (const right of mapIds.slice(index + 1)) {
+        const key = `${left}\u0000${right}`;
+        const pair = pairs.get(key) ?? { maps: [left, right], pointIds: [] };
+        pair.pointIds.push(point.id);
+        pairs.set(key, pair);
       }
     }
   }
   return [...pairs.values()].sort((left, right) => right.pointIds.length - left.pointIds.length || left.maps.join('/').localeCompare(right.maps.join('/')));
 }
 
-export async function compileAtlasPortal({ atlasDirectory, profileId, resourceRoots = [] }) {
+/** @param {{atlasDirectory: string, profileId: string, portal: PortalCorpus['portal'], resourceRoots?: string[]}} options
+ * @returns {Promise<PortalCorpus>} */
+export async function compileAtlasPortal({ atlasDirectory, profileId, portal, resourceRoots = [] }) {
+  const portalConfig = validatePortalConfig(portal);
   const result = validateAtlas(atlasDirectory, {
     profile: RESOLVED_PROFILE,
-    specificationRevision: '0.7.0',
+    specificationRevision: '0.8.0',
   });
   if (!result.complete || !result.valid || !result.normalized) {
     const diagnostics = result.diagnostics.map((item) => `${item.code}: ${item.message}`).join('\n');
@@ -184,7 +204,6 @@ export async function compileAtlasPortal({ atlasDirectory, profileId, resourceRo
   if (!profile) throw new Error(`Publication profile not found: ${profileId}`);
 
   const selectedMapIds = new Set(profile.selection.maps);
-  const selectedCheckIds = new Set(profile.selection.checks);
   const pointSelections = new Map(profile.selection.points.map((item) => [item.id, new Set(item.records.map((record) => record.path))]));
   const selectedResourceIds = new Set(profile.selection.resources);
   const selectedAnchorPointIds = new Set(normalized.points
@@ -195,7 +214,7 @@ export async function compileAtlasPortal({ atlasDirectory, profileId, resourceRo
     .filter((point) => pointSelections.has(point.id))
     .map((point) => {
       const selectedPaths = pointSelections.get(point.id);
-      const records = point.records.filter((record) => selectedPaths.has(record.path));
+      const records = point.records.filter((record) => selectedPaths?.has(record.path));
       const anchorSelected = records.some((record) => record.kind === 'anchor');
       return {
         id: point.id,
@@ -231,6 +250,7 @@ export async function compileAtlasPortal({ atlasDirectory, profileId, resourceRo
     return { ...area, mapId: map.id, mapTitle: map.title, memberships, pointIds: unique(memberships.map((item) => item.pointId)) };
   }));
 
+  /** @type {TargetUse[]} */
   const targetUses = [];
   if (profile.selection.atlas) {
     addTargetUses(targetUses, { kind: 'atlas', title: normalized.atlas.title }, normalized.atlas.content, normalized.atlas.references);
@@ -242,8 +262,8 @@ export async function compileAtlasPortal({ atlasDirectory, profileId, resourceRo
     }
   }
   for (const point of points) {
-    for (const record of point.records) {
-      addTargetUses(targetUses, { kind: 'point-record', pointId: point.id, mapId: record.map, title: point.title }, record.content, record.references);
+    for (const [recordIndex, record] of point.records.entries()) {
+      addTargetUses(targetUses, { kind: 'point-record', pointId: point.id, mapId: record.map, recordIndex, recordPath: record.path, title: point.title }, record.content, record.references);
     }
   }
 
@@ -257,33 +277,32 @@ export async function compileAtlasPortal({ atlasDirectory, profileId, resourceRo
       uses: targetUses.filter((use) => use.resource === resource.id),
     }));
 
-  const checks = normalized.checks.filter((check) => selectedCheckIds.has(check.id));
   const relatedMaps = buildRelatedMaps(points);
   const projectedAtlas = profile.selection.atlas
     ? { ...normalized.atlas, resources: resources.map(({ body, uses, ...resource }) => resource) }
     : { id: profile.id, title: profile.title, summary: profile.summary, navigation: [], body: '', content: [], references: [] };
 
+  /** @type {PortalRoute[]} */
   const routes = [
-    { kind: 'atlas', path: '/', title: projectedAtlas.title },
+    { kind: 'atlas', path: '/', title: portalConfig.name },
     { kind: 'search', path: '/search/', title: 'Search' },
-    { kind: 'check-index', path: '/checks/', title: 'Checks' },
-    ...maps.map((map) => ({ kind: 'map', path: `/maps/${map.id}/`, title: map.title, mapId: map.id })),
-    ...areas.map((area) => ({ kind: 'area', path: `/maps/${area.mapId}/areas/${area.id}/`, title: area.title, mapId: area.mapId, areaId: area.id })),
-    ...points.map((point) => ({ kind: 'point', path: `/points/${point.id}/`, title: point.title, pointId: point.id })),
-    ...resources.map((resource) => ({ kind: 'resource', path: `/resources/${resource.id}/`, title: resource.title, resourceId: resource.id })),
-    ...checks.map((check) => ({ kind: 'check', path: `/checks/${check.id}/`, title: check.title, checkId: check.id })),
+    ...maps.map(/** @returns {PortalRoute} */ (map) => ({ kind: 'map', path: `/maps/${map.id}/`, title: map.title, mapId: map.id })),
+    ...areas.map(/** @returns {PortalRoute} */ (area) => ({ kind: 'area', path: `/maps/${area.mapId}/areas/${area.id}/`, title: area.title, mapId: area.mapId, areaId: area.id })),
+    ...points.map(/** @returns {PortalRoute} */ (point) => ({ kind: 'point', path: `/points/${point.id}/`, title: point.title, pointId: point.id })),
+    ...resources.map(/** @returns {PortalRoute} */ (resource) => ({ kind: 'resource', path: `/resources/${resource.id}/`, title: resource.title, resourceId: resource.id })),
   ];
 
+  /** @satisfies {Omit<PortalCorpus, "searchItems" | "generation">} */
   const corpus = {
     contract: 'neutral.atlas-portal/1',
-    specificationRevision: normalized.format.specificationRevision,
+    specificationRevision: '0.8.0',
+    portal: portalConfig,
     profile: { id: profile.id, title: profile.title, summary: profile.summary },
     atlas: projectedAtlas,
     maps,
     areas,
     points,
     resources,
-    checks,
     targetUses,
     relatedMaps,
     routes,
@@ -293,10 +312,9 @@ export async function compileAtlasPortal({ atlasDirectory, profileId, resourceRo
       points: points.length,
       pointRecords: points.reduce((sum, point) => sum + point.records.length, 0),
       resources: resources.length,
-      checks: checks.length,
     },
   };
-  corpus.searchItems = createSearchItems(corpus);
-  corpus.generation = crypto.createHash('sha256').update(JSON.stringify(corpus)).digest('hex').slice(0, 16);
-  return corpus;
+  const indexed = { ...corpus, searchItems: createSearchItems(corpus) };
+  const generation = crypto.createHash('sha256').update(JSON.stringify(indexed)).digest('hex').slice(0, 16);
+  return { ...indexed, generation };
 }

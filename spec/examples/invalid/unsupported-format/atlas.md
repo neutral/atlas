@@ -1,13 +1,19 @@
 ---
-type: atlas
-format: 2
-id: fixture
-title: Fixture Atlas
-summary: Executable Atlas format 1 fixture.
-navigation:
-- title: Maps
-  maps:
-  - one
+{
+  "type": "atlas",
+  "format": 2,
+  "id": "fixture",
+  "title": "Fixture Atlas",
+  "summary": "Executable Atlas format 1 fixture.",
+  "navigation": [
+    {
+      "title": "Maps",
+      "maps": [
+        "one"
+      ]
+    }
+  ]
+}
 ---
 
 # Fixture Atlas

@@ -1,6 +1,6 @@
 # Atlas Publication
 
-> Status: Working
+> Status: Released
 
 ## Requirement language
 
@@ -20,23 +20,22 @@ An Atlas MAY contain several profiles. Each profile is independent and MUST have
 
 Profile front matter conforms to `urn:atlas:schema:publication:1` and requires `type`, `id`, `title`, `summary`, and `selection`. The body MAY explain the intended audience or editorial boundary. It does not select material.
 
-```yaml
-type: publication
-id: public
-title: Public Atlas
-summary: Records and documents approved for the public Atlas.
-selection:
-  atlas: true
-  maps:
-  - architecture
-  points:
-    edge-authentication:
-    - architecture
-    - operations
-  resources:
-  - architecture-overview
-  checks:
-  - context-quality
+```json
+{
+  "type": "publication",
+  "id": "public",
+  "title": "Public Atlas",
+  "summary": "Records and documents approved for the public Atlas.",
+  "selection": {
+    "atlas": true,
+    "maps": ["architecture"],
+    "points": {
+      "edge-authentication": ["architecture", "operations"]
+    },
+    "resources": ["architecture-overview"],
+    "checks": ["context-quality"]
+  }
+}
 ```
 
 Every selection category is required, including when its value is `false`, an empty array, or an empty object. This makes the complete boundary visible in one file.

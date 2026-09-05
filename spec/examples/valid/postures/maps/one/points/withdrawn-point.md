@@ -1,16 +1,22 @@
 ---
-type: point
-record: anchor
-id: withdrawn-point
-title: Withdrawn point
-summary: Canonical context for withdrawn point.
-kinds:
-- decision
-posture: asserted
-lifecycle: withdrawn
-areas:
-- area: scope
-  context: "This record affects Scope because canonical context for withdrawn point."
+{
+  "type": "point",
+  "record": "anchor",
+  "id": "withdrawn-point",
+  "title": "Withdrawn point",
+  "summary": "Canonical context for withdrawn point.",
+  "kinds": [
+    "decision"
+  ],
+  "posture": "asserted",
+  "lifecycle": "withdrawn",
+  "areas": [
+    {
+      "area": "scope",
+      "context": "This record affects Scope because canonical context for withdrawn point."
+    }
+  ]
+}
 ---
 
 # Withdrawn point

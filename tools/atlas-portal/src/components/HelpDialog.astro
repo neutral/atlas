@@ -1,0 +1,47 @@
+---
+import { X } from '@lucide/astro';
+---
+
+<dialog id="portal-help" class="help-dialog" aria-labelledby="portal-help-title" aria-describedby="portal-help-intro">
+  <header class="help-header">
+    <h2 id="portal-help-title">Reading this Atlas</h2>
+    <button class="icon-button" type="button" data-close-help aria-label="Close help" autofocus>
+      <X size={20} stroke-width={1.7} aria-hidden="true" />
+    </button>
+  </header>
+  <div class="help-body" role="region" aria-label="Help content" tabindex="0">
+    <p id="portal-help-intro">Atlas connects project documents to the claims, decisions, and perspectives they inform. It helps readers find relevant material and understand why it matters.</p>
+
+    <section class="help-section" aria-labelledby="portal-help-navigation">
+      <h3 id="portal-help-navigation">Explore the portal</h3>
+      <ol class="help-steps">
+        <li>Start with a Map, then narrow the view through its Areas.</li>
+        <li>Search for a phrase, title, or Point identity. Filter results by type.</li>
+        <li>Open a Point for its explanations, related Points, and sources. Follow source links for the underlying material.</li>
+      </ol>
+    </section>
+
+    <section class="help-section" aria-labelledby="portal-help-terms">
+      <h3 id="portal-help-terms">Quick reference</h3>
+      <dl class="help-terms">
+        <div><dt>Map</dt><dd>A durable project perspective organized around one central question.</dd></div>
+        <div><dt>Area</dt><dd>A concern within a Map. Areas can overlap; memberships explain why a Point belongs.</dd></div>
+        <div><dt>Point</dt><dd>One claim, decision, constraint, question, or other coherent item with its own identity.</dd></div>
+        <div><dt>Context</dt><dd>An explanation of how the same Point matters in another Map.</dd></div>
+        <div><dt>Relation</dt><dd>A directed link between Points with an explanation, such as support, dependency, or replacement.</dd></div>
+        <div><dt>Resource</dt><dd>An addressable document or other material.</dd></div>
+        <div><dt>Content</dt><dd>The primary material for an Atlas item.</dd></div>
+        <div><dt>Reference</dt><dd>Material linked as evidence, background, implementation, history, or an example.</dd></div>
+      </dl>
+      <p>Missing links do not mean that no relationship exists.</p>
+    </section>
+
+    <section class="help-section help-standing" aria-labelledby="portal-help-standing">
+      <h3 id="portal-help-standing">Read the state</h3>
+      <p><strong>Posture</strong> describes the author's stance: <strong>asserted</strong> means presented as applicable or believed; <strong>open</strong>, unresolved; <strong>proposed</strong>, a candidate; <strong>intended</strong>, a desired or selected future state.</p>
+      <p><strong>Lifecycle</strong> describes standing: <strong>active</strong> means current context; <strong>historical</strong>, retained prior context; <strong>superseded</strong>, replaced by another Point; <strong>withdrawn</strong>, retracted.</p>
+      <p>Asserted does not mean verified. Intended does not mean implemented. Source links provide material to assess these claims.</p>
+    </section>
+  </div>
+  <footer class="help-footer"><span>After closing: <kbd>/</kbd> to search</span><span><kbd>Esc</kbd> Close help</span></footer>
+</dialog>

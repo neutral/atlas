@@ -1,16 +1,22 @@
 ---
-type: point
-record: anchor
-id: nested-point
-title: Nested point
-summary: Canonical context for nested point.
-kinds:
-- decision
-posture: asserted
-lifecycle: active
-areas:
-- area: scope
-  context: "This record affects Scope because canonical context for nested point."
+{
+  "type": "point",
+  "record": "anchor",
+  "id": "nested-point",
+  "title": "Nested point",
+  "summary": "Canonical context for nested point.",
+  "kinds": [
+    "decision"
+  ],
+  "posture": "asserted",
+  "lifecycle": "active",
+  "areas": [
+    {
+      "area": "scope",
+      "context": "This record affects Scope because canonical context for nested point."
+    }
+  ]
+}
 ---
 
 # Nested point

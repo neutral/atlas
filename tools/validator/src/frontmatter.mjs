@@ -1,5 +1,67 @@
-import YAML,{isAlias,isMap,isPair,isScalar,isSeq} from 'yaml';
-export function splitFrontMatter(text){const lines=text.replace(/\r\n/gu,'\n').split('\n');if(lines[0]!=='---')return{error:'missing',frontMatter:null,body:text};const close=lines.indexOf('---',1);if(close<0)return{error:'unclosed',frontMatter:null,body:''};return{error:null,frontMatter:lines.slice(1,close).join('\n'),body:lines.slice(close+1).join('\n')};}
-export function parseFrontMatter(source){const split=splitFrontMatter(source);if(split.error)return{...split,value:null,errors:[]};const document=YAML.parseDocument(split.frontMatter,{schema:'core',uniqueKeys:true,merge:false,prettyErrors:true,maxAliasCount:0});const errors=[...document.errors.map(e=>e.message),...document.warnings.map(e=>e.message)];if(document.contents)inspectNode(document.contents,errors);let value=null;if(errors.length===0){try{value=document.toJS({maxAliasCount:0,mapAsMap:false});inspectJsonValue(value,'$',errors);}catch(error){errors.push(error instanceof Error?error.message:String(error));}}return{...split,value:errors.length===0?value:null,errors};}
-function inspectNode(node,errors){if(isAlias(node)){errors.push('YAML aliases are not permitted.');return;}if(node?.anchor)errors.push('YAML anchors are not permitted.');if(node?.tag)errors.push('Explicit YAML tags are not permitted.');if(isMap(node)){for(const pair of node.items){if(!isPair(pair)){errors.push('YAML mappings must contain key/value pairs.');continue;}if(!isScalar(pair.key)||typeof pair.key.value!=='string')errors.push('YAML mapping keys must be strings.');else if(pair.key.value==='<<')errors.push('YAML merge keys are not permitted.');inspectNode(pair.key,errors);inspectNode(pair.value,errors);}}else if(isSeq(node))for(const item of node.items)inspectNode(item,errors);else if(isPair(node)){inspectNode(node.key,errors);inspectNode(node.value,errors);}}
-function inspectJsonValue(value,pointer,errors){if(value===null||typeof value==='string'||typeof value==='boolean')return;if(typeof value==='number'){if(!Number.isFinite(value))errors.push(`${pointer} contains a non-finite number.`);return;}if(Array.isArray(value)){value.forEach((item,i)=>inspectJsonValue(item,`${pointer}/${i}`,errors));return;}if(typeof value==='object'){if(Object.getPrototypeOf(value)!==Object.prototype&&Object.getPrototypeOf(value)!==null){errors.push(`${pointer} is outside the JSON data model.`);return;}for(const [key,item] of Object.entries(value))inspectJsonValue(item,`${pointer}/${key.replace(/~/gu,'~0').replace(/\//gu,'~1')}`,errors);return;}errors.push(`${pointer} is outside the JSON data model.`);}
+export function splitFrontMatter(text) {
+  const lines = text.replace(/\r\n/gu, '\n').split('\n');
+  if (lines[0] !== '---') return { error: 'missing', frontMatter: null, body: text };
+  const close = lines.indexOf('---', 1);
+  if (close < 0) return { error: 'unclosed', frontMatter: null, body: '' };
+  return { error: null, frontMatter: lines.slice(1, close).join('\n'), body: lines.slice(close + 1).join('\n') };
+}
+
+export function parseFrontMatter(source) {
+  const split = splitFrontMatter(source);
+  if (split.error) return { ...split, value: null, errors: [] };
+  const errors = [];
+  let value = null;
+  try {
+    JSON.parse(split.frontMatter);
+    value = decodeJsonTokens(split.frontMatter, errors);
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+      errors.push('Front matter must contain one JSON object.');
+    }
+  } catch (error) {
+    errors.push(error instanceof Error ? error.message : String(error));
+  }
+  return { ...split, value: errors.length === 0 ? value : null, errors };
+}
+
+// JSON.parse owns syntax. Decode tokens independently to preserve exact member names.
+function decodeJsonTokens(source, errors) {
+  const containers = [];
+  let root;
+  const append = (value) => {
+    const container = containers.at(-1);
+    if (!container) root = value;
+    else if (container.keys) container.values.push([container.key, value]);
+    else container.values.push(value);
+  };
+  const tokens = /"(?:\\[\s\S]|[^"\\])*"|[{}\[\]]|true|false|null|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/gu;
+  for (const match of source.matchAll(tokens)) {
+    const token = match[0];
+    if (token === '{' || token === '[') {
+      containers.push({ values: [], ...(token === '{' ? { keys: new Set() } : {}) });
+    } else if (token === '}' || token === ']') {
+      const container = containers.pop();
+      append(container.keys ? Object.fromEntries(container.values) : container.values);
+    } else if (token.startsWith('"')) {
+      const text = JSON.parse(token);
+      if (!text.isWellFormed()) errors.push(`A JSON string at offset ${match.index} contains an unpaired Unicode surrogate.`);
+      let next = match.index + token.length;
+      while (/[ \t\r\n]/u.test(source[next] ?? '')) next += 1;
+      if (source[next] === ':') {
+        const container = containers.at(-1);
+        if (container.keys.has(text)) errors.push(`Duplicate JSON object key ${JSON.stringify(text)} at offset ${match.index}.`);
+        container.keys.add(text);
+        container.key = text;
+      } else append(text);
+    } else if (token === 'true' || token === 'false' || token === 'null') {
+      append(token === 'null' ? null : token === 'true');
+    } else {
+      const number = Number(token);
+      if (!Number.isFinite(number)) errors.push(`A JSON number at offset ${match.index} is non-finite.`);
+      else if (Number.isInteger(number) && !Number.isSafeInteger(number)) {
+        errors.push(`A JSON number at offset ${match.index} is an unsafe integer.`);
+      }
+      append(number);
+    }
+  }
+  return root;
+}

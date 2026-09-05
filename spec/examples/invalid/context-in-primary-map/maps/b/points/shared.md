@@ -1,11 +1,16 @@
 ---
-type: point
-record: context
-id: shared
-summary: Map-local context for shared.
-areas:
-- area: scope
-  context: "This record affects Scope because map-local context for shared."
+{
+  "type": "point",
+  "record": "context",
+  "id": "shared",
+  "summary": "Map-local context for shared.",
+  "areas": [
+    {
+      "area": "scope",
+      "context": "This record affects Scope because map-local context for shared."
+    }
+  ]
+}
 ---
 
 # Local context

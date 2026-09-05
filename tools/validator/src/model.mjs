@@ -5,11 +5,11 @@ export class Diagnostic {
   }
 }
 export class ValidationResult {
-  constructor({ profile, specificationRevision='0.7.0', complete=true, diagnostics=[], normalized=null }) {
+  constructor({ profile, specificationRevision='0.8.0', complete=true, diagnostics=[], normalized=null }) {
     this.profile=profile; this.complete=complete; this.diagnostics=[...diagnostics].sort(compareDiagnostics);
     this.valid=complete && !this.diagnostics.some((item)=>item.severity==='error');
     this.specificationRevision=specificationRevision;
-    this.implementation={name:'atlas-reference-validator',version:'0.7.0',status:'working'};
+    this.implementation={name:'atlas-reference-validator',version:'0.8.0',status:'stable'};
     if (normalized !== null && this.valid) this.normalized=normalized;
   }
   toJSON(){ return {profile:this.profile,complete:this.complete,valid:this.valid,specificationRevision:this.specificationRevision,implementation:this.implementation,diagnostics:this.diagnostics,...(this.normalized!==undefined?{normalized:this.normalized}:{})}; }

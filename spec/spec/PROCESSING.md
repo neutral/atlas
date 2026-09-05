@@ -1,6 +1,6 @@
 # Atlas Processing
 
-> Status: Working
+> Status: Released
 
 ## Requirement language
 
@@ -10,13 +10,15 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, 
 
 This document owns deterministic parsing, discovery, body inspection, cross-file resolution, derivation, normalization, and ordering. Atlas Format owns the authored constraints and field meanings that these algorithms consume. Atlas Validation owns profiles, result states, and diagnostic codes. Atlas Checks owns Check syntax and evaluation, and Atlas Publication owns publication behavior. A processing rule does not redefine those contracts. Normative prose has precedence over schemas.
 
-## Text and YAML
+## Text and JSON
 
-Processors decode structural text as strict UTF-8 and reject a byte-order mark or NUL. Front matter opens and closes with a line exactly equal to `---` and contains one YAML 1.2 Core Schema document.
+Processors decode structural text as strict UTF-8 and reject a byte-order mark or NUL. The first line is exactly `---`; the next line exactly equal to `---` closes the front matter. This header region MUST contain exactly one RFC 8259 JSON object.
 
-Processors reject duplicate keys, non-string keys, explicit tags, anchors, aliases, merge keys, recursive values, non-finite numbers, and non-JSON-compatible values.
+Processors MUST reject duplicate member names after JSON escape decoding at every object depth. They MUST reject comments, trailing commas, multiple top-level values, non-object top-level values, and other syntax outside RFC 8259.
 
-Bodies use CommonMark 0.31.2.
+Numbers MUST be finite. Integer values MUST lie within the inclusive range from `-9007199254740991` to `9007199254740991`. Decoded member names and string values MUST NOT contain unpaired Unicode surrogates.
+
+Text after the closing delimiter is the CommonMark 0.31.2 body. Later `---` lines belong to that body.
 
 ## Discovery
 
@@ -24,11 +26,11 @@ Root search selects the nearest ancestor that contains an `atlas.md` file entry.
 
 Discovery does not follow symbolic links, ignores `.git`, package caches and build outputs, stops at nested Atlases, discovers all descendant Maps independently of navigation, and recognizes `.checks` and `.publication` only at root. The two root policy directories contain direct regular Markdown files only.
 
-A Map directly contains `map.md`. Its `points/` directory is direct and contains regular `.md` files only. A `type: point` file outside is invalid.
+A Map directly contains `map.md`. Its `points/` directory is direct and contains regular `.md` files only. A file with `"type": "point"` outside is invalid.
 
 ## Point grouping
 
-After schema validation, processors group Point records by exact id and evaluate the group constraints owned by Atlas Format. The explicit `record` field selects the anchor; discovery order never does. The containing Map of that anchor becomes the primary Map, and every accepted context retains its own containing Map and source path.
+After schema validation, processors MUST group Point records only by exact id and evaluate the group constraints owned by Atlas Format. They MUST NOT merge or alias distinct ids by title, summary, body, shared targets, retrieval score, or other similarity. The explicit `record` field selects the anchor; discovery order never does. The containing Map of that anchor becomes the primary Map, and every accepted context retains its own containing Map and source path.
 
 ## Body inspection
 
@@ -50,7 +52,7 @@ Processors do not retrieve external references. Direct local URIs resolve from t
 
 Resolved processing joins navigation to Maps and records to their containing Maps. It joins contexts to anchors and Area memberships to Areas in the containing Map. It also joins Resource ids to the root registry, relations to Point anchors, local URIs to exact contained regular files, superseded Points to incoming `supersedes` relations, and publication selectors to their exact source units.
 
-Processors build the directed relation graph after Point grouping. They evaluate self-links, duplicate type-and-target pairs, target existence, supersession lifecycle consistency, replacement coverage, and supersession cycles against the constraints owned by Atlas Format.
+Processors build the directed relation graph after Point grouping. Authored anchor relations become outgoing edges. Processors derive incoming relations only as the direct reverse index of those edges. They MUST NOT add reciprocal, transitive, similarity-derived, or other inferred edges. They evaluate self-links, duplicate type-and-target pairs, target existence, supersession lifecycle consistency, replacement coverage, and supersession cycles against the constraints owned by Atlas Format.
 
 ## Derived Map overlap
 
@@ -64,7 +66,7 @@ Maps, Points, Checks, and publication profiles sort by id. Point records place t
 
 ## Normalized model
 
-A normalized Point contains canonical anchor fields, `primaryMap`, `anchorPath`, ordered records, relations, incoming relations, review, and extensions. Each record contains kind, Map, path, summary, explained Area memberships, Content, References, extensions, and body. Each outgoing and incoming relation contains its required note and preserves its authored extensions. Maps contain `anchorPointIds`, `contextPointIds`, and all `pointIds`. Related-Map entries contain the two Map ids and their ordered supporting Point ids.
+A normalized Point contains canonical anchor fields, `primaryMap`, `anchorPath`, ordered records, authored outgoing relations, the direct incoming-relation reverse index, review, and extensions. Each record contains kind, Map, path, summary, explained Area memberships, Content, References, extensions, and body. Each outgoing and incoming relation contains its required note and preserves its authored extensions. Maps contain `anchorPointIds`, `contextPointIds`, and all `pointIds`. Related-Map entries contain the two Map ids and their ordered supporting Point ids.
 
 A normalized result also contains ordered publication profiles with exact resolved Point-record kinds and paths. It MUST conform to `urn:atlas:schema:normalized:1`. Atlas Validation owns whether a validation result may expose that normalized model.
 

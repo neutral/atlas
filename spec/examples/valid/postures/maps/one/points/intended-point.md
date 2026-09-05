@@ -1,16 +1,22 @@
 ---
-type: point
-record: anchor
-id: intended-point
-title: Intended point
-summary: Canonical context for intended point.
-kinds:
-- decision
-posture: intended
-lifecycle: active
-areas:
-- area: scope
-  context: "This record affects Scope because canonical context for intended point."
+{
+  "type": "point",
+  "record": "anchor",
+  "id": "intended-point",
+  "title": "Intended point",
+  "summary": "Canonical context for intended point.",
+  "kinds": [
+    "decision"
+  ],
+  "posture": "intended",
+  "lifecycle": "active",
+  "areas": [
+    {
+      "area": "scope",
+      "context": "This record affects Scope because canonical context for intended point."
+    }
+  ]
+}
 ---
 
 # Intended point

@@ -1,20 +1,29 @@
 ---
-type: point
-record: anchor
-id: new
-title: New point
-summary: Canonical context for new point.
-kinds:
-- decision
-posture: asserted
-lifecycle: active
-areas:
-- area: scope
-  context: "This record affects Scope because canonical context for new point."
-relations:
-- type: supersedes
-  point: old
-  note: "New point supersedes Old point because canonical context for new point."
+{
+  "type": "point",
+  "record": "anchor",
+  "id": "new",
+  "title": "New point",
+  "summary": "Canonical context for new point.",
+  "kinds": [
+    "decision"
+  ],
+  "posture": "asserted",
+  "lifecycle": "active",
+  "areas": [
+    {
+      "area": "scope",
+      "context": "This record affects Scope because canonical context for new point."
+    }
+  ],
+  "relations": [
+    {
+      "type": "supersedes",
+      "point": "old",
+      "note": "New point supersedes Old point because canonical context for new point."
+    }
+  ]
+}
 ---
 
 # New point

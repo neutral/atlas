@@ -1,6 +1,6 @@
 # Reader framework
 
-Atlas Portal supplies one reusable reading application for any conforming Atlas. A project provides Atlas source and a publication profile. Atlas Portal provides validation, compilation, routes, layout, search, responsive behavior, and static output.
+Atlas Portal supplies one reusable reading application driven by Atlas source, a publication profile, and an explicit portal configuration. Atlas Portal provides validation, compilation, routes, layout, search, responsive behavior, and static output. Successful builds establish behavior for the tested inputs; they do not establish universal corpus coverage or reader benefit.
 
 The project does not need an Astro configuration, route tree, component library, search implementation, or custom reader.
 
@@ -21,110 +21,83 @@ The validator owns Atlas parsing and semantic constraints. The portal compiler o
 
 Astro components receive compiled data. They do not scan the Atlas filesystem or infer Atlas semantics from paths and prose.
 
-## Three-panel reader
+The required portal configuration supplies the reader name. Its `name` appears in navigation, the home heading, breadcrumbs, and page titles. The authored Atlas title remains source metadata. It is not a fallback brand.
 
-The application uses three stable panels.
+Optional `copyright` and `license` strings appear as separate plain-text lines in the reader footer. Builders supply the complete wording. Omitted lines stay absent. This presentation does not change source terms or Resource licenses. The [configuration contract](cli.md#portal-configuration) defines accepted values.
 
-### Navigation Panel
+## Explorer layout
 
-The Navigation Panel presents the Atlas title, search, authored Map groups, Maps, and the current Map’s Areas. Search and Checks remain available as global destinations.
+The desktop explorer has a Navigation Panel and one Reader Panel. A white reading surface keeps the authored material central. Related information appears within the reader at the relevant destination.
 
-The panel preserves the Atlas navigation groups when selected Maps remain in those groups. Selected Maps absent from authored groups appear under `Other questions`.
+The Navigation Panel keeps the Atlas home, search, and footer available while its grouped Maps scroll. Each Map links directly to its page. A separate control expands its Areas. The current Map starts expanded. Selected Maps absent from authored groups appear under `Other Maps`.
 
-### Reader Panel
-
-The Reader Panel presents the current Atlas destination or Resource. It is the primary reading surface and owns document scrolling.
-
-Each destination has a stable direct URL. Navigation uses ordinary links, so browser history, opening a link in another tab, and copied URLs work without a client router.
-
-### Context Panel
-
-The Context Panel presents information adjacent to the current destination:
-
-- Atlas pages offer Map questions.
-- Map pages offer Area questions and related Maps.
-- Area pages identify the containing Map and preserve the Area question.
-- Point pages present Maps, Areas, and relations.
-- Resource pages explain which Atlas records use the Resource.
-- Search pages provide type filters and explain the search boundary.
-- Check pages present Check metadata and authority boundaries.
-
-The Context Panel supports navigation without competing with the Reader Panel’s primary content.
+The Reader Panel owns document scrolling. Breadcrumbs identify the current destination type and containing Map where applicable. Every destination has a stable direct URL. Ordinary links preserve browser history, opening in another tab, and copied URLs.
 
 ## Destination behavior
 
 ### Atlas
 
-The Atlas page presents the selected Atlas title, summary, introductory body, and Map questions grouped by authored navigation.
+The overview presents the configured reader name, authored Atlas summary, selected counts, and Maps grouped by authored navigation. Rows pair each Map title and authored summary with Area and Point counts. Atlas Portal omits the root Atlas body and its About section from every generated overview.
 
 ### Map
 
-A Map page presents the Map question, summary, introductory body, and Areas. Each Area entry includes its placement question, Point count, and a short Point sample.
+A Map page presents its title, authored summary, and Areas. Each Area includes its authored summary, selected Point count, and a short Point sample. Its link opens the complete membership list. The complete Map body remains available under `About this Map`.
 
-The Context Panel presents complete Area-question navigation and related Maps derived from shared selected Points.
+Related Maps appear below the main content. Their counts reflect shared selected Points.
 
 ### Area
 
-An Area page presents the Area title and summary, followed by `Points in this Area`. Each Point includes the authored explanation for its Area membership.
-
-The Area placement question remains in the Context Panel. This keeps an authoring-routing prompt available without turning it into the main reader headline.
+An Area page presents its title, authored summary, and complete selected Point membership list. Each Point retains the authored explanation for its membership. The navigation marks the current Area.
 
 ### Point
 
-A Point page presents one Atlas-wide Point destination. Selected Point context appears in sections named by Map. Explained Area memberships remain attached to the relevant Map section.
+A Point page presents one Atlas-wide destination with available authored posture and lifecycle. Point identity remains in the URL and source. Selected records appear in sections named by Map. A section index links to each section when more than one record is selected and to any relations.
 
-The page presents Content and Reference material as labeled links. The Context Panel provides Map navigation, Area explanations, and incoming and outgoing relations.
+Explained Area memberships and labeled Content and Reference links remain with their records. The reader does not repeat each record's underlying Markdown filename. Incoming and outgoing relations follow the record sections. Canonical fields remain absent when the publication omits the anchor.
 
 ### Resource
 
-A Resource page presents the registered Resource title and summary. Supported text Resources open directly in the Reader Panel.
-
-The Context Panel lists Atlas, Map, Area, or Point records that use the Resource and preserves each Content or Reference role.
+A Resource page presents its registered title, summary, and identity. Supported text opens directly in the Reader Panel without repeating its local filename. All selected Atlas, Map, Area, and Point uses follow the document with their Content or Reference roles. A header link jumps to these uses when present. Point and Area uses identify their containing Map in visible context and accessible link names. Point uses link directly to the selected record section.
 
 ### Search
 
-Search matches selected Map, Area, Point, and Resource text. Results retain Atlas types and Map titles. Type filters can narrow the result set without changing the query URL.
+Search matches selected Map, Area, Point, and Resource text. Long Resource text can exceed the indexed excerpt; an absent match does not establish absence from the document. Type filters remain beside the search field at every viewport size. Results retain Atlas types and Map titles. Typing updates the query URL; filters remain local to the current page.
 
-Lexical matches do not create Point identity, Area membership, relations, or Map overlap.
+Map and Area results display authored summaries. Their organizing questions remain searchable.
 
-### Checks
+Search reports the full result count. It initially displays up to 60 results. `Show more results` adds the next group and focuses its first result. Empty queries, unmatched terms, and an empty type selection have distinct guidance. Status changes use a live region.
 
-Checks use a separate `/checks/` surface. The index presents selected Check titles and summaries. A Check page renders its authored Requirement, Verification, Failure, and Exceptions content when present.
+Lexical matches do not create identity, Area membership, relations, or Map overlap.
 
-Checks remain authoring policy. They do not become Map or Point context and do not claim their own evaluation outcome.
+## Reader help
 
-## Desktop and mobile behavior
+The question-mark button opens a quick reference from every destination. It sits at the top right on desktop and beside search in the mobile header. Help introduces navigation and search, defines the Atlas terms used by the reader, and explains Point posture and lifecycle. It distinguishes an assertion from verification and an intended state from implementation.
 
-Desktop layouts show the Navigation Panel, Reader Panel, and Context Panel together. The Context Panel can close to widen the Reader Panel and reopen from a dedicated control.
+Help uses a native modal dialog. Opening it moves focus to its close button and makes the page behind it inactive. Tab reaches the help text for keyboard scrolling. The close button, backdrop, and Escape dismiss it and return focus to the opening button, or the visible help button after a layout change. Opening help preserves the current destination and reading position.
 
-Mobile layouts keep the Reader Panel on screen. The menu button opens the Navigation Panel. A separate right-side button opens the Context Panel. Each overlay returns focus to its trigger when closed.
+## Responsive and keyboard behavior
 
-The `Escape` key closes an open mobile panel. The `/` shortcut focuses Atlas search when another text field is not active.
+Desktop and tablet widths show the Navigation Panel beside the Reader Panel. At 760 pixels or narrower, a compact header offers navigation, search, and help. The navigation button opens a drawer. The background and hidden drawer cannot receive keyboard focus. Tab and Shift+Tab remain inside an open drawer. Closing it with its button, backdrop, or Escape returns focus to the navigation button.
+
+The `/` shortcut focuses search when help is closed and no text field is active. On a mobile destination without a reader search field, it opens the drawer before focusing search. Resizing clears the drawer state and restores access to the appropriate layout. Reduced-motion preferences disable panel transitions and smooth scrolling.
 
 ## Static and browser behavior
 
-Astro generates complete HTML for every destination. Content, headings, links, and document structure exist before JavaScript runs.
+Astro generates complete HTML for every destination. Content, headings, links, authored body disclosures, and document structure exist before JavaScript runs. Search requires JavaScript and exposes that requirement when scripts are disabled.
 
-Plain browser JavaScript handles:
+Markdown headings retain source-document section links. Heading slugs follow GitHub conventions, including duplicate headings and inline formatting. The reader prefixes their IDs to separate authored headings from portal controls and other Point records. Local document and section links use the matching prefix. A source title omitted from visible prose retains its fragment target.
 
-- desktop Context Panel state;
-- mobile panel overlays and focus return;
-- the search keyboard shortcut;
-- URL-backed search terms;
-- search type filters; and
-- local result rendering.
-
-The application does not require React, Vue, or another client application framework.
+TypeScript browser modules handle Area expansion, the mobile drawer, reader help, keyboard focus, query URLs, type filters, and search results. Astro emits browser JavaScript from those modules. The application does not require React, Vue, or another client application framework.
 
 ## Semantic boundary
 
-Atlas Portal preserves authored Atlas meaning. It does not merge Point identities, invent relations, turn lexical matches into semantic edges, import unselected source units, or widen a publication profile.
+Atlas Portal preserves authored Atlas meaning. It does not merge Point identities, invent relations, import unselected source units, or widen a publication profile. Presentation can arrange selected information for reading. It cannot change the model that supplied that information.
 
-Presentation can arrange selected information for reading. It cannot change the Atlas model that supplied that information.
+Reader introductions use existing authored summaries. Organizing and placement questions remain in Atlas source. The build does not rewrite questions or generate descriptive claims. Atlas maintenance owns summary wording. Publication profiles own selection.
+
+Checks remain part of complete Atlas validation. Their definitions are excluded from the compiled reader payload, routes, navigation, and search. Authoring policy does not become a separate reader destination.
 
 ## Run the framework
-
-Use the standalone repository commands for local development, static builds, and previews:
 
 - [Getting started](getting-started.md)
 - [Command-line reference](cli.md)

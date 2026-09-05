@@ -1,18 +1,25 @@
 ---
-type: point
-record: anchor
-id: service-boundary
-title: Service boundary
-summary: Canonical context for service boundary.
-kinds:
-- decision
-posture: asserted
-lifecycle: active
-areas:
-- area: scope
-  context: "This record affects Scope because canonical context for service boundary."
-review:
-  reviewed-at: 2026-02-30
+{
+  "type": "point",
+  "record": "anchor",
+  "id": "service-boundary",
+  "title": "Service boundary",
+  "summary": "Canonical context for service boundary.",
+  "kinds": [
+    "decision"
+  ],
+  "posture": "asserted",
+  "lifecycle": "active",
+  "areas": [
+    {
+      "area": "scope",
+      "context": "This record affects Scope because canonical context for service boundary."
+    }
+  ],
+  "review": {
+    "reviewed-at": "2026-02-30"
+  }
+}
 ---
 
 # Service boundary

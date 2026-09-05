@@ -1,17 +1,20 @@
 ---
-type: check
-id: canonical-integration
-title: Integrate source material into canonical context
-summary: Require supplied material to be decomposed, accounted for, and placed in canonical, contextual, Resource, or explicit non-integration roles.
-status: active
-level: required
-applies-to:
-- atlas
-- map
-- area
-- point-anchor
-- point-context
-- resource
+{
+  "type": "check",
+  "id": "canonical-integration",
+  "title": "Integrate source material into canonical context",
+  "summary": "Require supplied material to be decomposed, accounted for, and placed in canonical, contextual, Resource, or explicit non-integration roles.",
+  "status": "active",
+  "level": "required",
+  "applies-to": [
+    "atlas",
+    "map",
+    "area",
+    "point-anchor",
+    "point-context",
+    "resource"
+  ]
+}
 ---
 
 # Integrate source material into canonical context

@@ -20,6 +20,22 @@
       "expected": "valid/cross-map/expected.normalized.json"
     },
     {
+      "path": "valid/similar-distinct-points",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": true,
+      "description": "Distinct exact Point ids remain separate despite identical titles, summaries, and bodies.",
+      "diagnostics": []
+    },
+    {
+      "path": "valid/nontransitive-relations",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": true,
+      "description": "Only authored relation edges and their direct incoming reverse entries are normalized.",
+      "diagnostics": []
+    },
+    {
       "path": "valid/explained-area-context",
       "profile": "neutral.atlas-validator.resolved",
       "complete": true,
@@ -94,7 +110,7 @@
       "profile": "neutral.atlas-validator.resolved",
       "complete": true,
       "valid": false,
-      "description": "An anchor body must contain a substantive Markdown block.",
+      "description": "If an anchor body is authored, it must contain a substantive Markdown block.",
       "diagnostics": [
         "atlas.point.anchor-body-empty"
       ]
@@ -432,53 +448,93 @@
       ]
     },
     {
-      "path": "invalid/yaml-anchor",
+      "path": "invalid/json-duplicate-key",
       "profile": "neutral.atlas-validator.resolved",
       "complete": true,
       "valid": false,
-      "description": "Invalid fixture for yaml anchor.",
+      "description": "Duplicate object names are rejected after escape decoding, including nested objects.",
       "diagnostics": [
-        "atlas.frontmatter.invalid-yaml"
+        "atlas.frontmatter.invalid-json"
       ]
     },
     {
-      "path": "invalid/yaml-duplicate-key",
+      "path": "invalid/json-comment",
       "profile": "neutral.atlas-validator.resolved",
       "complete": true,
       "valid": false,
-      "description": "Invalid fixture for yaml duplicate key.",
+      "description": "JSON comments are rejected.",
       "diagnostics": [
-        "atlas.frontmatter.invalid-yaml"
+        "atlas.frontmatter.invalid-json"
       ]
     },
     {
-      "path": "invalid/yaml-explicit-tag",
+      "path": "invalid/json-trailing-comma",
       "profile": "neutral.atlas-validator.resolved",
       "complete": true,
       "valid": false,
-      "description": "Invalid fixture for yaml explicit tag.",
+      "description": "Trailing commas are rejected.",
       "diagnostics": [
-        "atlas.frontmatter.invalid-yaml"
+        "atlas.frontmatter.invalid-json"
       ]
     },
     {
-      "path": "invalid/yaml-merge-key",
+      "path": "invalid/json-multiple-values",
       "profile": "neutral.atlas-validator.resolved",
       "complete": true,
       "valid": false,
-      "description": "Invalid fixture for yaml merge key.",
+      "description": "The header contains exactly one JSON object.",
       "diagnostics": [
-        "atlas.frontmatter.invalid-yaml"
+        "atlas.frontmatter.invalid-json"
       ]
     },
     {
-      "path": "invalid/yaml-non-string-key",
+      "path": "invalid/json-non-object",
       "profile": "neutral.atlas-validator.resolved",
       "complete": true,
       "valid": false,
-      "description": "Invalid fixture for yaml non string key.",
+      "description": "A top-level array is not a JSON header object.",
       "diagnostics": [
-        "atlas.frontmatter.invalid-yaml"
+        "atlas.frontmatter.invalid-json"
+      ]
+    },
+    {
+      "path": "invalid/json-non-finite-number",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Numbers that decode outside the finite IEEE-754 range are rejected.",
+      "diagnostics": [
+        "atlas.frontmatter.invalid-json"
+      ]
+    },
+    {
+      "path": "invalid/json-unsafe-integer",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Integers outside the safe interoperable range are rejected.",
+      "diagnostics": [
+        "atlas.frontmatter.invalid-json"
+      ]
+    },
+    {
+      "path": "invalid/json-unpaired-surrogate",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Unpaired surrogates in decoded JSON strings are rejected.",
+      "diagnostics": [
+        "atlas.frontmatter.invalid-json"
+      ]
+    },
+    {
+      "path": "invalid/yaml-frontmatter",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "YAML mapping syntax is not accepted as JSON front matter.",
+      "diagnostics": [
+        "atlas.frontmatter.invalid-json"
       ]
     },
     {

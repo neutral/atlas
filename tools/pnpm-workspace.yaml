@@ -2,6 +2,8 @@ packages:
   - "atlas-portal"
   - "validator"
 
+storeDir: .pnpm-store
+enableGlobalVirtualStore: false
 minimumReleaseAge: 10080
 minimumReleaseAgeStrict: true
 minimumReleaseAgeIgnoreMissingTime: false
@@ -23,3 +25,7 @@ savePrefix: ""
 allowBuilds:
   esbuild: true
   workerd: true
+
+# Keep Ajv's transitive URI parser patched until its minimum excludes fast-uri 3.1.5.
+overrides:
+  'ajv>fast-uri': 3.1.6

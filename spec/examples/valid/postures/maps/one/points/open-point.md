@@ -1,16 +1,22 @@
 ---
-type: point
-record: anchor
-id: open-point
-title: Open point
-summary: Canonical context for open point.
-kinds:
-- decision
-posture: open
-lifecycle: active
-areas:
-- area: scope
-  context: "This record affects Scope because canonical context for open point."
+{
+  "type": "point",
+  "record": "anchor",
+  "id": "open-point",
+  "title": "Open point",
+  "summary": "Canonical context for open point.",
+  "kinds": [
+    "decision"
+  ],
+  "posture": "open",
+  "lifecycle": "active",
+  "areas": [
+    {
+      "area": "scope",
+      "context": "This record affects Scope because canonical context for open point."
+    }
+  ]
+}
 ---
 
 # Open point

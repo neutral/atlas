@@ -1,14 +1,17 @@
 ---
-type: check
-id: standing-and-evidence
-title: Align standing with recorded support
-summary: Require changed claims, posture, lifecycle, relations, Content, and References to match the support available at the evaluated baseline.
-status: active
-level: required
-applies-to:
-- point-anchor
-- point-context
-- resource
+{
+  "type": "check",
+  "id": "standing-and-evidence",
+  "title": "Align standing with recorded support",
+  "summary": "Require changed claims, posture, lifecycle, relations, Content, and References to match the support available at the evaluated baseline.",
+  "status": "active",
+  "level": "required",
+  "applies-to": [
+    "point-anchor",
+    "point-context",
+    "resource"
+  ]
+}
 ---
 
 # Align standing with recorded support
@@ -22,6 +25,8 @@ Format validity, a passing Check, self-description, and repeated assertion are n
 ## Verification
 
 Inspect each changed claim, posture, lifecycle, relation note, Content target, and Reference against the available source or observed evidence under caller-provided authority. Record the evidence boundary and any inaccessible source. Compare the claim's wording with what that evidence establishes, and confirm that uncertainty, contrary evidence, and review triggers remain visible where they affect use.
+
+Inspect affected overviews, summaries, and Resource prose for stronger or stale versions of the same claim. A precise anchor does not repair a conflicting overview.
 
 ## Failure
 

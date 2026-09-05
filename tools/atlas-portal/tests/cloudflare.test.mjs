@@ -12,6 +12,7 @@ test('Cloudflare arguments preserve explicit publication inputs', () => {
     'deploy',
     '--atlas', '/project/atlas',
     '--profile', 'internal-view',
+    '--portal-config', '/project/portal.json',
     '--resource-root', '/project',
     '--resource-root', '/shared',
     '--config', '/project/wrangler.jsonc',
@@ -24,6 +25,7 @@ test('Cloudflare arguments preserve explicit publication inputs', () => {
   assert.deepEqual(parsed.options, {
     atlas: '/project/atlas',
     profile: 'internal-view',
+    portalConfig: '/project/portal.json',
     resourceRoots: ['/project', '/shared'],
     config: '/project/wrangler.jsonc',
     outDir: '/project/site',

@@ -1,6 +1,6 @@
 # Atlas Checks
 
-> Status: Working
+> Status: Released
 
 ## Requirement language
 
@@ -8,36 +8,30 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, 
 
 ## Scope and ownership
 
-This document owns Check-specific fields, body structure, and evaluation meaning. Atlas Format owns Check placement in the authored tree and the identifier-to-filename constraint. Atlas Processing owns structural inspection. Atlas Validation owns diagnostics for malformed Checks. Atlas Conformance owns Check-compliance claims. A Check's project-specific Requirement remains outside generic format semantics.
+This document owns project-local write policy and optional audit reports. Format owns file placement; Processing owns structural inspection; Validation owns diagnostics; Conformance owns compliance claims.
 
-## Purpose
-
-Projects define Checks as authoring policy for evaluation before an Atlas change is committed. Checks are part of the write system, not mapped context, and cannot grant authority.
+Core defines identity, canonical fields, state, explained edges, and authority boundaries. Checks add local demands such as mandatory Area placement, evidence, substantive prose, review, or extension classifications. Checks MUST NOT redefine core meaning or grant authority. A catalog Check governs only after adoption in an Atlas.
 
 ## Authored Check contract
 
-Atlas Format defines the structural location and file constraints for Checks. A Check that satisfies those structural rules MUST conform to `urn:atlas:schema:check:1`.
+A Check MUST conform to `urn:atlas:schema:check:1`. It requires type, id, title, summary, status, level, and `applies-to`.
 
-It MUST declare type, id, title, summary, status, level, and `applies-to`.
+Status is `draft`, `active`, or `retired`. Level is `required` or `advisory`. Applicability values are `atlas`, `map`, `area`, `point-anchor`, `point-context`, `resource`, `check`, and `publication`.
 
-Status is `draft`, `active`, or `retired`.
+The body MUST contain exactly these level-two headings in order: `Requirement`, `Verification`, `Failure`, and optional `Exceptions`. Required sections MUST contain actionable, non-blank content. State additional policy rather than repeating format constraints.
 
-Level is `required` or `advisory`.
+## Ordinary evaluation
 
-Applicability values are `atlas`, `map`, `area`, `point-anchor`, `point-context`, `resource`, `check`, and `publication`.
+Evaluate applicable active Checks against the actual change. Draft and retired Checks do not govern. Report `pass` only after completing Verification with evidence supporting the exact Requirement. Report `fail` when the Requirement fails and `unable` when evidence, capability, or authority is insufficient. Do not use `not-applicable` to bypass an applicable active Check.
 
-## Body contract
+Every applicable active required Check MUST pass before a Check-compliance claim. Advisory outcomes remain visible but do not block by themselves. An unverified Check cannot be treated as passed. Proxy measurements establish only the measured property, not truth, completeness, usefulness, or product value.
 
-The body MUST contain exactly these level-two headings in order: `Requirement`, `Verification`, `Failure`, and optional `Exceptions`. Each required section MUST contain actionable, non-blank content.
+Ordinary evaluation requires no stored report, baseline artifact, approval process, or change workflow. A Check can require specific evidence or review. This does not make that requirement universal.
 
-## Evaluation contract
+## Audit reports
 
-An evaluation conforms to `urn:atlas:schema:check-evaluation:1`. It records Atlas identity, Check identity, content revision, status, and level. It also records an immutable baseline, an atomic change set and its paths, exact applicable subjects, evidence, outcome, diagnostics, and evaluator identity. Outcome is `pass`, `fail`, `unable`, or `not-applicable`.
+When an audit report is requested or required by local policy, it MUST conform to `urn:atlas:schema:check-evaluation:1`.
 
-An evaluator MUST use `not-applicable` for draft and retired Checks. It MUST NOT use `not-applicable` to bypass an active Check. It MUST use `unable` when it lacks the authority or evidence needed to complete the stated Verification. A failed or unable evaluation MUST include at least one diagnostic. A passing or not-applicable evaluation MUST contain no diagnostics.
+A report records Atlas and Check identities, Check revision, status, level, immutable baseline, atomic change set and paths, exact subjects, evidence, diagnostics, outcome, and evaluator. Outcomes are `pass`, `fail`, `unable`, and `not-applicable`. Draft and retired Checks use `not-applicable`. Failed or unable outcomes require diagnostics; passing and not-applicable outcomes contain none. Passing outcomes require supporting evidence.
 
-An evaluator MUST report `pass` only after it completes the stated Verification. A passing evaluation MUST contain evidence that supports the exact Requirement for the recorded baseline, change set, and subjects. An evaluator MUST NOT present a proxy measurement as proof of semantic truth, completeness, usefulness, or product value unless the Requirement claims only that measurement.
-
-An active required Check MUST have outcome `pass` before a Check-compliance claim. The claim covers only the recorded baseline, atomic change set, subjects, Check revisions, evaluator, and evidence. Evaluators report active advisory Checks, but those Checks do not block by themselves. Draft and retired Checks do not govern.
-
-Checks can govern Map quality, Point substance and context integrity, Area placement, state transitions, relations, evidence, contract synchronization, terminology, confidentiality, and publication-profile maintenance. Passing Checks do not convert format validity into a general semantic-quality claim. Checks cannot redefine standard fields or grant access.
+An audited compliance claim covers only the recorded baseline, change set, subjects, Check revisions, evaluator, and evidence.

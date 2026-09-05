@@ -1,4 +1,6 @@
 ---
-type: point
-record: anchor
-id: service-boundary
+{
+  "type": "point",
+  "record": "anchor",
+  "id": "service-boundary"
+}

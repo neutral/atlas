@@ -1,28 +1,45 @@
 ---
-type: point
-record: anchor
-id: edge-authentication
-title: Authenticate at the edge
-summary: Canonical context for authenticate at the edge.
-kinds:
-- decision
-posture: asserted
-lifecycle: active
-areas:
-- area: boundary
-  context: "This record affects Boundary because canonical context for authenticate at the edge."
-- area: security
-  context: "This record affects Security because canonical context for authenticate at the edge."
-relations:
-- type: supports
-  point: rotate-edge-keys
-  note: The boundary requires an operational key rotation practice.
-  x-origin: architecture-review
-content:
-- resource: authentication-guide
-references:
-- uri: https://example.com/security-model
-  role: evidence
+{
+  "type": "point",
+  "record": "anchor",
+  "id": "edge-authentication",
+  "title": "Authenticate at the edge",
+  "summary": "Canonical context for authenticate at the edge.",
+  "kinds": [
+    "decision"
+  ],
+  "posture": "asserted",
+  "lifecycle": "active",
+  "areas": [
+    {
+      "area": "boundary",
+      "context": "This record affects Boundary because canonical context for authenticate at the edge."
+    },
+    {
+      "area": "security",
+      "context": "This record affects Security because canonical context for authenticate at the edge."
+    }
+  ],
+  "relations": [
+    {
+      "type": "supports",
+      "point": "rotate-edge-keys",
+      "note": "The boundary requires an operational key rotation practice.",
+      "x-origin": "architecture-review"
+    }
+  ],
+  "content": [
+    {
+      "resource": "authentication-guide"
+    }
+  ],
+  "references": [
+    {
+      "uri": "https://example.com/security-model",
+      "role": "evidence"
+    }
+  ]
+}
 ---
 
 # Authenticate at the edge

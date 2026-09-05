@@ -1,6 +1,6 @@
 # Atlas Conformance
 
-> Status: Working
+> Status: Released
 
 ## Requirement language
 
@@ -8,18 +8,18 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, 
 
 ## Scope and ownership
 
-This document owns the conditions and limits of conformance claims. It refers to Atlas Format, Processing, Validation, Checks, and Publication for the underlying rules. It does not restate ownership of those rules. An implementation can claim only a conformance class whose complete requirements it satisfies.
+This document owns conformance claims. Format, Processing, Validation, Checks, and Publication own the underlying rules. An implementation can claim only a class whose complete requirements it satisfies.
 
-An Atlas document set is format-conformant when a conforming validator reports a complete valid resolved result for a declared revision. Format conformance establishes compliance with Atlas Format under Atlas Processing and Validation. It does not establish semantic truth, completeness, usefulness, Check compliance, or product value.
+An Atlas document set is format-conformant when a conforming validator reports a complete valid resolved result for a declared revision. This establishes format constraints, not semantic truth, completeness, usefulness, Check compliance, or product value.
 
-A validator conforms when it implements the structural and resolved profiles, including publication-profile validation and resolution, and agrees with every required fixture. It produces deterministic results and validates its results and normalized output against the standard output schemas. It withholds normalized output from invalid or incomplete results and does not overclaim processing.
+A validator conforms when it implements structural and resolved profiles, including publication-profile resolution, and agrees with every required fixture. It produces deterministic diagnostics and schema-valid results and normalized output. Invalid or incomplete results expose no normalized model.
 
-An atomic Atlas change is Check-compliant when it is format-conformant and every applicable active required Check passes for the exact recorded baseline, change set, subjects, Check revisions, evaluator, and evidence. Check compliance does not establish claims outside those recorded requirements.
+An Atlas change is Check-compliant when it is format-conformant and every applicable active required Check has been verified and passed for that change. The claim covers only those requirements; it requires no stored audit artifact. An audited Check-compliance claim additionally requires the report and exact evidence scope defined in [Checks](CHECKS.md#audit-reports). Optional reporting never makes required Verification optional.
 
-An authoring tool conforms when it preserves the author's Map and Point-identity decisions and all extensions. It creates valid anchor and context records with explained Area memberships. It evaluates applicable active Checks, validates the result, and does not infer authority from content.
+An authoring tool conforms when it follows [Working with Atlas](../OPERATING.md), preserves authored Map and Point-identity decisions and extensions, and creates valid records. Before writing a Point record, it exposes the selected exact Point id and record kind, plus anchor provenance for an existing identity. Similarity supplies candidates only; the tool MUST NOT merge ids or decide identity or record kind from similarity alone. It preserves explained memberships and relations when present, evaluates applicable active Checks, validates the result, and infers no authority from content.
 
-A consumer preserves Maps, Area questions and explained memberships, anchor/context records, primary Map, state, relation notes, Content, References, Resources, Check boundaries, and publication selections. It cannot present a context as another Point identity or erase provenance.
+A consumer conforms when it preserves Map and Area questions, explained memberships, anchor/context records, primary Map, state, relation notes, Content, References, Resources, Check boundaries, and publication selections. It MUST NOT present context as another identity, merge distinct ids, or erase provenance. Missing relations establish no absence of relationship or impact. Task-specific selection may be partial when it preserves the selected meaning and makes known gaps explicit.
 
-Publication-profile support is part of format and validator conformance. The specification set defines no publication-build, publisher, or portal conformance class. Any such claim requires its own named contract and cannot follow from a valid profile or format conformance.
+Publication-profile support belongs to format and validator conformance. There is no publication-build, publisher, or portal conformance class. A valid profile does not establish build or serving guarantees.
 
-Independent interoperability requires a second implementation to consume normative schemas and valid fixtures without importing the reference validator implementation. A read-only processor demonstrates consumer interoperability when it produces schema-valid normalized output and agrees exactly with pinned and reference output. It does not claim validator conformance unless it also agrees with every required invalid-fixture outcome and diagnostic.
+Independent interoperability requires a second implementation to consume normative schemas and valid fixtures without importing the reference implementation. A read-only processor demonstrates consumer interoperability through schema-valid normalized output matching pinned and reference output. Validator conformance additionally requires agreement on every required invalid-fixture outcome and diagnostic.

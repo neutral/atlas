@@ -1,13 +1,16 @@
 ---
-type: check
-id: boundary
-title: Preserve Map boundaries
-summary: Maps must remain question-led semantic domains.
-status: active
-level: required
-applies-to:
-- map
-- area
+{
+  "type": "check",
+  "id": "boundary",
+  "title": "Preserve Map boundaries",
+  "summary": "Maps must remain question-led semantic domains.",
+  "status": "active",
+  "level": "required",
+  "applies-to": [
+    "map",
+    "area"
+  ]
+}
 ---
 
 # Preserve Map boundaries

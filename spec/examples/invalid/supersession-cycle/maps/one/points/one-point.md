@@ -1,20 +1,29 @@
 ---
-type: point
-record: anchor
-id: one-point
-title: One point
-summary: Canonical context for one point.
-kinds:
-- decision
-posture: asserted
-lifecycle: superseded
-areas:
-- area: scope
-  context: "This record affects Scope because canonical context for one point."
-relations:
-- type: supersedes
-  point: two-point
-  note: "One point supersedes Two point because canonical context for one point."
+{
+  "type": "point",
+  "record": "anchor",
+  "id": "one-point",
+  "title": "One point",
+  "summary": "Canonical context for one point.",
+  "kinds": [
+    "decision"
+  ],
+  "posture": "asserted",
+  "lifecycle": "superseded",
+  "areas": [
+    {
+      "area": "scope",
+      "context": "This record affects Scope because canonical context for one point."
+    }
+  ],
+  "relations": [
+    {
+      "type": "supersedes",
+      "point": "two-point",
+      "note": "One point supersedes Two point because canonical context for one point."
+    }
+  ]
+}
 ---
 
 # One point

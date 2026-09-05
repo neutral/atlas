@@ -1,22 +1,33 @@
 ---
-type: point
-record: anchor
-id: rotate-edge-keys
-title: Rotate edge keys
-summary: Canonical context for rotate edge keys.
-kinds:
-- decision
-posture: asserted
-lifecycle: active
-areas:
-- area: runtime
-  context: "This record affects Runtime because canonical context for rotate edge keys."
-- area: security
-  context: "This record affects Security because canonical context for rotate edge keys."
-relations:
-- type: depends-on
-  point: edge-authentication
-  note: Rotation exists to preserve the edge boundary.
+{
+  "type": "point",
+  "record": "anchor",
+  "id": "rotate-edge-keys",
+  "title": "Rotate edge keys",
+  "summary": "Canonical context for rotate edge keys.",
+  "kinds": [
+    "decision"
+  ],
+  "posture": "asserted",
+  "lifecycle": "active",
+  "areas": [
+    {
+      "area": "runtime",
+      "context": "This record affects Runtime because canonical context for rotate edge keys."
+    },
+    {
+      "area": "security",
+      "context": "This record affects Security because canonical context for rotate edge keys."
+    }
+  ],
+  "relations": [
+    {
+      "type": "depends-on",
+      "point": "edge-authentication",
+      "note": "Rotation exists to preserve the edge boundary."
+    }
+  ]
+}
 ---
 
 # Rotate edge keys

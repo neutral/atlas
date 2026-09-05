@@ -1,16 +1,22 @@
 ---
-type: point
-record: anchor
-id: old
-title: Old point
-summary: Canonical context for old point.
-kinds:
-- decision
-posture: asserted
-lifecycle: active
-areas:
-- area: scope
-  context: "This record affects Scope because canonical context for old point."
+{
+  "type": "point",
+  "record": "anchor",
+  "id": "old",
+  "title": "Old point",
+  "summary": "Canonical context for old point.",
+  "kinds": [
+    "decision"
+  ],
+  "posture": "asserted",
+  "lifecycle": "active",
+  "areas": [
+    {
+      "area": "scope",
+      "context": "This record affects Scope because canonical context for old point."
+    }
+  ]
+}
 ---
 
 # Old point

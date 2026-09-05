@@ -7,7 +7,7 @@ Atlas Portal supports Cloudflare as an optional deployment target. The integrati
 The deployment path is:
 
 ```text
-Atlas + publication profile + Resource roots
+Atlas + publication profile + portal configuration + Resource roots
   -> Atlas Portal validation and static build
   -> dist/
   -> Wrangler local workerd or Cloudflare upload
@@ -49,6 +49,8 @@ The included `wrangler.jsonc` uses:
 
 Change the Worker name before using the configuration for a project. The `--name` option can override it for one command.
 
+The required `--portal-config` file supplies the reader name through a JSON object such as `{ "name": "Project Atlas" }`. It also accepts optional copyright and license footer lines. The [portal configuration](cli.md#portal-configuration) is separate from Wrangler configuration. `--config` selects the Wrangler file, and `--name` sets the Worker name. Neither supplies a default reader name.
+
 `404-page` serves the generated `404.html` with status `404` when no asset matches. `auto-trailing-slash` matches Atlas Portal’s directory-form routes and redirects noncanonical HTML paths.
 
 Keep the Wrangler file as the source of truth for Worker names, assets, routes, and environments. Dashboard changes to the same fields can drift or be replaced by a later Wrangler deployment.
@@ -58,16 +60,16 @@ Keep the Wrangler file as the source of truth for Worker names, assets, routes, 
 Install Atlas Portal first:
 
 ```text
-corepack enable
-pnpm --dir tools install --frozen-lockfile
+corepack pnpm@11.22.0 --dir tools install --frozen-lockfile
 ```
 
 Build the selected Atlas and start local `workerd`:
 
 ```text
-pnpm --dir tools --filter atlas-portal cloudflare:dev -- \
+corepack pnpm@11.22.0 --dir tools --filter atlas-portal cloudflare:dev -- \
   --atlas "/absolute/path/to/project/atlas" \
   --profile public \
+  --portal-config "/absolute/path/to/project/portal.json" \
   --resource-root "/absolute/path/to/project" \
   --host 127.0.0.1 \
   --port 8787 \
@@ -78,12 +80,12 @@ Open `http://127.0.0.1:8787/`. The command runs Wrangler with `--local`, disable
 
 This path differs from `atlas-portal dev`. Astro development serves source-oriented feedback at port `4321`. Wrangler serves the completed `dist/` output through Cloudflare’s local runtime at port `8787`. Use Astro while developing the reader. Use Wrangler before deployment to verify Cloudflare routing and response behavior.
 
-Restart the command after changing an Atlas record, publication profile, selected Resource, portal source, `_headers`, or Wrangler configuration. The command builds once before the server starts.
+Restart the command after changing an Atlas record, publication profile, selected Resource, portal configuration, portal source, `_headers`, or Wrangler configuration. The command builds once before the server starts.
 
 Verify at least:
 
 - `/` returns the Atlas landing page;
-- Map, Area, Point, Resource, search, and Check routes open directly;
+- Map, Area, Point, Resource, and search routes open directly;
 - a nonexistent path returns status `404` and the generated not-found page;
 - canonical directory routes preserve trailing slashes;
 - the response includes the expected security headers; and
@@ -94,9 +96,10 @@ Verify at least:
 Run a full build and Wrangler deployment dry run:
 
 ```text
-pnpm --dir tools --filter atlas-portal cloudflare:deploy:dry-run -- \
+corepack pnpm@11.22.0 --dir tools --filter atlas-portal cloudflare:deploy:dry-run -- \
   --atlas "/absolute/path/to/project/atlas" \
   --profile public \
+  --portal-config "/absolute/path/to/project/portal.json" \
   --resource-root "/absolute/path/to/project" \
   --name project-atlas
 ```
@@ -108,8 +111,8 @@ This validates the Wrangler configuration and packages the static asset deployme
 For an interactive local deployment:
 
 ```text
-pnpm --dir tools --filter atlas-portal exec wrangler login
-pnpm --dir tools --filter atlas-portal exec wrangler whoami
+corepack pnpm@11.22.0 --dir tools --filter atlas-portal exec wrangler login
+corepack pnpm@11.22.0 --dir tools --filter atlas-portal exec wrangler whoami
 ```
 
 For CI, set `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` in the CI secret store. Scope the API token to the intended account, zone, and Worker permissions. Never store credentials in `wrangler.jsonc`, Atlas records, publication profiles, package scripts, or committed environment files.
@@ -119,9 +122,10 @@ For CI, set `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` in the CI secret 
 Deploy a generated portal to Workers Static Assets:
 
 ```text
-pnpm --dir tools --filter atlas-portal cloudflare:deploy -- \
+corepack pnpm@11.22.0 --dir tools --filter atlas-portal cloudflare:deploy -- \
   --atlas "/absolute/path/to/project/atlas" \
   --profile public \
+  --portal-config "/absolute/path/to/project/portal.json" \
   --resource-root "/absolute/path/to/project" \
   --name project-atlas
 ```
@@ -182,7 +186,7 @@ Images, R2, and KV may become useful if a future portal publishes large attachme
 
 ## Platform limits
 
-Before deployment, check the generated asset inventory against current Workers limits. Cloudflare currently limits each static asset to 25 MiB and the number of files per Worker version according to the account plan. Atlas Portal already avoids copying unsupported or oversized Resource bytes, but a large publication can still produce many HTML routes.
+Before deployment, check the generated asset inventory against the [current Workers limits](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/) for the account plan. Atlas Portal avoids copying unsupported or oversized Resource bytes, but a large publication can still produce many HTML routes.
 
 Use Wrangler’s dry run and the Cloudflare dashboard to review the deployment before changing the live endpoint.
 

@@ -1,26 +1,28 @@
 # Atlas
 
-> Portable, navigable project context for people and software agents · CC0 1.0 Universal
+> Portable, navigable project context for people and software agents · CC0 1.0 Universal or Zero-Clause BSD
 
-Atlas makes the context between project documents explicit, portable, and navigable.
+Atlas connects project material to the decisions, questions, and perspectives it informs without moving or duplicating that material. Stable identities, explained connections, and explicit state support both absorption and routing.
 
-Atlas helps people and software agents connect project documents to the decisions, questions, and perspectives they inform. It makes that context navigable without moving or duplicating the documents.
+This repository publishes the Atlas specification, reusable Checks, the reference validator, and Atlas Portal. The current public release is **v0.8.0**. It defines Atlas format 1.
 
-It gives those connections stable identity, explained context, explicit state and relations, and deterministic validation.
+## Work with Atlas
 
-This repository publishes the Atlas specification, reusable Checks, the reference validator, and Atlas Portal. The current public release is **v0.7.0**. It is a pre-1.0 working release and defines Atlas format 1.
+Start with [Working with Atlas](spec/OPERATING.md), then the [copyable example](spec/examples/starter/README.md). The [minimal Atlas](spec/examples/valid/minimal/atlas.md) is sufficient for a one-Map start. Load field details and local Checks only when needed.
+
+Atlas records use JSON front matter between `---` delimiter lines and Markdown bodies. Absorb makes the smallest useful contribution, including no edit for repeated meaning. Route returns relevant context and sources. Neither needs a runtime, publication setup, or a mandatory Check catalog.
 
 ## Portable context model
 
 - An **Atlas** is one portable boundary and namespace.
 - A **Map** is a question-led semantic and authoring domain.
 - An **Area** is an overlapping Map-local question. Each membership explains how a Point record affects that question.
-- A **Point** combines exactly one anchor record with optional same-named context records under one Atlas-wide identity.
+- A **Point** combines one anchor with optional same-named context records under one Atlas-wide identity. Shared subject matter alone is not shared identity.
 - A **Resource** identifies addressable project material without moving or duplicating it.
-- **Checks** define Atlas-local write policy.
+- **Checks** add adopted local write requirements without redefining meaning or granting authority.
 - A **publication profile** selects the Atlas records and registered Resources eligible for publication.
 
-Atlas Portal uses this validated model to generate document, Map, Area, Point, relation, Check, and search navigation without project-specific UI development.
+Atlas Portal uses this validated model to generate document, Map, Area, Point, relation, and search navigation without project-specific UI development.
 
 ## Repository layout
 
@@ -34,7 +36,7 @@ The specification and Atlas files can be used without installing these tools.
 
 ## Specification
 
-Start with:
+Load these reference contracts as needed:
 
 - the [conceptual specification](spec/SPEC.md);
 - the [glossary](spec/GLOSSARY.md);
@@ -52,16 +54,22 @@ Atlas Portal validates one Atlas, applies one publication profile, and generates
 Install the optional tools:
 
 ```text
-corepack enable
-pnpm --dir tools install --frozen-lockfile
+corepack pnpm@11.22.0 --dir tools install --frozen-lockfile
+```
+
+Create a Portal configuration file, for example `/absolute/path/to/portal.json`:
+
+```json
+{ "name": "Atlas" }
 ```
 
 Start a local portal:
 
 ```text
-pnpm --dir tools --filter atlas-portal dev -- \
+corepack pnpm@11.22.0 --dir tools --filter atlas-portal dev -- \
   --atlas "/absolute/path/to/project/atlas" \
   --profile public \
+  --portal-config "/absolute/path/to/portal.json" \
   --resource-root "/absolute/path/to/project"
 ```
 
@@ -72,7 +80,7 @@ The site opens at `http://127.0.0.1:4321/` by default. See the [Atlas Portal gui
 The reference validator implements the structural and resolved validation profiles:
 
 ```text
-pnpm --dir tools exec atlas-validate "/absolute/path/to/project/atlas" \
+corepack pnpm@11.22.0 --dir tools exec atlas-validate "/absolute/path/to/project/atlas" \
   --profile neutral.atlas-validator.resolved \
   --json
 ```
@@ -81,7 +89,7 @@ See the [validator guide](tools/validator/README.md) for fixture and exit-status
 
 ## Status
 
-The specification documents have Working status. Breaking changes remain possible before 1.0.0. The [changelog](CHANGELOG.md) records public releases.
+The specification documents have Released status. Breaking changes remain possible before 1.0.0. The [changelog](CHANGELOG.md) records public releases.
 
 ## Contributing
 
@@ -89,4 +97,4 @@ Read the [contribution guide](CONTRIBUTING.md) before proposing a change. Contac
 
 ## License
 
-The original material in this repository is dedicated under [CC0 1.0 Universal](LICENSE).
+The original material in this repository is available under [CC0 1.0 Universal or Zero-Clause BSD](LICENSE), at the recipient’s option. [Third-party material](THIRD_PARTY.md) retains its own terms.

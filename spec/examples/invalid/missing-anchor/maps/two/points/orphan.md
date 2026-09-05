@@ -1,11 +1,16 @@
 ---
-type: point
-record: context
-id: orphan
-summary: Map-local context for orphan.
-areas:
-- area: local
-  context: "This record affects Local because map-local context for orphan."
+{
+  "type": "point",
+  "record": "context",
+  "id": "orphan",
+  "summary": "Map-local context for orphan.",
+  "areas": [
+    {
+      "area": "local",
+      "context": "This record affects Local because map-local context for orphan."
+    }
+  ]
+}
 ---
 
 # Local context

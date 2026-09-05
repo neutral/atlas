@@ -1,6 +1,6 @@
 # Atlas Validation
 
-> Status: Working
+> Status: Released
 
 ## Requirement language
 
@@ -26,7 +26,7 @@ Publication profile front matter conforms to `urn:atlas:schema:publication:1`. T
 
 The reference CLI MUST exit with `0` for a complete valid result or matching fixture matrix, `1` for a complete invalid result or fixture mismatch, and `2` for invalid usage or an incomplete result.
 
-The working reference implementation identifies itself as version `0.7.0` with status `working`. Its default specification revision is `0.7.0`; callers MAY supply a more specific immutable revision identifier.
+The reference implementation identifies itself as version `0.8.0` with status `stable`. Its default specification revision is `0.8.0`; callers MAY supply a more specific immutable revision identifier. A version label alone does not identify an exact pre-1.0 contract; reproducible claims identify the immutable specification revision and processor revision.
 
 ## Standard diagnostics
 
@@ -51,7 +51,7 @@ The working reference implementation identifies itself as version `0.7.0` with s
 | `atlas.publication.duplicate-id` | error | Publication profile id repeats. |
 | `atlas.validation.unknown-profile` | error | Requested profile is unsupported. |
 
-### Text, YAML, and schema
+### Text, JSON, and schema
 
 | Code | Severity | Condition |
 | --- | --- | --- |
@@ -60,15 +60,15 @@ The working reference implementation identifies itself as version `0.7.0` with s
 | `atlas.text.nul` | error | Structural text contains NUL. |
 | `atlas.frontmatter.missing` | error | Front matter is absent. |
 | `atlas.frontmatter.unclosed` | error | Front matter is unclosed. |
-| `atlas.frontmatter.invalid-yaml` | error | YAML violates the profile. |
+| `atlas.frontmatter.invalid-json` | error | JSON front matter violates the parsing profile. |
 | `atlas.frontmatter.schema` | error | Object fails schema. |
-| `atlas.format.unsupported` | error | Root format is not 2. |
+| `atlas.format.unsupported` | error | Root format is not 1. |
 
 ### Point records
 
 | Code | Severity | Condition |
 | --- | --- | --- |
-| `atlas.point.anchor-body-empty` | error | Anchor body has no substantive block. |
+| `atlas.point.anchor-body-empty` | error | Authored anchor body has no substantive block. |
 | `atlas.point.context-body-empty` | error | Authored context body has no substantive block. |
 | `atlas.point.context-empty` | error | Context contributes nothing. |
 | `atlas.point.missing-anchor` | error | Context group has no anchor. |

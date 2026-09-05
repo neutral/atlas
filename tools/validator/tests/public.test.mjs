@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { validateAtlas, validateFixtureManifest } from '../src/index.mjs';
+import { inspectPoint, validateAtlas, validateFixtureManifest } from '../src/index.mjs';
 
 const packageRoot = fileURLToPath(new URL('../', import.meta.url));
 const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url));
@@ -48,12 +48,39 @@ test('resolved validation exposes normalized output only for valid input', () =>
   assert.equal(invalid.normalized, undefined);
 });
 
-test('published CLI resolves from the isolated tools package', () => {
+test('published CLI resolves documented paths from the tools directory', () => {
+  const toolsRoot = path.join(repositoryRoot, 'tools');
   const result = spawnSync(process.execPath, [
     path.join(packageRoot, 'bin/atlas-validate.mjs'),
-    path.join(examples, 'valid/minimal'),
+    '../spec/examples/valid/minimal',
     '--json',
-  ], { encoding: 'utf8', cwd: repositoryRoot });
+  ], { encoding: 'utf8', cwd: toolsRoot });
   assert.equal(result.status, 0, result.stderr);
   assert.equal(JSON.parse(result.stdout).valid, true);
+
+  const fixtures = spawnSync(process.execPath, [
+    path.join(packageRoot, 'bin/atlas-validate.mjs'),
+    '--fixtures', '../spec/examples/manifest.json',
+    '--json',
+  ], { encoding: 'utf8', cwd: toolsRoot });
+  assert.equal(fixtures.status, 0, fixtures.stderr);
+  const outcomes = JSON.parse(fixtures.stdout).fixtures;
+  assert.ok(outcomes.length > 0);
+  assert.ok(outcomes.every((fixture) => fixture.pass));
+});
+
+test('published Point inspection preserves contexts through the installed command', () => {
+  const toolsRoot = path.join(repositoryRoot, 'tools');
+  const fixture = path.join(examples, 'valid/cross-map');
+  const output = spawnSync(process.execPath, [
+    path.join(packageRoot, 'bin/atlas-inspect.mjs'),
+    '../spec/examples/valid/cross-map', '--point', 'edge-authentication',
+  ], { encoding: 'utf8', cwd: toolsRoot });
+  assert.equal(output.status, 0, output.stderr);
+  const result = JSON.parse(output.stdout);
+  assert.deepEqual(result, inspectPoint(fixture, 'edge-authentication'));
+  assert.equal(result.point.records.length, 2);
+  assert.equal(result.resources[0].id, 'authentication-guide');
+  const manifest = JSON.parse(fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8'));
+  assert.equal(manifest.bin['atlas-inspect'], 'bin/atlas-inspect.mjs');
 });

@@ -1,11 +1,11 @@
 import fs from 'node:fs';
-import path from 'node:path';
+import { parseCorpus } from '../core/model.mjs';
 
 export function loadCorpus() {
-  const configuredPath = process.env.ATLAS_PORTAL_CORPUS;
-  const corpusPath = configuredPath ?? path.resolve('.cache/portal-corpus.json');
-  if (!fs.existsSync(corpusPath)) {
+  const corpusPath = process.env.ATLAS_PORTAL_CORPUS;
+  if (!corpusPath || !fs.existsSync(corpusPath)) {
     throw new Error('Atlas portal corpus is missing. Start Astro through the atlas-portal command.');
   }
-  return JSON.parse(fs.readFileSync(corpusPath, 'utf8'));
+  const value = /** @type {unknown} */ (JSON.parse(fs.readFileSync(corpusPath, 'utf8')));
+  return parseCorpus(value);
 }

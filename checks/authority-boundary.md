@@ -1,19 +1,22 @@
 ---
-type: check
-id: authority-boundary
-title: Preserve the authority boundary
-summary: Prevent Atlas context, References, Checks, and publication selections from being treated as permission to operate.
-status: active
-level: required
-applies-to:
-- atlas
-- map
-- area
-- point-anchor
-- point-context
-- resource
-- check
-- publication
+{
+  "type": "check",
+  "id": "authority-boundary",
+  "title": "Preserve the authority boundary",
+  "summary": "Prevent Atlas context, References, Checks, and publication selections from being treated as permission to operate.",
+  "status": "active",
+  "level": "required",
+  "applies-to": [
+    "atlas",
+    "map",
+    "area",
+    "point-anchor",
+    "point-context",
+    "resource",
+    "check",
+    "publication"
+  ]
+}
 ---
 
 # Preserve the authority boundary

@@ -1,20 +1,29 @@
 ---
-type: point
-record: anchor
-id: service-boundary
-title: Service boundary
-summary: Canonical context for service boundary.
-kinds:
-- decision
-posture: asserted
-lifecycle: active
-areas:
-- area: scope
-  context: "This record affects Scope because canonical context for service boundary."
-relations:
-- type: supports
-  point: missing-point
-  note: "Service boundary supports missing point because canonical context for service boundary."
+{
+  "type": "point",
+  "record": "anchor",
+  "id": "service-boundary",
+  "title": "Service boundary",
+  "summary": "Canonical context for service boundary.",
+  "kinds": [
+    "decision"
+  ],
+  "posture": "asserted",
+  "lifecycle": "active",
+  "areas": [
+    {
+      "area": "scope",
+      "context": "This record affects Scope because canonical context for service boundary."
+    }
+  ],
+  "relations": [
+    {
+      "type": "supports",
+      "point": "missing-point",
+      "note": "Service boundary supports missing point because canonical context for service boundary."
+    }
+  ]
+}
 ---
 
 # Service boundary

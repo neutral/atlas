@@ -1,6 +1,6 @@
 # Atlas Specification
 
-> Status: Working
+> Status: Released
 
 ## Requirement language
 
@@ -8,136 +8,83 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, 
 
 ## Scope and ownership
 
-This document owns Atlas purpose and conceptual meaning. It defines what an Atlas, Map, Area, Point, Resource, Content edge, Reference edge, relation, and Check mean independently of one file encoding or implementation.
-
-The specialized contracts own executable detail. Atlas Format owns the authored tree, core fields, vocabularies, and cross-record constraints. Atlas Processing owns algorithms and derived data. Atlas Validation owns profiles, results, diagnostics, and fixtures. Atlas Checks owns authored Check and evaluation contracts. Atlas Publication owns the publication boundary. Atlas Conformance owns conformance claims. A summary here does not create a second definition of an owned rule.
-
-Portal interaction, authoring applications, deployment, and empirical product-study protocols are outside this specification set unless a named contract explicitly defines them.
+This document owns Atlas purpose and conceptual meaning. [Format](spec/FORMAT.md) owns files, fields, vocabularies, and cross-record constraints. [Processing](spec/PROCESSING.md) owns algorithms and normalized output. [Validation](spec/VALIDATION.md) owns profiles, diagnostics, and fixtures. [Checks](spec/CHECKS.md), [Publication](spec/PUBLICATION.md), and [Conformance](spec/CONFORMANCE.md) own their named contracts. Each rule has one owner.
 
 ## Purpose and minimum product contract
 
-Atlas makes the context between project documents explicit, portable, and navigable.
+Atlas makes the context between project documents explicit, portable, and navigable. It connects material to the decisions, questions, and perspectives it informs without moving or duplicating that material.
 
-Atlas helps people and software agents connect project documents to the decisions, questions, and perspectives they inform, making that context navigable without moving or duplicating the documents.
-
-It gives those connections stable identity, explained context, explicit state and relations, and deterministic validation.
-
-At minimum, a conforming Atlas supplies one portable source model. A shared consumer can use that model to generate consistent document, Map, Area, Point, relation, and search navigation without project-specific semantic integration or UI development. Existing documents remain direct Resources and keep their own organization.
-
-The Atlas format defines the authored source, validation, and normalized consumer contract for that shared portal. It does not ship a portal implementation or define portal conformance. Those remain separately identified product work rather than implied format behavior.
-
-Atlas context records can:
-
-- state decisions, constraints, questions, observations, proposals, directions, implementations, risks, goals, or practices in their own right;
-- retain one identity while several durable subjects add their own context;
-- distinguish current, historical, withdrawn, and superseded context;
-- relate claims and evidence explicitly;
-- give people and software agents a clear place to deposit information; and
-- support deterministic consumption without requiring processors to infer semantics from document paths or prose.
+One portable authored model supplies stable identity, explained context, state, relations, and deterministic validation. A shared consumer can generate document, Map, Area, Point, relation, and search navigation without project-specific semantic mapping or UI development. The format supplies that input contract, not portal conformance or evidence of reader benefit.
 
 ## Thesis
 
-Atlas is a portable semantic context layer for projects. Documents remain the primary long-form reading surfaces. Atlas records why documents matter, where records belong, how interpretations change over time, and how records relate. A shared portal can render those authored meanings without requiring each project to invent another data model or interface.
-
-The write path is a first-class design constraint. A person or agent first chooses the Map whose primary question the new information answers or materially affects. It then either establishes a new Point in that Map or adds Map-local context to an existing Point.
-
-## First-principles constraints
-
-1. Maps remain durable semantic and authoring domains. They are not presentation-only views.
-2. A Point has one Atlas-wide identity and one primary Map, but no Map has exclusive control over all future context for that Point.
-3. One Point can have records in several Maps. Exactly one record is the anchor; the others are Map-local contexts.
-4. Every record for one Point uses the same Atlas-wide identity.
-5. Areas are Map-local, overlapping memberships. The format has no Layer primitive.
-6. Point posture and lifecycle are independent and do not establish evidence strength or implementation maturity.
-7. Relations are explicit, directional, explained, and attached to the anchor record.
-8. Content identifies primary material. References carry typed supporting roles. The format has no Depth primitive.
-9. Processors derive related Maps from shared Point records.
-10. Checks govern the write path and remain separate from mapped context.
-11. A portable consumer preserves authored meaning and provenance rather than reconstructing them from presentation or filesystem convention.
-12. Publication eligibility is an explicit profile decision outside the core Atlas, Map, Area, Point, Resource, and Check records.
+Documents remain primary reading surfaces. Atlas records what matters, why it matters, and how context connects across durable questions. Writing and reading use the same question-led model. Neither requires a runtime, intake queue, or lifecycle for edits.
 
 ## Conceptual model
 
 ### Atlas
 
-An Atlas is one portable context boundary and namespace. It contains Maps, Point records, Resources, Checks, and optional publication profiles.
-
-An Atlas can register stable Resource identities, describe collection-wide context, and suggest navigation among its Maps.
+An Atlas is one portable boundary and namespace containing Maps, Point records, Resources, Checks, and optional publication profiles. Nested Atlases have independent boundaries.
 
 ### Map
 
-A Map is a durable subject and deposit domain with a stable identifier, primary question, overlapping Area vocabulary, lifecycle status, and Point records that establish or extend context relevant to the Map.
-
-A Map is appropriate when an author can reliably decide that new information answers, constrains, or materially affects its primary question. The question is the Map's durable routing criterion; Atlas Format owns its authored and uniqueness constraints.
+A Map is a durable semantic and authoring domain organized around one primary question. New information belongs when it answers, constrains, or materially affects that question. Maps are not generated views or exclusive owners. Physical nesting does not establish semantic hierarchy.
 
 ### Area
 
-An Area is a non-exclusive Map-local region or concern. Areas can overlap. Each Area states a placement question that helps a human or agent decide whether a Point record belongs there. Atlas Format owns the question's authored and Map-local uniqueness constraints.
-
-A Point record names an Area through an explained membership. The membership identifies the Area and states how or why the record affects the Area question. It is a semantic edge, not a bare routing tag.
-
-Areas do not imply hierarchy, ownership, exclusivity, geometric containment, or directory placement.
+An Area is an overlapping Map-local question. Each Point-record membership explains how the record affects that question. Membership is an explained edge, not a bare tag. Areas imply neither ownership nor exclusive placement.
 
 ### Point
 
-A Point is an Atlas-wide context identity represented by one or more authored records.
+A Point is one independently referable claim, decision, constraint, question, or other coherent item of project context under an Atlas-wide identity. Its posture and lifecycle apply to the whole item. A shared subject, posture, source, or similar wording is not sufficient to establish one Point.
 
-Every Point has exactly one anchor record, one primary Map established by that anchor, zero or more context records in other Maps, and one shared identity across all records. Atlas Format defines the physical identity and filename constraints.
+First decide whether independent reference, relation, or update is useful. Supporting rationale, examples, and citations may remain prose or source material. The aim is useful identity, not one Point per sentence.
 
-The anchor record states the Point’s canonical core: title, summary, kinds, posture, lifecycle, explained primary-Map Area memberships, Content, References, relations with notes, review metadata, and substantive body.
+Split an item when its retained claims can independently become false, be implemented, withdrawn, or superseded. This test separates independently standing claims, not every sentence explaining one claim. State relevant scope in prose; no scope field is required. Points can record unresolved questions and uncertain observations. Preserve their uncertainty.
 
-A context record adds Map-local meaning through a local summary, explained Area memberships, Content, References, and optional substantive body. It does not redefine the Point’s title, posture, lifecycle, kinds, relations, or review state. One explained Area membership is a substantive context contribution and can support a bodyless context record.
+Every Point has exactly one anchor and optional same-named contexts in other Maps. The anchor states the canonical idea and state. Contexts explain that item's local significance without redefining it. Add a context only for a useful contribution, not for every potentially relevant Map.
 
-The primary Map anchors identity and provenance. It does not create an exclusive authoring boundary. Another Map can add context through its own same-named Point file.
+| Incoming information | Identity decision |
+| --- | --- |
+| Clearer wording or correction preserving the same item's meaning | Update its record without changing the id. |
+| The same decision's recovery implications | Add or improve operations context when useful. |
+| A Redis selection and a claim that its rollout is complete | Use separate Points; decision and implementation have independent standing. |
+| A new decision replacing the old decision | Create a separate Point and use supersession for actual replacement. |
+
+Retrieval proposes candidates. Authors inspect meaning, scope, and anchor provenance before deciding identity. Exact ids determine grouping; processors never merge distinct ids by similarity. Validation cannot prove the author's identity decision correct.
 
 ### Point record
 
-A Point record is one authored contribution for a Point in one Map. Atlas Format defines its physical representation.
+An anchor establishes canonical fields, relations, review state, and the primary Map. A context contributes a local summary, explained Area memberships, Content, References, or body. It cannot redefine title, kinds, posture, lifecycle, relations, or review metadata. One explained membership can be its entire substantive contribution.
 
-The anchor record establishes the Point and its primary Map.
+The primary Map records origin, not exclusive ownership or preferred routing. Preserve each record's Map and source path when assembling a Point. Keep local explanations focused on significance; link independently changing implementation facts rather than copying them into every perspective. Ordinary edits preserve identity. Point lifecycle describes context, not an edit workflow.
 
-A context record extends that Point in another Map through a local contribution rather than an unexplained duplicate.
+### Posture, lifecycle, and kinds
 
-### Posture
-
-Posture records how the Atlas author presents a Point: as applicable, unresolved, still a candidate, or selected as a future direction. Posture remains independent of lifecycle and does not establish truth, evidence strength, or implementation maturity. Atlas Format owns the exact vocabulary and field constraints.
-
-### Lifecycle
-
-Lifecycle records a Point's temporal standing: whether it participates in current context, explains prior context, yields to a replacement, or no longer applies. Lifecycle remains independent of posture. Atlas Format owns the exact vocabulary and replacement constraints. Atlas Processing owns graph resolution.
-
-### Point kinds
-
-Kinds are non-exclusive classifications of what a Point states. They help consumers distinguish such roles as decisions, observations, questions, implementations, requirements, and risks without turning that classification into posture, lifecycle, or evidence strength. Atlas Format owns the exact vocabulary and extension rule.
+Posture states the author's stance. Lifecycle states temporal standing. Kinds classify what the Point expresses. These dimensions are independent and establish neither truth, evidence strength, implementation maturity, nor authority. Format defines their vocabularies.
 
 ### Relations
 
-Relations are directional, explained edges between Atlas-wide Point identities. The anchor record declares them so their meaning has one canonical source. Atlas Format owns the relation vocabulary and graph constraints. Atlas Processing owns resolution and reverse indexes. A relation does not grant authority, ownership, truth, or causality beyond its explained edge.
+Relations are directional, explained edges declared on anchors. They record known authored connections, not a complete impact graph. Missing relations establish no absence of dependency, contradiction, or impact. Processing preserves authored edges and derives their direct reverse index, not inferred closure.
 
-### Resource
+### Resource, Content, and References
 
-A Resource is an addressable document or artifact. The Atlas can register a stable Resource identifier separately from its URI.
-
-### Content and References
-
-Content identifies primary material. References use typed roles to distinguish evidence, background, implementation, history, and examples. Atlas Format owns the exact role vocabulary.
+A Resource is addressable material, optionally registered with identity independent of its URI. Content identifies primary material. Typed References distinguish evidence, background, implementation, history, and examples. Registration and reference roles establish neither authority nor source truth. Material need not acquire a Point to remain useful.
 
 ### Derived Map relationships
 
-A processor derives Map overlap when one Point has records in more than one Map. The result records symmetric shared context and no other relationship.
+Shared Point identities produce symmetric Map overlap, not ownership, causality, or task relevance.
 
 ### Check
 
-A Check is project-defined authoring policy outside mapped context. Checks can constrain an authorized write process but cannot grant operational authority or convert a policy result into semantic truth. Atlas Checks owns their authored and evaluation contracts; Atlas Conformance owns the scope of a Check-compliance claim.
+A Check adds project-local write policy. Core defines meaning; Checks can demand additional evidence, placement, review, or prose quality without redefining it. An Atlas needs no adopted catalog Checks. Once adopted, required Checks need actual verification; format validity alone does not satisfy them.
 
 ### Publication profile
 
-A publication profile is an explicit allowlist of Atlas source records and registered documents that may be published. It is separate from the core context model: Atlas, Map, Area, Point, Resource, relation, and Check records contain no publication field and do not imply eligibility.
+A publication profile explicitly selects exact Atlas records and registered Resources. Selection does not expand through containment, shared identity, relations, or References. Core records contain no publication fields. Build, serving, and non-disclosure behavior belong to separate publication tooling.
 
-Profiles select exact units without expanding through containment, shared Point identity, relations, or References. Atlas Publication owns the authored and resolved selection contract. Publication builds and portals separately own projection, non-disclosure, serving, and deployment behavior.
+## Trust and product boundary
 
-## Product and conformance boundary
+Atlas content and Checks grant no file, network, credential, publication, execution, or instruction authority. Already-authorized people and agents use Atlas as information, not additional permission.
 
-The baseline product proposition is reusable generation: one shared portal implementation can consume any conforming Atlas without project-specific semantic mapping or UI development. This specification supplies the portable input and normalized consumer meaning needed to test that proposition. It does not define portal behavior or establish that a portal has achieved reusable generation.
-
-Format conformance, Check compliance, self-hosting, and processor interoperability establish only their named technical claims. Reader, author, agent, accessibility, performance, maintenance-cost, or comparative-benefit claims require separately designed and recorded evidence. Those evidence protocols may inform future specification changes, but they are not themselves format requirements.
+Format conformance, Check compliance, self-hosting, and processor interoperability establish only their named claims. Authoring effort, agent effectiveness, reader benefit, accessibility, performance, and comparative value require separately recorded evidence. A valid graph and a working portal do not establish those outcomes.

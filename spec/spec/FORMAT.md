@@ -1,6 +1,6 @@
 # Atlas Format
 
-> Status: Working
+> Status: Released
 
 ## Requirement language
 
@@ -10,7 +10,7 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, 
 
 This document owns the authored tree, structural files, core Atlas/Map/Point/Resource fields and vocabularies, and cross-record semantic constraints of Atlas format 1. Atlas Checks owns Check-specific fields and bodies. Atlas Publication owns publication-profile fields and selection meaning. Atlas Processing owns the algorithms that discover, parse, resolve, derive, and normalize the authored form, and Atlas Validation owns profiles and diagnostics. This document does not redefine those contracts.
 
-The root `atlas.md` MUST contain `format: 1`. Other formats are outside the current contract and create no compatibility surface.
+The root `atlas.md` MUST contain `"format": 1`. Other formats are outside the current contract and create no compatibility surface.
 
 ## Directory structure
 
@@ -36,6 +36,8 @@ A descendant directory that directly contains `map.md` represents a Map. A Map M
 
 The same Point filename MAY appear in more than one Map. Those files are records of one Atlas-wide Point identity.
 
+Exact authored Point ids determine identity. Distinct Point ids MUST denote distinct Point identities even when their titles, summaries, bodies, Content, References, or relation neighborhoods are similar.
+
 A descendant directory that directly contains `atlas.md` represents a nested Atlas with an independent boundary. Atlas Processing defines discovery across that boundary.
 
 Directory placement establishes only a Map’s physical location, the Map containing a Point record, and the primary Map when that record is the anchor. It does not create Areas, hierarchy, or Resource ownership.
@@ -46,7 +48,7 @@ Current structural files are root `atlas.md`, discovered `map.md`, Point records
 
 Atlas Format reserves the root `.publication/` path. Atlas Publication defines the profile files permitted there.
 
-Structural files MUST be regular files and MUST NOT be symbolic links. Atlas Processing interprets their text and bodies under its exact parsing and body-inspection rules.
+Structural files MUST be regular files and MUST NOT be symbolic links. Each file uses JSON front matter between `---` delimiter lines and Markdown for its body. Atlas Processing owns the exact parsing and body-inspection rules.
 
 ## Identifiers
 
@@ -56,7 +58,7 @@ Map and Resource identifiers are unique within one Atlas. Area identifiers are u
 
 ## Atlas file
 
-`atlas.md` conforms to `urn:atlas:schema:atlas:1` and requires `type: atlas`, `format: 1`, `id`, `title`, and `summary`. It may contain navigation, Resources, Content, References, and extensions.
+`atlas.md` conforms to `urn:atlas:schema:atlas:1` and requires `"type": "atlas"`, `"format": 1`, `id`, `title`, and `summary`. It may contain navigation, Resources, Content, References, and extensions.
 
 Navigation groups contain a title and ordered non-empty Map list. One Map appears at most once across groups. Discovery is independent of navigation.
 
@@ -74,11 +76,11 @@ All Point records conform to `urn:atlas:schema:point:1` and require type, `recor
 
 ### Anchor
 
-An anchor uses `record: anchor`. It requires title, summary, posture, and lifecycle and can contain kinds, Area memberships, Content, References, relations, review metadata, and extensions. Its containing Map is the primary Map. Its body MUST contain at least one substantive block. Format validity does not infer semantic quality from body length.
+An anchor uses `"record": "anchor"`. It requires title, summary, posture, and lifecycle and can contain kinds, Area memberships, Content, References, relations, review metadata, and extensions. Its containing Map is the primary Map. The summary states the canonical idea; a body is optional. A non-empty body MUST contain at least one substantive block. Checks MAY require a body or additional explanation. Format validity does not infer semantic quality from body length.
 
 ### Context
 
-A context uses `record: context`. It requires summary and can contain Area memberships, Content, References, and extensions. It MUST NOT declare title, posture, lifecycle, kinds, relations, or review metadata.
+A context uses `"record": "context"`. It requires summary and can contain Area memberships, Content, References, and extensions. It MUST NOT declare title, posture, lifecycle, kinds, relations, or review metadata.
 
 A context MUST contribute an explained Area membership, Content, References, or a non-empty body. A non-empty body MUST contain at least one substantive block. Format validation does not infer semantic quality from body length.
 
@@ -88,12 +90,19 @@ Within one Atlas, every Point identity MUST have exactly one anchor, at most one
 
 Each Point-record Area membership contains `area` and `context`. `area` resolves to an Area in the containing Map. `context` explains how or why the record answers, constrains, or materially affects that Area question. The same Area MUST NOT repeat in one record, even with different context text. A record MAY omit Area memberships.
 
-```yaml
-areas:
-- area: incident-response
-  context: Key-rotation failure changes the containment and recovery procedure.
-- area: auditability
-  context: Rotation events must leave evidence for later review.
+```json
+{
+  "areas": [
+    {
+      "area": "incident-response",
+      "context": "Key-rotation failure changes the containment and recovery procedure."
+    },
+    {
+      "area": "auditability",
+      "context": "Rotation events must leave evidence for later review."
+    }
+  ]
+}
 ```
 
 ### Kinds
@@ -142,6 +151,8 @@ Relations are directional from the declaring source Point to the named target Po
 - `implements`: the source is a concrete realization of the target.
 
 A relation type can also use an `x-` extension. Every relation requires a non-blank note that explains the specific source-to-target edge. A relation target MUST identify another Point in the same Atlas. A Point cannot relate to itself, relation pairs cannot repeat, and supersession MUST remain acyclic. A `supersedes` source requires its target to have lifecycle `superseded`, and every superseded Point requires an incoming `supersedes` relation. Validation establishes structure and named targets, not the truth of the note.
+
+The relation graph is open-world: relations record known authored edges. Omitting a relation has no negative or completeness meaning and does not state that no relationship or impact exists.
 
 Review metadata MAY contain `reviewed-at`, `review-after`, and `by`. When both dates exist, `review-after` MUST be later than `reviewed-at`.
 

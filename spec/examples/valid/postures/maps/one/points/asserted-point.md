@@ -1,16 +1,22 @@
 ---
-type: point
-record: anchor
-id: asserted-point
-title: Asserted point
-summary: Canonical context for asserted point.
-kinds:
-- decision
-posture: asserted
-lifecycle: active
-areas:
-- area: scope
-  context: "This record affects Scope because canonical context for asserted point."
+{
+  "type": "point",
+  "record": "anchor",
+  "id": "asserted-point",
+  "title": "Asserted point",
+  "summary": "Canonical context for asserted point.",
+  "kinds": [
+    "decision"
+  ],
+  "posture": "asserted",
+  "lifecycle": "active",
+  "areas": [
+    {
+      "area": "scope",
+      "context": "This record affects Scope because canonical context for asserted point."
+    }
+  ]
+}
 ---
 
 # Asserted point

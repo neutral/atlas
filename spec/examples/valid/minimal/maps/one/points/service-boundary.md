@@ -1,18 +1,20 @@
 ---
-type: point
-record: anchor
-id: service-boundary
-title: Service boundary
-summary: Canonical context for service boundary.
-kinds:
-- decision
-posture: asserted
-lifecycle: active
-areas:
-- area: scope
-  context: "This record affects Scope because canonical context for service boundary."
+{
+  "type": "point",
+  "record": "anchor",
+  "id": "service-boundary",
+  "title": "Service boundary",
+  "summary": "The service boundary is fixed at the public API.",
+  "kinds": [
+    "decision"
+  ],
+  "posture": "asserted",
+  "lifecycle": "active",
+  "areas": [
+    {
+      "area": "scope",
+      "context": "The public API defines which responsibilities belong inside the service."
+    }
+  ]
+}
 ---
-
-# Service boundary
-
-The service boundary is fixed at the public API.

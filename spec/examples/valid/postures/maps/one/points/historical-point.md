@@ -1,16 +1,22 @@
 ---
-type: point
-record: anchor
-id: historical-point
-title: Historical point
-summary: Canonical context for historical point.
-kinds:
-- decision
-posture: asserted
-lifecycle: historical
-areas:
-- area: scope
-  context: "This record affects Scope because canonical context for historical point."
+{
+  "type": "point",
+  "record": "anchor",
+  "id": "historical-point",
+  "title": "Historical point",
+  "summary": "Canonical context for historical point.",
+  "kinds": [
+    "decision"
+  ],
+  "posture": "asserted",
+  "lifecycle": "historical",
+  "areas": [
+    {
+      "area": "scope",
+      "context": "This record affects Scope because canonical context for historical point."
+    }
+  ]
+}
 ---
 
 # Historical point

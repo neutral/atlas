@@ -1,12 +1,15 @@
 ---
-type: check
-id: point-context
-title: Require meaningful Point context
-summary: Context records must materially answer their containing Map question.
-status: active
-level: required
-applies-to:
-- point-context
+{
+  "type": "check",
+  "id": "point-context",
+  "title": "Require meaningful Point context",
+  "summary": "Context records must materially answer their containing Map question.",
+  "status": "active",
+  "level": "required",
+  "applies-to": [
+    "point-context"
+  ]
+}
 ---
 
 # Require meaningful Point context

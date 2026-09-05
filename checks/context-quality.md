@@ -1,13 +1,16 @@
 ---
-type: check
-id: context-quality
-title: Require distinct explained context
-summary: Require changed Point records and semantic edges to add specific meaning without repeating existing contributions.
-status: active
-level: required
-applies-to:
-- point-anchor
-- point-context
+{
+  "type": "check",
+  "id": "context-quality",
+  "title": "Require distinct explained context",
+  "summary": "Require changed Point records and semantic edges to add specific meaning without repeating existing contributions.",
+  "status": "active",
+  "level": "required",
+  "applies-to": [
+    "point-anchor",
+    "point-context"
+  ]
+}
 ---
 
 # Require distinct explained context

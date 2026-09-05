@@ -1,12 +1,15 @@
 ---
-type: check
-id: bad
-title: Bad Check
-summary: Missing a required section.
-status: active
-level: required
-applies-to:
-- map
+{
+  "type": "check",
+  "id": "bad",
+  "title": "Bad Check",
+  "summary": "Missing a required section.",
+  "status": "active",
+  "level": "required",
+  "applies-to": [
+    "map"
+  ]
+}
 ---
 
 # Bad Check
