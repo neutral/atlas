@@ -1,0 +1,35 @@
+{
+  "navigation": [
+    {
+      "title": "Maps",
+      "maps": [
+        "one"
+      ]
+    }
+  ],
+  "areas": [
+    {
+      "map": "one",
+      "id": "scope",
+      "title": "Scope"
+    }
+  ],
+  "points": [
+    {
+      "point": "service-boundary",
+      "kinds": [
+        "decision"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "check": "boundary",
+      "level": "required",
+      "applies-to": [
+        "map",
+        "area"
+      ]
+    }
+  ]
+}

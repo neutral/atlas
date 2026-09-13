@@ -1,0 +1,30 @@
+{
+  "memberships": [
+    {
+      "id": "one-one-point-area-scope",
+      "point": "one-point",
+      "map": "one",
+      "area": "scope"
+    },
+    {
+      "id": "one-two-point-area-scope",
+      "point": "two-point",
+      "map": "one",
+      "area": "scope"
+    }
+  ],
+  "relations": [
+    {
+      "id": "one-one-point-supersedes-two-point",
+      "source": "one-point",
+      "type": "supersedes",
+      "target": "two-point"
+    },
+    {
+      "id": "one-two-point-supersedes-one-point",
+      "source": "two-point",
+      "type": "supersedes",
+      "target": "one-point"
+    }
+  ]
+}

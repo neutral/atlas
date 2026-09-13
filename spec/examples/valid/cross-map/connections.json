@@ -1,0 +1,93 @@
+{
+  "memberships": [
+    {
+      "id": "architecture-edge-authentication-area-boundary",
+      "point": "edge-authentication",
+      "map": "architecture",
+      "area": "boundary"
+    },
+    {
+      "id": "architecture-edge-authentication-area-security",
+      "point": "edge-authentication",
+      "map": "architecture",
+      "area": "security"
+    },
+    {
+      "id": "operations-edge-authentication-area-runtime",
+      "point": "edge-authentication",
+      "map": "operations",
+      "area": "runtime"
+    },
+    {
+      "id": "operations-edge-authentication-area-security",
+      "point": "edge-authentication",
+      "map": "operations",
+      "area": "security"
+    },
+    {
+      "id": "operations-rotate-edge-keys-area-runtime",
+      "point": "rotate-edge-keys",
+      "map": "operations",
+      "area": "runtime"
+    },
+    {
+      "id": "operations-rotate-edge-keys-area-security",
+      "point": "rotate-edge-keys",
+      "map": "operations",
+      "area": "security"
+    }
+  ],
+  "relations": [
+    {
+      "id": "architecture-edge-authentication-supports-rotate-edge-keys",
+      "source": "edge-authentication",
+      "type": "supports",
+      "target": "rotate-edge-keys",
+      "x-origin": "architecture-review"
+    },
+    {
+      "id": "operations-rotate-edge-keys-depends-on-edge-authentication",
+      "source": "rotate-edge-keys",
+      "type": "depends-on",
+      "target": "edge-authentication"
+    }
+  ],
+  "content": [
+    {
+      "id": "architecture-edge-authentication-content-authentication-guide",
+      "owner": {
+        "type": "point",
+        "map": "architecture",
+        "point": "edge-authentication"
+      },
+      "target": {
+        "resource": "authentication-guide"
+      }
+    },
+    {
+      "id": "operations-edge-authentication-content-authentication-guide",
+      "owner": {
+        "type": "point",
+        "map": "operations",
+        "point": "edge-authentication"
+      },
+      "target": {
+        "resource": "authentication-guide"
+      }
+    }
+  ],
+  "references": [
+    {
+      "id": "architecture-edge-authentication-reference-uri",
+      "owner": {
+        "type": "point",
+        "map": "architecture",
+        "point": "edge-authentication"
+      },
+      "target": {
+        "uri": "https://example.com/security-model"
+      },
+      "role": "evidence"
+    }
+  ]
+}

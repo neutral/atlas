@@ -1,0 +1,25 @@
+{
+  "navigation": [
+    {
+      "title": "Maps",
+      "maps": [
+        "nested-map"
+      ]
+    }
+  ],
+  "areas": [
+    {
+      "map": "nested-map",
+      "id": "scope",
+      "title": "Scope"
+    }
+  ],
+  "points": [
+    {
+      "point": "nested-point",
+      "kinds": [
+        "decision"
+      ]
+    }
+  ]
+}

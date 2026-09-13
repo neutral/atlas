@@ -1,0 +1,25 @@
+{
+  "content": [
+    {
+      "id": "repeated",
+      "owner": {
+        "type": "atlas"
+      },
+      "target": {
+        "uri": "https://example.com/a"
+      }
+    }
+  ],
+  "references": [
+    {
+      "id": "repeated",
+      "owner": {
+        "type": "atlas"
+      },
+      "target": {
+        "uri": "https://example.com/b"
+      },
+      "role": "supporting"
+    }
+  ]
+}

@@ -2,21 +2,24 @@
 {
   "type": "map",
   "id": "one",
-  "title": "One",
-  "summary": "Context for the one fixture Map.",
-  "question": "What context belongs in the one fixture Map?",
-  "status": "active",
-  "areas": [
-    {
-      "id": "scope",
-      "title": "Scope",
-      "summary": "Scope context.",
-      "question": "Does this record materially affect scope?"
-    }
-  ]
+  "status": "active"
 }
 ---
 
 # One
 
+Context for the one fixture Map.
+
 This Map supplies a durable question and enough substantive context for the fixture.
+
+## Question
+
+What context belongs in the one fixture Map?
+
+## Local scope
+
+Scope context.
+
+### Local question
+
+Does this record materially affect scope?

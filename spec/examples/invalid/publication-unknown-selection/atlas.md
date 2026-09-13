@@ -1,29 +1,17 @@
 ---
 {
   "type": "atlas",
-  "format": 1,
-  "id": "fixture",
-  "title": "Fixture Atlas",
-  "summary": "Executable Atlas format 1 fixture.",
-  "navigation": [
-    {
-      "title": "Maps",
-      "maps": [
-        "one"
-      ]
-    }
-  ],
-  "resources": [
-    {
-      "id": "overview",
-      "uri": "docs/overview.md",
-      "title": "Fixture overview",
-      "summary": "A known document used to distinguish unknown selection identifiers."
-    }
-  ]
+  "format": 2,
+  "id": "fixture"
 }
 ---
 
 # Fixture Atlas
 
+Executable Atlas format 2 fixture.
+
 This Atlas exercises publication selection resolution.
+
+## Resource: overview
+
+A known document used to distinguish unknown selection identifiers.

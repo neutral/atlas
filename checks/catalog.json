@@ -1,0 +1,80 @@
+{
+  "checks": [
+    {
+      "check": "anchor-body",
+      "level": "required",
+      "applies-to": [
+        "point-anchor"
+      ]
+    },
+    {
+      "check": "authority-boundary",
+      "level": "required",
+      "applies-to": [
+        "atlas",
+        "map",
+        "area",
+        "point-anchor",
+        "point-context",
+        "resource",
+        "check",
+        "publication"
+      ]
+    },
+    {
+      "check": "canonical-integration",
+      "level": "required",
+      "applies-to": [
+        "atlas",
+        "map",
+        "area",
+        "point-anchor",
+        "point-context",
+        "resource"
+      ]
+    },
+    {
+      "check": "context-quality",
+      "level": "required",
+      "applies-to": [
+        "point-anchor",
+        "point-context"
+      ]
+    },
+    {
+      "check": "identity-change-integrity",
+      "level": "required",
+      "applies-to": [
+        "point-anchor",
+        "point-context",
+        "resource",
+        "publication"
+      ]
+    },
+    {
+      "check": "point-identity",
+      "level": "required",
+      "applies-to": [
+        "point-anchor",
+        "point-context"
+      ]
+    },
+    {
+      "check": "routing-quality",
+      "level": "required",
+      "applies-to": [
+        "map",
+        "area"
+      ]
+    },
+    {
+      "check": "standing-and-evidence",
+      "level": "required",
+      "applies-to": [
+        "point-anchor",
+        "point-context",
+        "resource"
+      ]
+    }
+  ]
+}

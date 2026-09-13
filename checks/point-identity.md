@@ -2,18 +2,13 @@
 {
   "type": "check",
   "id": "point-identity",
-  "title": "Review Point identity before creation",
-  "summary": "Require an explicit distinction from existing Points for each new anchor or changed identity decision.",
-  "status": "active",
-  "level": "required",
-  "applies-to": [
-    "point-anchor",
-    "point-context"
-  ]
+  "status": "active"
 }
 ---
 
 # Review Point identity before creation
+
+Require an explicit distinction from existing Points for each new anchor or changed identity decision.
 
 ## Requirement
 

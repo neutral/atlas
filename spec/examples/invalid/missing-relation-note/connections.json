@@ -1,0 +1,10 @@
+{
+  "relations": [
+    {
+      "id": "one-service-boundary-supports-other",
+      "source": "service-boundary",
+      "type": "supports",
+      "target": "other"
+    }
+  ]
+}

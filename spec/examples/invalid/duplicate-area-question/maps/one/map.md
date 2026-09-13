@@ -2,27 +2,32 @@
 {
   "type": "map",
   "id": "one",
-  "title": "One",
-  "summary": "Context for the one fixture Map.",
-  "question": "What context belongs in this Map?",
-  "status": "active",
-  "areas": [
-    {
-      "id": "scope",
-      "title": "Scope",
-      "summary": "Scope context.",
-      "question": "Does this Point change the operating boundary?"
-    },
-    {
-      "id": "ownership",
-      "title": "Ownership",
-      "summary": "Ownership context.",
-      "question": "Does this Point change the operating boundary?"
-    }
-  ]
+  "status": "active"
 }
 ---
 
 # One
 
+Context for the one fixture Map.
+
 This Map deliberately repeats an Area question.
+
+## Question
+
+What context belongs in this Map?
+
+## Area: scope
+
+Scope context.
+
+### Question
+
+Does this Point change the operating boundary?
+
+## Area: ownership
+
+Ownership context.
+
+### Question
+
+Does this Point change the operating boundary?

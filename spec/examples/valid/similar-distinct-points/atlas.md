@@ -1,21 +1,13 @@
 ---
 {
   "type": "atlas",
-  "format": 1,
-  "id": "fixture",
-  "title": "Similar distinct Points fixture",
-  "summary": "Two exact Point ids remain distinct despite identical prose.",
-  "navigation": [
-    {
-      "title": "Maps",
-      "maps": [
-        "decisions"
-      ]
-    }
-  ]
+  "format": 2,
+  "id": "fixture"
 }
 ---
 
 # Similar distinct Points fixture
+
+Two exact Point ids remain distinct despite identical prose.
 
 This Atlas isolates exact authored Point identity from prose similarity.

@@ -1,0 +1,17 @@
+{
+  "nodeVersion": "22.23.2",
+  "targets": {
+    "darwin-arm64": {
+      "archive": "node-v22.23.2-darwin-arm64.tar.gz",
+      "sha256": "61130f394c1630d211dd50aecc4353d379480f36d3ac913cd85dbba1aed585c6",
+      "minimumOS": "macOS 26",
+      "qualification": "native artifact; exact verification belongs to its retained observation"
+    },
+    "linux-x64": {
+      "archive": "node-v22.23.2-linux-x64.tar.gz",
+      "sha256": "b294a556e639d64338823920e5866c21c02741742d2e1529ee1a225c1ec9252a",
+      "minimumOS": "Linux with glibc 2.28 or later",
+      "qualification": "Local Linux x64 container execution through amd64 emulation on ARM64 macOS; native x64 hardware and hosted CI remain unobserved"
+    }
+  }
+}

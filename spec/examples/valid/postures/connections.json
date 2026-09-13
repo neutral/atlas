@@ -1,0 +1,40 @@
+{
+  "memberships": [
+    {
+      "id": "one-asserted-point-area-scope",
+      "point": "asserted-point",
+      "map": "one",
+      "area": "scope"
+    },
+    {
+      "id": "one-historical-point-area-scope",
+      "point": "historical-point",
+      "map": "one",
+      "area": "scope"
+    },
+    {
+      "id": "one-intended-point-area-scope",
+      "point": "intended-point",
+      "map": "one",
+      "area": "scope"
+    },
+    {
+      "id": "one-open-point-area-scope",
+      "point": "open-point",
+      "map": "one",
+      "area": "scope"
+    },
+    {
+      "id": "one-proposed-point-area-scope",
+      "point": "proposed-point",
+      "map": "one",
+      "area": "scope"
+    },
+    {
+      "id": "one-withdrawn-point-area-scope",
+      "point": "withdrawn-point",
+      "map": "one",
+      "area": "scope"
+    }
+  ]
+}

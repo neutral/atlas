@@ -1,0 +1,52 @@
+name: Atlas application bundles
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-26
+            target: darwin-arm64
+          - runner: ubuntu-24.04
+            target: linux-x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24.18.0
+      - run: corepack enable
+      - run: corepack pnpm@11.22.0 install --frozen-lockfile
+      - run: node --test distribution/bundle/bundle.test.mjs
+      - name: Build and exercise the npm application
+        run: |
+          npm run pack:sdk -- --output "$RUNNER_TEMP/atlas-npm"
+          mkdir "$RUNNER_TEMP/atlas-npm-consumer"
+          node --input-type=module -e 'import fs from "node:fs"; fs.writeFileSync(`${process.env.RUNNER_TEMP}/atlas-npm-consumer/package.json`, JSON.stringify({name:"atlas-bundle-consumer",private:true,type:"module"}));'
+          npm install --prefix "$RUNNER_TEMP/atlas-npm-consumer" --ignore-scripts --save-exact "$RUNNER_TEMP/atlas-npm/neutral-atlas-$(cat VERSION).tgz"
+          node distribution/qualify-npm.mjs "$RUNNER_TEMP/atlas-npm-consumer" --fixture spec/examples/valid/publication-profile --output "$RUNNER_TEMP/atlas-npm/npm-qualification.json"
+      - run: node distribution/bundle/assemble.mjs --output "$RUNNER_TEMP/atlas-artifacts"
+      - name: Exercise the native bundle outside the checkout
+        run: node distribution/bundle/qualify.mjs "$RUNNER_TEMP/atlas-artifacts/atlas-$(cat VERSION)-${{ matrix.target }}" --output "$RUNNER_TEMP/atlas-artifacts/native-qualification.json"
+      - name: Exercise the same application payload with shared Node 24
+        run: node distribution/bundle/qualify.mjs "$RUNNER_TEMP/atlas-artifacts/atlas-payload-$(cat VERSION)-${{ matrix.target }}" --node "$(command -v node)" --output "$RUNNER_TEMP/atlas-artifacts/shared-runtime-qualification.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: atlas-${{ matrix.target }}
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/atlas-artifacts/atlas-*.tar.gz
+            ${{ runner.temp }}/atlas-artifacts/atlas-*.json
+            ${{ runner.temp }}/atlas-artifacts/*qualification.json
+            ${{ runner.temp }}/atlas-npm/*

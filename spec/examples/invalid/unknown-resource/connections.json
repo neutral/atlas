@@ -1,0 +1,24 @@
+{
+  "memberships": [
+    {
+      "id": "one-service-boundary-area-scope",
+      "point": "service-boundary",
+      "map": "one",
+      "area": "scope"
+    }
+  ],
+  "references": [
+    {
+      "id": "one-service-boundary-reference-missing-resource",
+      "owner": {
+        "type": "point",
+        "map": "one",
+        "point": "service-boundary"
+      },
+      "target": {
+        "resource": "missing-resource"
+      },
+      "role": "evidence"
+    }
+  ]
+}

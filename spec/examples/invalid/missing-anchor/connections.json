@@ -1,0 +1,10 @@
+{
+  "memberships": [
+    {
+      "id": "two-orphan-area-local",
+      "point": "orphan",
+      "map": "two",
+      "area": "local"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "references": [
+    {
+      "id": "unknown-owner",
+      "owner": {
+        "type": "point",
+        "map": "missing",
+        "point": "service-boundary"
+      },
+      "target": {
+        "uri": "https://example.com"
+      },
+      "role": "supporting"
+    }
+  ]
+}

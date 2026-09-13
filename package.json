@@ -1,0 +1,27 @@
+{
+  "name": "atlas-source",
+  "version": "0.9.0",
+  "description": "A portable format for making context between project documents explicit and navigable.",
+  "private": true,
+  "license": "CC0-1.0 OR 0BSD",
+  "packageManager": "pnpm@11.22.0+sha512.1ff870c4c6133dfd88fb2afc46dd13d47f09c9794b438c6fdb47ca98caf3bc16381ee0be93a091b8e3824cf01f889f46d7d9e20910fb0be1ab0fb5baa80dd621",
+  "scripts": {
+    "test": "corepack pnpm@11.22.0 --filter atlas-reference-validator --filter atlas-cli-development --filter atlas-agent-development --filter atlas-editor --filter atlas-portal test && node --test tests/public.test.mjs distribution/bundle/bundle.test.mjs distribution/package-sdk.test.mjs",
+    "check": "corepack pnpm@11.22.0 --filter atlas-portal check && node --test tests/public.test.mjs",
+    "release:check": "npm test && npm run check",
+    "validate:fixtures": "atlas-validate --fixtures spec/examples/manifest.json",
+    "pack:sdk": "node distribution/package-sdk.mjs",
+    "bundle:assemble": "node distribution/bundle/assemble.mjs",
+    "test:installed-bundle": "node --test tests/qualification/installed-bundle.test.mjs",
+    "audit:dependencies": "corepack pnpm@11.22.0 audit --audit-level moderate"
+  },
+  "engines": {
+    "node": ">=22.23.2",
+    "pnpm": "11.22.0"
+  },
+  "devDependencies": {
+    "atlas-reference-validator": "workspace:*",
+    "atlas-cli-development": "workspace:*",
+    "atlas-agent-development": "workspace:*"
+  }
+}

@@ -2,8 +2,6 @@
 {
   "type": "publication",
   "id": "public",
-  "title": "Invalid public fixture",
-  "summary": "A profile that names unknown selections of every supported kind.",
   "selection": {
     "atlas": true,
     "maps": [
@@ -28,5 +26,7 @@
 ---
 
 # Invalid public fixture
+
+A profile that names unknown selections of every supported kind.
 
 Every unknown selector is intentional.

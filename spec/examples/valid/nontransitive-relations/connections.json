@@ -1,0 +1,36 @@
+{
+  "memberships": [
+    {
+      "id": "architecture-client-delivery-area-dependencies",
+      "point": "client-delivery",
+      "map": "architecture",
+      "area": "dependencies"
+    },
+    {
+      "id": "architecture-edge-gateway-area-dependencies",
+      "point": "edge-gateway",
+      "map": "architecture",
+      "area": "dependencies"
+    },
+    {
+      "id": "architecture-regional-network-area-dependencies",
+      "point": "regional-network",
+      "map": "architecture",
+      "area": "dependencies"
+    }
+  ],
+  "relations": [
+    {
+      "id": "architecture-client-delivery-depends-on-edge-gateway",
+      "source": "client-delivery",
+      "type": "depends-on",
+      "target": "edge-gateway"
+    },
+    {
+      "id": "architecture-edge-gateway-depends-on-regional-network",
+      "source": "edge-gateway",
+      "type": "depends-on",
+      "target": "regional-network"
+    }
+  ]
+}

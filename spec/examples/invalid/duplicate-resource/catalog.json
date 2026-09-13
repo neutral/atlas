@@ -1,0 +1,37 @@
+{
+  "navigation": [
+    {
+      "title": "Maps",
+      "maps": [
+        "one"
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "id": "guide",
+      "uri": "https://example.com/a",
+      "title": "A"
+    },
+    {
+      "id": "guide",
+      "uri": "https://example.com/b",
+      "title": "B"
+    }
+  ],
+  "areas": [
+    {
+      "map": "one",
+      "id": "scope",
+      "title": "Scope"
+    }
+  ],
+  "points": [
+    {
+      "point": "service-boundary",
+      "kinds": [
+        "decision"
+      ]
+    }
+  ]
+}

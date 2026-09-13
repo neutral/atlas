@@ -2,17 +2,13 @@
 {
   "type": "check",
   "id": "bad",
-  "title": "Bad Check",
-  "summary": "Contains an unsupported section.",
-  "status": "active",
-  "level": "required",
-  "applies-to": [
-    "map"
-  ]
+  "status": "active"
 }
 ---
 
 # Bad Check
+
+Contains an unsupported section.
 
 ## Requirement
 

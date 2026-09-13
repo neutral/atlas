@@ -2,24 +2,19 @@
 {
   "type": "check",
   "id": "context-quality",
-  "title": "Require distinct explained context",
-  "summary": "Require changed Point records and semantic edges to add specific meaning without repeating existing contributions.",
-  "status": "active",
-  "level": "required",
-  "applies-to": [
-    "point-anchor",
-    "point-context"
-  ]
+  "status": "active"
 }
 ---
 
 # Require distinct explained context
 
+Require changed Point records and semantic edges to add specific meaning without repeating existing contributions.
+
 ## Requirement
 
 Each changed Point record must contribute meaning specific to its containing Map. Every Area membership must explain how the record affects that Area's question. Every changed relation must explain its directional edge. A context summary, body, Content target, Reference, and Area explanation must not merely repeat the anchor, another context record, the Map summary, or the Area summary.
 
-A bodyless context remains substantive when an explained Area membership, Content, or Reference supplies distinct local meaning.
+A context opening paragraph states distinct local meaning. Additional sections explain declared memberships or material where needed. Derived structured fields repeat no authored meaning; they expose the same Markdown source.
 
 ## Verification
 

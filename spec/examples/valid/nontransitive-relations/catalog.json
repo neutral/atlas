@@ -1,0 +1,37 @@
+{
+  "navigation": [
+    {
+      "title": "Maps",
+      "maps": [
+        "architecture"
+      ]
+    }
+  ],
+  "areas": [
+    {
+      "map": "architecture",
+      "id": "dependencies",
+      "title": "Dependencies"
+    }
+  ],
+  "points": [
+    {
+      "point": "client-delivery",
+      "kinds": [
+        "implementation"
+      ]
+    },
+    {
+      "point": "edge-gateway",
+      "kinds": [
+        "implementation"
+      ]
+    },
+    {
+      "point": "regional-network",
+      "kinds": [
+        "implementation"
+      ]
+    }
+  ]
+}

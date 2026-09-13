@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Atlas</title>
+  <link rel="stylesheet" href="/editor.css">
+  <script type="module" src="/editor.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#reader">Skip to content</a>
+  <header class="app-header">
+    <button id="menu-toggle" class="quiet mobile-only" aria-label="Toggle navigation" aria-expanded="false" aria-controls="navigation">☰</button>
+    <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">A</span>Atlas</a>
+    <div id="workspace-label" class="workspace-label">Local repository</div>
+    <div class="header-actions">
+      <a href="/?kind=export" class="button quiet">Export site</a>
+      <a href="/?kind=agent" class="button quiet">Connect an agent</a>
+      <button data-action="refresh" class="quiet">Refresh</button>
+      <a href="/?kind=new" class="button primary">New</a>
+      <button id="help-open" class="quiet" aria-label="Open help">?</button>
+    </div>
+  </header>
+  <div class="app-body">
+    <nav id="navigation" aria-label="Atlas navigation">
+      <form id="search-form" role="search">
+        <label class="visually-hidden" for="search-input">Find context</label>
+        <input id="search-input" name="query" type="search" placeholder="Find context…" autocomplete="off">
+        <button type="submit" aria-label="Search">↵</button>
+        <label class="query-mode" for="search-mode">Query mode
+          <select id="search-mode" name="mode"><option value="ranked">Ranked text</option><option value="fts">FTS expression</option></select>
+        </label>
+      </form>
+      <div id="navigation-content"><p class="muted">Opening the selected Atlas…</p></div>
+      <div class="nav-footer">Files hold the authored context.<br>Drafts and reports use durable storage.</div>
+    </nav>
+    <div class="reader-pane">
+      <div id="operation-status" class="operation-status" role="status" aria-live="polite">Connecting to the local service…</div>
+      <main id="reader" tabindex="-1" aria-label="Atlas reader"></main>
+    </div>
+  </div>
+  <dialog id="help-dialog" aria-labelledby="help-title">
+    <div class="dialog-heading"><h2 id="help-title">Working with Atlas</h2><button id="help-close" aria-label="Close help">Close</button></div>
+    <div class="dialog-body">
+      <p>Start with a question, an exact id, or a source. Follow the Point’s anchor, local contexts, explained relations, and original material.</p>
+      <dl><dt>Maps and Areas</dt><dd>Authored questions organize context. Areas can overlap.</dd><dt>Points</dt><dd>One exact identity has one anchor and can have contexts in other Maps. Similar wording supplies candidates; it does not decide identity.</dd><dt>Sources</dt><dd>Content and typed References preserve source roles. A role establishes neither truth nor authority.</dd><dt>Contribute</dt><dd>Inspect plausible identities first. Edit, prepare, inspect the full changes, then explicitly apply. Repeated meaning needs no edit.</dd><dt>Drafts and saves</dt><dd>A stored draft remains unfinished text. Apply writes Atlas files. Draft storage keeps the current text. Discard removes the selected recovery content from the state directory.</dd><dt>Checks</dt><dd>Invoke verification explicitly. Validity, required Check coverage, actual outcomes, and truth are separate. Unavailable verification stays visible.</dd></dl>
+      <p><kbd>/</kbd> focuses search. <kbd>?</kbd> opens help. <kbd>Escape</kbd> closes this dialog. Shortcuts leave text entry alone.</p>
+      <p>Refresh preserves draft text and its original baseline. Changes compares retained observations. A service restart expires those observations and prepared plans; durable drafts and retained reports remain.</p>
+    </div>
+  </dialog>
+</body>
+</html>

@@ -2,19 +2,13 @@
 {
   "type": "check",
   "id": "standing-and-evidence",
-  "title": "Align standing with recorded support",
-  "summary": "Require changed claims, posture, lifecycle, relations, Content, and References to match the support available at the evaluated baseline.",
-  "status": "active",
-  "level": "required",
-  "applies-to": [
-    "point-anchor",
-    "point-context",
-    "resource"
-  ]
+  "status": "active"
 }
 ---
 
 # Align standing with recorded support
+
+Require changed claims, posture, lifecycle, relations, Content, and References to match the support available at the evaluated baseline.
 
 ## Requirement
 

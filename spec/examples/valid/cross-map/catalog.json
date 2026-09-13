@@ -1,0 +1,63 @@
+{
+  "navigation": [
+    {
+      "title": "Maps",
+      "maps": [
+        "architecture",
+        "operations"
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "id": "authentication-guide",
+      "uri": "docs/authentication.md",
+      "title": "Authentication guide"
+    }
+  ],
+  "areas": [
+    {
+      "map": "architecture",
+      "id": "boundary",
+      "title": "Boundary"
+    },
+    {
+      "map": "architecture",
+      "id": "security",
+      "title": "Security"
+    },
+    {
+      "map": "operations",
+      "id": "runtime",
+      "title": "Runtime"
+    },
+    {
+      "map": "operations",
+      "id": "security",
+      "title": "Security"
+    }
+  ],
+  "points": [
+    {
+      "point": "edge-authentication",
+      "kinds": [
+        "decision"
+      ]
+    },
+    {
+      "point": "rotate-edge-keys",
+      "kinds": [
+        "decision"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "check": "point-context",
+      "level": "required",
+      "applies-to": [
+        "point-context"
+      ]
+    }
+  ]
+}

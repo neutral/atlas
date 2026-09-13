@@ -2,21 +2,24 @@
 {
   "type": "map",
   "id": "two",
-  "title": "Two",
-  "summary": "Context for the two fixture Map.",
-  "question": "What context belongs in the two fixture Map?",
-  "status": "active",
-  "areas": [
-    {
-      "id": "local",
-      "title": "Local",
-      "summary": "Local context.",
-      "question": "Does this record materially affect local?"
-    }
-  ]
+  "status": "active"
 }
 ---
 
 # Two
 
+Context for the two fixture Map.
+
 This Map supplies a durable question and enough substantive context for the fixture.
+
+## Question
+
+What context belongs in the two fixture Map?
+
+## Area: local
+
+Local context.
+
+### Question
+
+Does this record materially affect local?

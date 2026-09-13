@@ -1,0 +1,30 @@
+{
+  "memberships": [
+    {
+      "id": "one-other-area-scope",
+      "point": "other",
+      "map": "one",
+      "area": "scope"
+    },
+    {
+      "id": "one-service-boundary-area-scope",
+      "point": "service-boundary",
+      "map": "one",
+      "area": "scope"
+    }
+  ],
+  "relations": [
+    {
+      "id": "one-service-boundary-supports-other",
+      "source": "service-boundary",
+      "type": "supports",
+      "target": "other"
+    },
+    {
+      "id": "one-service-boundary-supports-other-2",
+      "source": "service-boundary",
+      "type": "supports",
+      "target": "other"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "points": [
+    {
+      "point": "service-boundary",
+      "kinds": [
+        "decision"
+      ]
+    }
+  ]
+}

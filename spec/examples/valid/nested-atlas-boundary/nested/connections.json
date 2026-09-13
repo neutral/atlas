@@ -1,0 +1,10 @@
+{
+  "memberships": [
+    {
+      "id": "nested-map-nested-point-area-scope",
+      "point": "nested-point",
+      "map": "nested-map",
+      "area": "scope"
+    }
+  ]
+}

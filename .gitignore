@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Build and test output
+build/
+coverage/
+dist/
+.astro/
+.wrangler/
+.atlas/
+
+# Logs and temporary files
+*.log
+*.swp
+*.swo
+*.tmp
+*~
+.cache/
+.tmp/
+/tmp/
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor settings
+.idea/
+.vscode/
+.claude/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Desktop.ini
+Thumbs.db
+ehthumbs.db
+
+# Current qualification logs are retained evidence.
+
+# Locally prepared release candidates.
+distribution/artifacts/
+
+# Portal browser assets are generated during application assembly.
+apps/portal/prebuilt/

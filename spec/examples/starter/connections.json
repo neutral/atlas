@@ -1,0 +1,70 @@
+{
+  "content": [
+    {
+      "id": "session-example-content-session-notes",
+      "owner": {
+        "type": "atlas"
+      },
+      "target": {
+        "resource": "session-notes"
+      }
+    }
+  ],
+  "relations": [
+    {
+      "id": "architecture-api-session-migration-implements-redis-for-sessions",
+      "source": "api-session-migration",
+      "type": "implements",
+      "target": "redis-for-sessions"
+    }
+  ],
+  "references": [
+    {
+      "id": "architecture-api-session-migration-reference-session-notes-observed-implementation",
+      "owner": {
+        "type": "point",
+        "map": "architecture",
+        "point": "api-session-migration"
+      },
+      "target": {
+        "resource": "session-notes",
+        "selector": "observed-implementation"
+      },
+      "role": "evidence"
+    },
+    {
+      "id": "architecture-redis-for-sessions-reference-session-notes-decision",
+      "owner": {
+        "type": "point",
+        "map": "architecture",
+        "point": "redis-for-sessions"
+      },
+      "target": {
+        "resource": "session-notes",
+        "selector": "decision"
+      },
+      "role": "evidence"
+    },
+    {
+      "id": "operations-redis-for-sessions-reference-session-notes-recovery-implication",
+      "owner": {
+        "type": "point",
+        "map": "operations",
+        "point": "redis-for-sessions"
+      },
+      "target": {
+        "resource": "session-notes",
+        "selector": "recovery-implication"
+      },
+      "role": "supporting"
+    }
+  ],
+  "memberships": [
+    {
+      "id": "operations-redis-for-sessions-area-recovery",
+      "point": "redis-for-sessions",
+      "map": "operations",
+      "area": "recovery"
+    }
+  ]
+}

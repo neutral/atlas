@@ -2,18 +2,13 @@
 {
   "type": "check",
   "id": "routing-quality",
-  "title": "Keep routing questions usable",
-  "summary": "Require changed Map and Area questions to distinguish durable deposit choices rather than repeat categories or placeholders.",
-  "status": "active",
-  "level": "required",
-  "applies-to": [
-    "map",
-    "area"
-  ]
+  "status": "active"
 }
 ---
 
 # Keep routing questions usable
+
+Require changed Map and Area questions to distinguish durable deposit choices rather than repeat categories or placeholders.
 
 ## Requirement
 

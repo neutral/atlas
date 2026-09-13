@@ -1,22 +1,13 @@
 ---
 {
   "type": "atlas",
-  "format": 1,
-  "id": "fixture",
-  "title": "Fixture Atlas",
-  "summary": "Executable Atlas format 1 fixture.",
-  "navigation": [
-    {
-      "title": "Maps",
-      "maps": [
-        "one",
-        "two"
-      ]
-    }
-  ]
+  "format": 2,
+  "id": "fixture"
 }
 ---
 
 # Fixture Atlas
+
+Executable Atlas format 2 fixture.
 
 This Atlas exists to exercise one bounded format and validation behavior.

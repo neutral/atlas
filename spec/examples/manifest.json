@@ -40,7 +40,7 @@
       "profile": "neutral.atlas-validator.resolved",
       "complete": true,
       "valid": true,
-      "description": "A bodyless context record can contribute an explained Area membership.",
+      "description": "A context record contributes an opening paragraph and an Area explanation in Markdown.",
       "diagnostics": []
     },
     {
@@ -110,9 +110,9 @@
       "profile": "neutral.atlas-validator.resolved",
       "complete": true,
       "valid": false,
-      "description": "If an anchor body is authored, it must contain a substantive Markdown block.",
+      "description": "An anchor requires an opening Markdown paragraph after its H1.",
       "diagnostics": [
-        "atlas.point.anchor-body-empty"
+        "atlas.markdown.summary"
       ]
     },
     {
@@ -120,9 +120,9 @@
       "profile": "neutral.atlas-validator.resolved",
       "complete": true,
       "valid": false,
-      "description": "If a context body is authored, it must contain a substantive Markdown block.",
+      "description": "A context requires an opening Markdown paragraph after its H1.",
       "diagnostics": [
-        "atlas.point.context-body-empty"
+        "atlas.markdown.summary"
       ]
     },
     {
@@ -132,7 +132,7 @@
       "valid": false,
       "description": "A Point record cannot name an Area without explaining the semantic connection.",
       "diagnostics": [
-        "atlas.frontmatter.schema"
+        "atlas.global.schema"
       ]
     },
     {
@@ -140,9 +140,10 @@
       "profile": "neutral.atlas-validator.resolved",
       "complete": true,
       "valid": false,
-      "description": "Invalid fixture for empty context.",
+      "description": "An empty context body lacks the required H1 and opening paragraph.",
       "diagnostics": [
-        "atlas.point.context-empty"
+        "atlas.markdown.summary",
+        "atlas.markdown.title"
       ]
     },
     {
@@ -194,7 +195,7 @@
       "valid": false,
       "description": "Invalid fixture for duplicate area.",
       "diagnostics": [
-        "atlas.area.duplicate-id"
+        "atlas.global.duplicate"
       ]
     },
     {
@@ -224,7 +225,8 @@
       "valid": false,
       "description": "A Point record can explain each Map-local Area membership only once.",
       "diagnostics": [
-        "atlas.area.duplicate-membership"
+        "atlas.area.duplicate-membership",
+        "atlas.markdown.section"
       ]
     },
     {
@@ -334,7 +336,7 @@
       "valid": false,
       "description": "Every authored relation must explain its semantic edge.",
       "diagnostics": [
-        "atlas.frontmatter.schema"
+        "atlas.markdown.section"
       ]
     },
     {
@@ -354,7 +356,9 @@
       "valid": false,
       "description": "Invalid fixture for duplicate relation.",
       "diagnostics": [
-        "atlas.relation.duplicate"
+        "atlas.relation.duplicate",
+        "atlas.markdown.section",
+        "atlas.markdown.association"
       ]
     },
     {
@@ -404,7 +408,7 @@
       "valid": false,
       "description": "Invalid fixture for invalid calendar date.",
       "diagnostics": [
-        "atlas.frontmatter.schema"
+        "atlas.global.schema"
       ]
     },
     {
@@ -414,7 +418,8 @@
       "valid": false,
       "description": "Every Map requires a deposit question.",
       "diagnostics": [
-        "atlas.frontmatter.schema"
+        "atlas.map.unlisted",
+        "atlas.markdown.section"
       ]
     },
     {
@@ -424,7 +429,8 @@
       "valid": false,
       "description": "Every Area requires a placement question.",
       "diagnostics": [
-        "atlas.frontmatter.schema"
+        "atlas.map.unlisted",
+        "atlas.markdown.section"
       ]
     },
     {
@@ -588,14 +594,12 @@
       ]
     },
     {
-      "path": "invalid/check-filename-mismatch",
+      "path": "valid/renamed-check",
       "profile": "neutral.atlas-validator.resolved",
       "complete": true,
-      "valid": false,
-      "description": "A Check identifier must match its filename.",
-      "diagnostics": [
-        "atlas.check.filename-mismatch"
-      ]
+      "valid": true,
+      "description": "Document renaming preserves the exact local check identity.",
+      "diagnostics": []
     },
     {
       "path": "invalid/check-missing-section",
@@ -638,14 +642,12 @@
       ]
     },
     {
-      "path": "invalid/publication-filename-mismatch",
+      "path": "valid/renamed-publication",
       "profile": "neutral.atlas-validator.resolved",
       "complete": true,
-      "valid": false,
-      "description": "A publication profile id must match its filename.",
-      "diagnostics": [
-        "atlas.publication.filename-mismatch"
-      ]
+      "valid": true,
+      "description": "Document renaming preserves the exact local publication identity.",
+      "diagnostics": []
     },
     {
       "path": "invalid/publication-unknown-selection",
@@ -692,14 +694,12 @@
       ]
     },
     {
-      "path": "invalid/filename-mismatch",
+      "path": "valid/renamed-point",
       "profile": "neutral.atlas-validator.resolved",
       "complete": true,
-      "valid": false,
-      "description": "Invalid fixture for filename mismatch.",
-      "diagnostics": [
-        "atlas.point.filename-mismatch"
-      ]
+      "valid": true,
+      "description": "Document renaming preserves the exact local point identity.",
+      "diagnostics": []
     },
     {
       "path": "invalid/duplicate-resource",
@@ -708,7 +708,107 @@
       "valid": false,
       "description": "Invalid fixture for duplicate resource.",
       "diagnostics": [
-        "atlas.resource.duplicate-id"
+        "atlas.global.duplicate"
+      ]
+    },
+    {
+      "path": "invalid/missing-catalog",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "The required global catalog is missing.",
+      "diagnostics": [
+        "atlas.global.missing"
+      ]
+    },
+    {
+      "path": "invalid/missing-connections",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "The required global connections file is missing.",
+      "diagnostics": [
+        "atlas.global.missing"
+      ]
+    },
+    {
+      "path": "invalid/global-invalid-file",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "A global declaration path must be a regular file.",
+      "diagnostics": [
+        "atlas.global.invalid-file"
+      ]
+    },
+    {
+      "path": "invalid/global-duplicate-json-key",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Global JSON rejects duplicate decoded member names.",
+      "diagnostics": [
+        "atlas.global.invalid-json"
+      ]
+    },
+    {
+      "path": "invalid/global-schema",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "A global file cannot introduce a document-path registry.",
+      "diagnostics": [
+        "atlas.global.schema"
+      ]
+    },
+    {
+      "path": "invalid/global-unknown-owner",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "A connection owner requires an exact existing Point-and-Map record.",
+      "diagnostics": [
+        "atlas.global.owner"
+      ]
+    },
+    {
+      "path": "invalid/duplicate-connection-id",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Connection IDs are unique across different connection arrays.",
+      "diagnostics": [
+        "atlas.connection.duplicate-id"
+      ]
+    },
+    {
+      "path": "invalid/missing-check-registration",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "A discovered Check requires one explicit catalog registration.",
+      "diagnostics": [
+        "atlas.catalog.check-missing"
+      ]
+    },
+    {
+      "path": "invalid/old-authored-format",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Current readers explicitly refuse authored format 1.",
+      "diagnostics": [
+        "atlas.format.unsupported"
+      ]
+    },
+    {
+      "path": "invalid/local-metadata",
+      "profile": "neutral.atlas-validator.resolved",
+      "complete": true,
+      "valid": false,
+      "description": "Collection metadata cannot remain in a format 2 local header.",
+      "diagnostics": [
+        "atlas.frontmatter.schema"
       ]
     }
   ]

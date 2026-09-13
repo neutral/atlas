@@ -1,0 +1,18 @@
+{
+  "navigation": [
+    {
+      "title": "Maps",
+      "maps": [
+        "one"
+      ]
+    }
+  ],
+  "points": [
+    {
+      "point": "service-boundary",
+      "kinds": [
+        "decision"
+      ]
+    }
+  ]
+}

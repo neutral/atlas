@@ -2,25 +2,21 @@
 {
   "type": "check",
   "id": "anchor-body",
-  "title": "Require explanatory anchor bodies",
-  "summary": "Require changed anchors to include a substantive Markdown body beyond their canonical summary.",
-  "status": "active",
-  "level": "required",
-  "applies-to": [
-    "point-anchor"
-  ]
+  "status": "active"
 }
 ---
 
 # Require explanatory anchor bodies
 
+Require changed anchors to include a substantive Markdown body beyond their canonical summary.
+
 ## Requirement
 
-Every changed anchor must include at least one substantive Markdown block beyond front matter. The body should explain the idea rather than repeat its summary. A single useful sentence can satisfy this policy; no minimum length is required.
+Every changed anchor must include at least one substantive Markdown block beyond its opening summary paragraph. That additional prose should explain the idea rather than repeat the summary. A single useful sentence can satisfy this policy; no minimum length is required.
 
 ## Verification
 
-Inspect each changed anchor using the format's body-inspection rules. Confirm that an included block remains after normalization, then read it for an explanation beyond the summary. Record the inspected paths and the supporting passage. Do not execute linked material or treat body presence as evidence of truth.
+Inspect each changed anchor using the format's body-inspection rules. Exclude the opening summary paragraph, confirm that an included block remains after normalization, then read it for an additional explanation. Record the inspected paths and the supporting passage. Do not execute linked material or treat body presence as evidence of truth.
 
 ## Failure
 

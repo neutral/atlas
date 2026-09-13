@@ -1,0 +1,16 @@
+{
+  "memberships": [
+    {
+      "id": "one-shared-area-scope",
+      "point": "shared",
+      "map": "one",
+      "area": "scope"
+    },
+    {
+      "id": "two-shared-area-scope",
+      "point": "shared",
+      "map": "two",
+      "area": "scope"
+    }
+  ]
+}

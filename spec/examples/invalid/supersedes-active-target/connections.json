@@ -1,0 +1,24 @@
+{
+  "memberships": [
+    {
+      "id": "one-new-area-scope",
+      "point": "new",
+      "map": "one",
+      "area": "scope"
+    },
+    {
+      "id": "one-old-area-scope",
+      "point": "old",
+      "map": "one",
+      "area": "scope"
+    }
+  ],
+  "relations": [
+    {
+      "id": "one-new-supersedes-old",
+      "source": "new",
+      "type": "supersedes",
+      "target": "old"
+    }
+  ]
+}

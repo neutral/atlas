@@ -1,0 +1,32 @@
+{
+  "navigation": [
+    {
+      "title": "Maps",
+      "maps": [
+        "one"
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "id": "overview",
+      "uri": "docs/overview.md",
+      "title": "Fixture overview"
+    }
+  ],
+  "areas": [
+    {
+      "map": "one",
+      "id": "scope",
+      "title": "Scope"
+    }
+  ],
+  "points": [
+    {
+      "point": "service-boundary",
+      "kinds": [
+        "decision"
+      ]
+    }
+  ]
+}

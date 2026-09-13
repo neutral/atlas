@@ -1,0 +1,11 @@
+{
+  "checks": [
+    {
+      "check": "registered-anchor-content",
+      "level": "required",
+      "applies-to": [
+        "point-anchor"
+      ]
+    }
+  ]
+}

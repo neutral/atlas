@@ -1,0 +1,36 @@
+{
+  "memberships": [
+    {
+      "id": "one-service-boundary-area-scope",
+      "point": "service-boundary",
+      "map": "one",
+      "area": "scope"
+    }
+  ],
+  "references": [
+    {
+      "id": "one-service-boundary-reference-uri",
+      "owner": {
+        "type": "point",
+        "map": "one",
+        "point": "service-boundary"
+      },
+      "target": {
+        "uri": "https://example.com/evidence"
+      },
+      "role": "evidence"
+    },
+    {
+      "id": "one-service-boundary-reference-uri-2",
+      "owner": {
+        "type": "point",
+        "map": "one",
+        "point": "service-boundary"
+      },
+      "target": {
+        "uri": "https://example.com/evidence"
+      },
+      "role": "evidence"
+    }
+  ]
+}

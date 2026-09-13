@@ -1,0 +1,17 @@
+{
+  "navigation": [
+    {
+      "title": "Maps",
+      "maps": [
+        "two"
+      ]
+    }
+  ],
+  "areas": [
+    {
+      "map": "two",
+      "id": "local",
+      "title": "Local"
+    }
+  ]
+}

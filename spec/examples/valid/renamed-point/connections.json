@@ -1,0 +1,10 @@
+{
+  "memberships": [
+    {
+      "id": "one-wrong-name-area-scope",
+      "point": "wrong-name",
+      "map": "one",
+      "area": "scope"
+    }
+  ]
+}

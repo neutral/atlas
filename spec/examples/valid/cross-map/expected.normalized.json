@@ -1,9 +1,9 @@
 {
-  "format": 1,
+  "format": 2,
   "atlas": {
     "id": "fixture",
     "title": "Fixture Atlas",
-    "summary": "Executable Atlas format 1 fixture.",
+    "summary": "Executable Atlas format 2 fixture.",
     "navigation": [
       {
         "title": "Maps",
@@ -24,7 +24,7 @@
     "content": [],
     "references": [],
     "extensions": {},
-    "body": "\n# Fixture Atlas\n\nThis Atlas exists to exercise one bounded format and validation behavior.\n"
+    "body": "\n# Fixture Atlas\n\nExecutable Atlas format 2 fixture.\n\nThis Atlas exists to exercise one bounded format and validation behavior.\n\n## Resource: authentication-guide\n\nImplementation guidance for the fixture.\n"
   },
   "maps": [
     {
@@ -51,7 +51,7 @@
       "content": [],
       "references": [],
       "extensions": {},
-      "body": "\n# Architecture\n\nThis Map supplies a durable question and enough substantive context for the fixture.\n",
+      "body": "\n# Architecture\n\nContext for the architecture fixture Map.\n\nThis Map supplies a durable question and enough substantive context for the fixture.\n\n## Question\n\nWhat context belongs in the architecture fixture Map?\n\n## Area: boundary\n\nBoundary context.\n\n### Question\n\nDoes this record materially affect boundary?\n\n## Area: security\n\nSecurity context.\n\n### Question\n\nDoes this record materially affect security?\n",
       "pointIds": [
         "edge-authentication"
       ],
@@ -84,7 +84,7 @@
       "content": [],
       "references": [],
       "extensions": {},
-      "body": "\n# Operations\n\nThis Map supplies a durable question and enough substantive context for the fixture.\n",
+      "body": "\n# Operations\n\nContext for the operations fixture Map.\n\nThis Map supplies a durable question and enough substantive context for the fixture.\n\n## Question\n\nWhat context belongs in the operations fixture Map?\n\n## Area: runtime\n\nRuntime context.\n\n### Question\n\nDoes this record materially affect runtime?\n\n## Area: security\n\nSecurity context.\n\n### Question\n\nDoes this record materially affect security?\n",
       "pointIds": [
         "edge-authentication",
         "rotate-edge-keys"
@@ -114,58 +114,68 @@
           "kind": "anchor",
           "map": "architecture",
           "path": "maps/architecture/points/edge-authentication.md",
+          "title": "Authenticate at the edge",
           "summary": "Canonical context for authenticate at the edge.",
           "areas": [
             {
+              "id": "architecture-edge-authentication-area-boundary",
               "area": "boundary",
               "context": "This record affects Boundary because canonical context for authenticate at the edge."
             },
             {
+              "id": "architecture-edge-authentication-area-security",
               "area": "security",
               "context": "This record affects Security because canonical context for authenticate at the edge."
             }
           ],
           "content": [
             {
-              "resource": "authentication-guide"
+              "resource": "authentication-guide",
+              "id": "architecture-edge-authentication-content-authentication-guide"
             }
           ],
           "references": [
             {
               "uri": "https://example.com/security-model",
+              "id": "architecture-edge-authentication-reference-uri",
               "role": "evidence"
             }
           ],
           "extensions": {},
-          "body": "\n# Authenticate at the edge\n\nThis anchor record states a substantive project decision in its own right. It explains the governing boundary, the reason that the boundary exists, and the consequences that readers and software agents must preserve when they change related documents or implementation. The body is intentionally long enough to satisfy the deterministic anchor substance rule without relying on headings or link destinations.\n"
+          "body": "\n# Authenticate at the edge\n\nCanonical context for authenticate at the edge.\n\nThis anchor record states a substantive project decision in its own right. It explains the governing boundary, the reason that the boundary exists, and the consequences that readers and software agents must preserve when they change related documents or implementation. The body is intentionally long enough to satisfy the deterministic anchor substance rule without relying on headings or link destinations.\n\n## Connection: architecture-edge-authentication-area-boundary\n\nThis record affects Boundary because canonical context for authenticate at the edge.\n\n## Connection: architecture-edge-authentication-area-security\n\nThis record affects Security because canonical context for authenticate at the edge.\n\n## Connection: architecture-edge-authentication-supports-rotate-edge-keys\n\nThe boundary requires an operational key rotation practice.\n"
         },
         {
           "kind": "context",
           "map": "operations",
           "path": "maps/operations/points/edge-authentication.md",
+          "title": "Operational context",
           "summary": "Map-local context for edge-authentication.",
           "areas": [
             {
+              "id": "operations-edge-authentication-area-runtime",
               "area": "runtime",
               "context": "This record affects Runtime because map-local context for edge-authentication."
             },
             {
+              "id": "operations-edge-authentication-area-security",
               "area": "security",
               "context": "This record affects Security because map-local context for edge-authentication."
             }
           ],
           "content": [
             {
-              "resource": "authentication-guide"
+              "resource": "authentication-guide",
+              "id": "operations-edge-authentication-content-authentication-guide"
             }
           ],
           "references": [],
           "extensions": {},
-          "body": "\n# Operational context\n\nOperations contributes the runtime consequences of the edge-authentication decision. Key material must rotate without removing the boundary, monitoring must distinguish rejected credentials from service failures, and incident procedures must preserve the canonical architecture decision.\n"
+          "body": "\n# Operational context\n\nMap-local context for edge-authentication.\n\nOperations contributes the runtime consequences of the edge-authentication decision. Key material must rotate without removing the boundary, monitoring must distinguish rejected credentials from service failures, and incident procedures must preserve the canonical architecture decision.\n\n## Connection: operations-edge-authentication-area-runtime\n\nThis record affects Runtime because map-local context for edge-authentication.\n\n## Connection: operations-edge-authentication-area-security\n\nThis record affects Security because map-local context for edge-authentication.\n"
         }
       ],
       "relations": [
         {
+          "id": "architecture-edge-authentication-supports-rotate-edge-keys",
           "sourcePoint": "edge-authentication",
           "sourceMap": "architecture",
           "sourcePath": "maps/architecture/points/edge-authentication.md",
@@ -179,6 +189,7 @@
       ],
       "incomingRelations": [
         {
+          "id": "operations-rotate-edge-keys-depends-on-edge-authentication",
           "sourcePoint": "rotate-edge-keys",
           "sourceMap": "operations",
           "sourcePath": "maps/operations/points/rotate-edge-keys.md",
@@ -207,13 +218,16 @@
           "kind": "anchor",
           "map": "operations",
           "path": "maps/operations/points/rotate-edge-keys.md",
+          "title": "Rotate edge keys",
           "summary": "Canonical context for rotate edge keys.",
           "areas": [
             {
+              "id": "operations-rotate-edge-keys-area-runtime",
               "area": "runtime",
               "context": "This record affects Runtime because canonical context for rotate edge keys."
             },
             {
+              "id": "operations-rotate-edge-keys-area-security",
               "area": "security",
               "context": "This record affects Security because canonical context for rotate edge keys."
             }
@@ -221,11 +235,12 @@
           "content": [],
           "references": [],
           "extensions": {},
-          "body": "\n# Rotate edge keys\n\nThis anchor record states a substantive project decision in its own right. It explains the governing boundary, the reason that the boundary exists, and the consequences that readers and software agents must preserve when they change related documents or implementation. The body is intentionally long enough to satisfy the deterministic anchor substance rule without relying on headings or link destinations.\n"
+          "body": "\n# Rotate edge keys\n\nCanonical context for rotate edge keys.\n\nThis anchor record states a substantive project decision in its own right. It explains the governing boundary, the reason that the boundary exists, and the consequences that readers and software agents must preserve when they change related documents or implementation. The body is intentionally long enough to satisfy the deterministic anchor substance rule without relying on headings or link destinations.\n\n## Connection: operations-rotate-edge-keys-area-runtime\n\nThis record affects Runtime because canonical context for rotate edge keys.\n\n## Connection: operations-rotate-edge-keys-area-security\n\nThis record affects Security because canonical context for rotate edge keys.\n\n## Connection: operations-rotate-edge-keys-depends-on-edge-authentication\n\nRotation exists to preserve the edge boundary.\n"
         }
       ],
       "relations": [
         {
+          "id": "operations-rotate-edge-keys-depends-on-edge-authentication",
           "sourcePoint": "rotate-edge-keys",
           "sourceMap": "operations",
           "sourcePath": "maps/operations/points/rotate-edge-keys.md",
@@ -237,6 +252,7 @@
       ],
       "incomingRelations": [
         {
+          "id": "architecture-edge-authentication-supports-rotate-edge-keys",
           "sourcePoint": "edge-authentication",
           "sourceMap": "architecture",
           "sourcePath": "maps/architecture/points/edge-authentication.md",
@@ -255,6 +271,13 @@
   "checks": [
     {
       "id": "point-context",
+      "registration": {
+        "check": "point-context",
+        "level": "required",
+        "applies-to": [
+          "point-context"
+        ]
+      },
       "title": "Require meaningful Point context",
       "summary": "Context records must materially answer their containing Map question.",
       "status": "active",
@@ -264,7 +287,7 @@
       ],
       "path": ".checks/point-context.md",
       "extensions": {},
-      "body": "\n# Require meaningful Point context\n\n## Requirement\n\nEvery context record must add a distinct local consequence, Area membership, Content target, Reference, or explanation to the same Point identity.\n\n## Verification\n\nInspect the Point anchor and every changed context record, then confirm that the context answers the containing Map question without redefining canonical fields.\n\n## Failure\n\nDo not accept an unexplained copy. Remove it, rewrite it as substantive local context, or establish a different Point identity.\n"
+      "body": "\n# Require meaningful Point context\n\nContext records must materially answer their containing Map question.\n\n## Requirement\n\nEvery context record must add a distinct local consequence, Area membership, Content target, Reference, or explanation to the same Point identity.\n\n## Verification\n\nInspect the Point anchor and every changed context record, then confirm that the context answers the containing Map question without redefining canonical fields.\n\n## Failure\n\nDo not accept an unexplained copy. Remove it, rewrite it as substantive local context, or establish a different Point identity.\n"
     }
   ],
   "publicationProfiles": [],

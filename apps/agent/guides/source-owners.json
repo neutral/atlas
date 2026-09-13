@@ -1,0 +1,69 @@
+{
+  "contract": "atlas.guide-owners/1",
+  "owners": {
+    "OPERATING.md": {
+      "owner": "spec/OPERATING.md",
+      "sha256": "1a28fcd848302471b7ce0053d77b087fa50045f0fe0503858b6cd6af4ce61699"
+    },
+    "SPEC.md": {
+      "owner": "spec/SPEC.md",
+      "sha256": "22784a8ebfc7785f9003b0ce5f72b280517fa36c3f6e42c58f009285366ee987"
+    },
+    "GLOSSARY.md": {
+      "owner": "spec/GLOSSARY.md",
+      "sha256": "9c232fa995ede4bae54043841dd6cc36a40a69b33ab3bedd34fd9ef2fa31e740"
+    },
+    "schemas/README.md": {
+      "owner": "spec/schemas/README.md",
+      "sha256": "c059491b8d669d0eb883551b4ae7efa8c46cc198871a676c0b1d3486b295ea3f"
+    },
+    "spec/AGENT-TOOLS.md": {
+      "owner": "spec/spec/AGENT-TOOLS.md",
+      "sha256": "5fd9cd18639ce74d58cfb73dc2a868a3e4e8a286373ef36507f5533d87e56781"
+    },
+    "spec/AUTHORING.md": {
+      "owner": "spec/spec/AUTHORING.md",
+      "sha256": "c49240f45d683c20152f2de5713dbdd460d8fe3d1481bd26ee982d7ff23496b1"
+    },
+    "spec/CHECKS.md": {
+      "owner": "spec/spec/CHECKS.md",
+      "sha256": "1741400cfa4509d00b8a31d5710a72a1d23612f720ffdbaf9c50209a0b75e5d4"
+    },
+    "spec/CONFORMANCE.md": {
+      "owner": "spec/spec/CONFORMANCE.md",
+      "sha256": "78264a9d3878751f843ab2f85487833928b49db8d17143c5831712dc1863921f"
+    },
+    "spec/EDITOR.md": {
+      "owner": "spec/spec/EDITOR.md",
+      "sha256": "b5ee5e2327a32e63faac590c528ec5f067247164472cf932dfad77aed2638e65"
+    },
+    "spec/EVALUATION.md": {
+      "owner": "spec/spec/EVALUATION.md",
+      "sha256": "2084c1efd2eda744168f921e9aa400547e9616c6a609f56316c45567c9be2d9b"
+    },
+    "spec/FORMAT.md": {
+      "owner": "spec/spec/FORMAT.md",
+      "sha256": "2064afda983244b7964f348a86cc885c2840c4b9448713c861edd780254dcc9c"
+    },
+    "spec/PROCESSING.md": {
+      "owner": "spec/spec/PROCESSING.md",
+      "sha256": "f009e09b4207e53ff6e87ef10c6f96fbc9eef49c4263b9a7dce1848bedeef810"
+    },
+    "spec/PUBLICATION.md": {
+      "owner": "spec/spec/PUBLICATION.md",
+      "sha256": "d9ec5c71c603216909759cd176cd89966e6f8b7b6e2ab4d00750b2d82784dfe8"
+    },
+    "spec/TOOLS.md": {
+      "owner": "spec/spec/TOOLS.md",
+      "sha256": "4bf207eb356423795e2dfb699956352f249e3163ed693fb7f00ea1e3399c1670"
+    },
+    "spec/VALIDATION.md": {
+      "owner": "spec/spec/VALIDATION.md",
+      "sha256": "27534727cced1df5b9cdccdc026de59dd5406d1202aa3a58486dcf3d1e097fdf"
+    },
+    "spec/WORKSPACE.md": {
+      "owner": "spec/spec/WORKSPACE.md",
+      "sha256": "abc5f5ae12982f8401545bfe4174ee33edb88e3c522903c97d3564ae28567c22"
+    }
+  }
+}

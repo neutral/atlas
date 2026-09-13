@@ -1,5 +1,8 @@
-# Atlas format 1 fixtures
+# Conformance examples
 
-The 72-fixture matrix supplies positive evidence, negative boundary evidence, registered diagnostics, algorithm tests, and Meta-Atlas use. It covers strict JSON front matter, summary-only anchors, substantive authored bodies, bodyless explained-Area contexts, exact authored Point identity despite identical prose, authored-only relation graphs, bare-membership rejection, required relation notes, exact publication selection, and duplicate Map-question, Area-question, and Area-membership boundaries. `manifest.json` conforms to `urn:atlas:schema:fixture-manifest:1` and pins profile, completeness, validity, exact ordered diagnostic codes, and optional normalized output.
+`manifest.json` records expected completeness, validity, diagnostics, and normalized
+output for the fixture matrix. Invalid fixtures preserve exact malformed bytes.
+Run `npm run validate:fixtures` from the repository root.
 
-Each invalid fixture isolates its declared boundary. A valid fixture can omit a normalized snapshot; omission means the fixture runner does not compare normalized output for that case. Invalid and incomplete results never expose normalized output.
+Use the [starter](starter/README.md) for a copyable authored collection. Fixtures
+establish their named format and processing cases, not semantic quality.

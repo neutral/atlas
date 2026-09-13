@@ -1,0 +1,26 @@
+{
+  "navigation": [
+    {
+      "title": "Maps",
+      "maps": [
+        "one",
+        "missing"
+      ]
+    }
+  ],
+  "areas": [
+    {
+      "map": "one",
+      "id": "scope",
+      "title": "Scope"
+    }
+  ],
+  "points": [
+    {
+      "point": "service-boundary",
+      "kinds": [
+        "decision"
+      ]
+    }
+  ]
+}

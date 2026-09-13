@@ -1,0 +1,10 @@
+{
+  "memberships": [
+    {
+      "id": "one-service-boundary-area-missing",
+      "point": "service-boundary",
+      "map": "one",
+      "area": "missing"
+    }
+  ]
+}

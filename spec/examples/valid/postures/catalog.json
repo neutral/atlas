@@ -1,0 +1,55 @@
+{
+  "navigation": [
+    {
+      "title": "Maps",
+      "maps": [
+        "one"
+      ]
+    }
+  ],
+  "areas": [
+    {
+      "map": "one",
+      "id": "scope",
+      "title": "Scope"
+    }
+  ],
+  "points": [
+    {
+      "point": "asserted-point",
+      "kinds": [
+        "decision"
+      ]
+    },
+    {
+      "point": "historical-point",
+      "kinds": [
+        "decision"
+      ]
+    },
+    {
+      "point": "intended-point",
+      "kinds": [
+        "decision"
+      ]
+    },
+    {
+      "point": "open-point",
+      "kinds": [
+        "decision"
+      ]
+    },
+    {
+      "point": "proposed-point",
+      "kinds": [
+        "decision"
+      ]
+    },
+    {
+      "point": "withdrawn-point",
+      "kinds": [
+        "decision"
+      ]
+    }
+  ]
+}

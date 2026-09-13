@@ -1,0 +1,279 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:atlas:schema:connections:2",
+  "type": "object",
+  "properties": {
+    "memberships": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+          },
+          "point": {
+            "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+          },
+          "map": {
+            "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+          },
+          "area": {
+            "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "point",
+          "map",
+          "area"
+        ],
+        "patternProperties": {
+          "^x-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$": true
+        }
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+          },
+          "source": {
+            "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "supersedes",
+                  "depends-on",
+                  "supports",
+                  "contradicts",
+                  "refines",
+                  "implements"
+                ]
+              },
+              {
+                "$ref": "urn:atlas:schema:common:1#/$defs/extensionIdentifier"
+              }
+            ]
+          },
+          "target": {
+            "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "source",
+          "type",
+          "target"
+        ],
+        "patternProperties": {
+          "^x-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$": true
+        }
+      }
+    },
+    "content": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+          },
+          "owner": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "const": "atlas"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "type"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "const": "map"
+                  },
+                  "map": {
+                    "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "type",
+                  "map"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "const": "area"
+                  },
+                  "map": {
+                    "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+                  },
+                  "area": {
+                    "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "type",
+                  "map",
+                  "area"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "const": "point"
+                  },
+                  "map": {
+                    "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+                  },
+                  "point": {
+                    "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "type",
+                  "map",
+                  "point"
+                ]
+              }
+            ]
+          },
+          "target": {
+            "$ref": "urn:atlas:schema:common:1#/$defs/contentTarget"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "owner",
+          "target"
+        ],
+        "patternProperties": {
+          "^x-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$": true
+        }
+      }
+    },
+    "references": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+          },
+          "owner": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "const": "atlas"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "type"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "const": "map"
+                  },
+                  "map": {
+                    "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "type",
+                  "map"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "const": "area"
+                  },
+                  "map": {
+                    "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+                  },
+                  "area": {
+                    "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "type",
+                  "map",
+                  "area"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "const": "point"
+                  },
+                  "map": {
+                    "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+                  },
+                  "point": {
+                    "$ref": "urn:atlas:schema:common:1#/$defs/identifier"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "type",
+                  "map",
+                  "point"
+                ]
+              }
+            ]
+          },
+          "target": {
+            "$ref": "urn:atlas:schema:common:1#/$defs/contentTarget"
+          },
+          "role": {
+            "$ref": "urn:atlas:schema:common:1#/$defs/referenceRole"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "owner",
+          "target",
+          "role"
+        ],
+        "patternProperties": {
+          "^x-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$": true
+        }
+      }
+    }
+  },
+  "additionalProperties": false,
+  "patternProperties": {
+    "^x-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$": true
+  }
+}

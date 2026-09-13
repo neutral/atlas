@@ -1,0 +1,29 @@
+{
+  "navigation": [
+    {
+      "title": "Maps",
+      "maps": [
+        "one"
+      ]
+    }
+  ],
+  "areas": [
+    {
+      "map": "one",
+      "id": "scope",
+      "title": "Scope"
+    }
+  ],
+  "points": [
+    {
+      "point": "service-boundary",
+      "kinds": [
+        "decision"
+      ],
+      "review": {
+        "reviewed-at": "2026-06-02",
+        "review-after": "2026-06-01"
+      }
+    }
+  ]
+}

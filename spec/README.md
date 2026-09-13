@@ -1,17 +1,13 @@
-# Atlas format 1 specification
+# Atlas specification
 
-Start with [Working with Atlas](OPERATING.md), the compact absorb and route contract for people and agents. Load reference detail only when the task needs it.
+Start with [Working with Atlas](OPERATING.md), then [SPEC](SPEC.md) and the
+[glossary](GLOSSARY.md). Load the owning contracts in `spec/` only as needed.
 
-Each requirement has one owner:
+- [Format](spec/FORMAT.md), [processing](spec/PROCESSING.md), and [validation](spec/VALIDATION.md) own authored encoding and conformance mechanics.
+- [Checks](spec/CHECKS.md) and [publication](spec/PUBLICATION.md) own adopted policy and explicit selection.
+- [Tools](spec/TOOLS.md), [workspace](spec/WORKSPACE.md), [authoring](spec/AUTHORING.md), and [evaluation](spec/EVALUATION.md) own the Library interfaces.
+- [Editor](spec/EDITOR.md) and [agent tools](spec/AGENT-TOOLS.md) own application boundaries.
+- [Conformance](spec/CONFORMANCE.md) distinguishes the supported claims.
 
-- `OPERATING.md` owns the shared operating rules. It requires no runtime or edit workflow.
-- `SPEC.md` owns purpose and conceptual meaning, including Point identity and independent change.
-- `GLOSSARY.md` indexes the terminology.
-- `spec/FORMAT.md` owns authored files, fields, vocabularies, and cross-record constraints.
-- `spec/PROCESSING.md` owns discovery, parsing, resolution, normalization, and ordering.
-- `spec/VALIDATION.md` owns profiles, diagnostics, results, and fixtures.
-- `spec/CHECKS.md`, `spec/PUBLICATION.md`, and `spec/CONFORMANCE.md` own their named contracts.
-
-[`schemas/`](schemas/README.md) contains JSON Schema Draft 2020-12 contracts. [`examples/`](examples/README.md) supplies executable format evidence and a [copyable starter](examples/starter/README.md). Structural validation does not establish semantic usefulness.
-
-Revision 0.8.0 defines format 1 with JSON front matter and Markdown bodies. Immutable specification and processor revisions identify the exact contract. Other formats remain outside this contract.
+[Schemas](schemas/README.md) and [examples](examples/README.md) supply executable
+format evidence. Structural validity does not establish semantic usefulness.

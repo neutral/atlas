@@ -3,19 +3,11 @@
   "type": "point",
   "record": "anchor",
   "id": "redis-for-sessions",
-  "title": "Redis is the selected session store",
-  "summary": "The project selects Redis for production session storage.",
-  "kinds": [
-    "decision"
-  ],
   "posture": "asserted",
-  "lifecycle": "active",
-  "references": [
-    {
-      "resource": "session-notes",
-      "selector": "decision",
-      "role": "evidence"
-    }
-  ]
+  "lifecycle": "active"
 }
 ---
+
+# Redis is the selected session store
+
+The project selects Redis for production session storage.

@@ -1,0 +1,67 @@
+---
+import type { PortalProps } from '../core/types';
+interface Props extends PortalProps { stylesheet?: string }
+import { CircleQuestionMark, Menu, Search, X } from '@lucide/astro';
+import NavigationPanel from './NavigationPanel.astro';
+import ReaderPanel from './ReaderPanel.astro';
+import ContextPanel from './ContextPanel.astro';
+import HelpDialog from './HelpDialog.astro';
+import '../styles/global.css';
+
+const { corpus, route, stylesheet } = Astro.props;
+const pageTitle = route.kind === 'atlas' ? corpus.portal.name : `${route.title} · ${corpus.portal.name}`;
+const searchData = JSON.stringify(corpus.searchItems).replace(/</gu, '\\u003c');
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="description" content={route.kind === 'atlas' ? corpus.atlas.summary : route.title} />
+    <meta name="generator" content={Astro.generator} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{pageTitle}</title>
+    {stylesheet && <link rel="stylesheet" href={stylesheet} />}
+  </head>
+  <body>
+    <a class="skip-link" href="#reader">Skip to content</a>
+    <portal-shell class="portal-shell">
+      <header class="mobile-header">
+        <button class="icon-button" type="button" data-open-navigation aria-controls="navigation-panel" aria-expanded="false" aria-label="Open Navigation Panel">
+          <Menu size={20} stroke-width={1.7} aria-hidden="true" />
+        </button>
+        <a href="/">{corpus.portal.name}</a>
+        <div class="mobile-actions">
+          <a class="icon-button" href="/search/" aria-label="Search this Atlas"><Search size={19} stroke-width={1.7} aria-hidden="true" /></a>
+          <button class="icon-button" type="button" data-open-help aria-label="Help and quick reference" aria-haspopup="dialog" aria-controls="portal-help" title="Help and quick reference" hidden><CircleQuestionMark size={19} stroke-width={1.7} aria-hidden="true" /></button>
+        </div>
+      </header>
+      <nav id="navigation-panel" class="navigation-panel" aria-label="Navigation Panel">
+        <button class="mobile-panel-close icon-button" type="button" data-close-navigation aria-label="Close Navigation Panel"><X size={20} aria-hidden="true" /></button>
+        <NavigationPanel {corpus} {route} />
+      </nav>
+      <div id="reader" class="reader-panel" tabindex="-1">
+        <main aria-label="Reader Panel">
+          <ReaderPanel {corpus} {route} />
+          <ContextPanel {corpus} {route} />
+        </main>
+        {(corpus.portal.copyright || corpus.portal.license) && (
+          <footer class="reader-footer" aria-label="Copyright and license">
+            {corpus.portal.copyright && <p>{corpus.portal.copyright}</p>}
+            {corpus.portal.license && <p>{corpus.portal.license}</p>}
+          </footer>
+        )}
+      </div>
+      <button class="desktop-help icon-button" type="button" data-open-help aria-label="Help and quick reference" aria-haspopup="dialog" aria-controls="portal-help" title="Help and quick reference" hidden><CircleQuestionMark size={20} stroke-width={1.7} aria-hidden="true" /></button>
+      <button class="panel-backdrop" type="button" data-close-navigation tabindex="-1" aria-label="Close Navigation Panel"></button>
+      <HelpDialog />
+    </portal-shell>
+    {route.kind === 'search' && <script is:inline id="atlas-search-data" type="application/json" set:html={searchData} />}
+    <script>
+      import '../browser/portal-shell.ts';
+      import '../browser/search.ts';
+      import '../browser/help.ts';
+    </script>
+  </body>
+</html>

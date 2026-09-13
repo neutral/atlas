@@ -1,0 +1,39 @@
+{
+  "navigation": [
+    {
+      "title": "Session questions",
+      "maps": [
+        "architecture",
+        "operations"
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "id": "session-notes",
+      "uri": "sources/session-notes.md",
+      "title": "Example session notes"
+    }
+  ],
+  "points": [
+    {
+      "point": "api-session-migration",
+      "kinds": [
+        "implementation"
+      ]
+    },
+    {
+      "point": "redis-for-sessions",
+      "kinds": [
+        "decision"
+      ]
+    }
+  ],
+  "areas": [
+    {
+      "map": "operations",
+      "id": "recovery",
+      "title": "Recovery"
+    }
+  ]
+}

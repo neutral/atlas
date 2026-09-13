@@ -2,8 +2,6 @@
 {
   "type": "publication",
   "id": "public",
-  "title": "Public fixture",
-  "summary": "The complete source selection for the fixture publication.",
   "selection": {
     "atlas": true,
     "maps": [
@@ -25,5 +23,7 @@
 ---
 
 # Public fixture
+
+The complete source selection for the fixture publication.
 
 This profile selects one Atlas record, Map, Point record, Resource, and Check.

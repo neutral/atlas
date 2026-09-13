@@ -1,0 +1,17 @@
+{
+  "memberships": [
+    {
+      "id": "one-service-boundary-area-scope",
+      "point": "service-boundary",
+      "map": "one",
+      "area": "scope"
+    },
+    {
+      "id": "one-service-boundary-area-scope-2",
+      "point": "service-boundary",
+      "map": "one",
+      "area": "scope",
+      "x-case": "second-membership"
+    }
+  ]
+}

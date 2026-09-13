@@ -2,20 +2,13 @@
 {
   "type": "check",
   "id": "identity-change-integrity",
-  "title": "Preserve meaning after Point identity changes",
-  "summary": "Review affected context, relations, material, citations, and publication selections when an existing Point's identity or scope changes.",
-  "status": "active",
-  "level": "required",
-  "applies-to": [
-    "point-anchor",
-    "point-context",
-    "resource",
-    "publication"
-  ]
+  "status": "active"
 }
 ---
 
 # Preserve meaning after Point identity changes
+
+Review affected context, relations, material, citations, and publication selections when an existing Point's identity or scope changes.
 
 ## Requirement
 

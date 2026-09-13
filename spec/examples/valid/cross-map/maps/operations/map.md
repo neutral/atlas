@@ -2,27 +2,32 @@
 {
   "type": "map",
   "id": "operations",
-  "title": "Operations",
-  "summary": "Context for the operations fixture Map.",
-  "question": "What context belongs in the operations fixture Map?",
-  "status": "active",
-  "areas": [
-    {
-      "id": "runtime",
-      "title": "Runtime",
-      "summary": "Runtime context.",
-      "question": "Does this record materially affect runtime?"
-    },
-    {
-      "id": "security",
-      "title": "Security",
-      "summary": "Security context.",
-      "question": "Does this record materially affect security?"
-    }
-  ]
+  "status": "active"
 }
 ---
 
 # Operations
 
+Context for the operations fixture Map.
+
 This Map supplies a durable question and enough substantive context for the fixture.
+
+## Question
+
+What context belongs in the operations fixture Map?
+
+## Area: runtime
+
+Runtime context.
+
+### Question
+
+Does this record materially affect runtime?
+
+## Area: security
+
+Security context.
+
+### Question
+
+Does this record materially affect security?

@@ -2,21 +2,24 @@
 {
   "type": "map",
   "id": "operations",
-  "title": "Session operations",
-  "summary": "Recovery implications of the selected session store.",
-  "question": "How does session storage affect recovery?",
-  "status": "active",
-  "areas": [
-    {
-      "id": "recovery",
-      "title": "Recovery",
-      "summary": "Restoring sessions after a store failure.",
-      "question": "Does this affect session recovery after a store failure?"
-    }
-  ]
+  "status": "active"
 }
 ---
 
 # Session operations
 
+Recovery implications of the selected session store.
+
 The second Map demonstrates optional local perspective. An Atlas need not add a second Map or context records to be useful.
+
+## Question
+
+How does session storage affect recovery?
+
+## Area: recovery
+
+Restoring sessions after a store failure.
+
+### Question
+
+Does this affect session recovery after a store failure?

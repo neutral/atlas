@@ -1,0 +1,22 @@
+{
+  "navigation": [
+    {
+      "title": "Maps",
+      "maps": [
+        "one"
+      ]
+    }
+  ],
+  "areas": [
+    {
+      "map": "one",
+      "id": "scope",
+      "title": "Scope"
+    },
+    {
+      "map": "one",
+      "id": "ownership",
+      "title": "Ownership"
+    }
+  ]
+}
