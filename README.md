@@ -7,9 +7,18 @@ Atlas organizes that context into Trees. Each Tree owns its Points. A Base
 Point explains the subject; Branches organize detail; Facets explain connections
 to other Trees. People and agents work with the same portable files.
 
-This source tree is version 1.0.0. The [installation guide](docs/install.md)
-includes npm commands that require that exact version to be published. If it is
-unavailable, use the source checkout or a locally qualified tarball.
+This source tree is version 1.0.0.
+
+## Install
+
+With Node.js installed, install Atlas globally and open a project:
+
+```sh
+npm install --global --ignore-scripts @neutral/atlas
+atlas open /path/to/project
+```
+
+See the [installation guide](docs/install.md) for other installation options.
 
 ## Start from source
 
