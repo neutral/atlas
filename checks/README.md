@@ -1,7 +1,13 @@
-# Optional Atlas Checks
+# Optional Checks
 
-This catalog contains reusable local policies. Adoption is deliberate; catalog
-membership alone gives a Check no authority. Read each complete Requirement and
-Verification before adopting it into an Atlas. The [Check contract](../spec/spec/CHECKS.md)
-owns encoding, applicability, and outcomes. Checks do not change core meaning or
-grant execution, file, or publication permission.
+These definitions add project-specific review requirements. Adopt a Check by
+copying its file into an Atlas's `.checks/` directory. Each Atlas maintains its
+own copies and chooses which catalog updates to apply.
+
+- `source-accounting.md` requires a disposition for every material source unit.
+- `evidence-review.md` requires direct support review across changed explanations.
+- `identity-citations.md` requires review of known citations after meaning changes.
+
+Core validation enforces identity, ownership, placement and reference shape.
+Checks add review within the caller's permissions. Complete their Verification
+sections before reporting compliance.

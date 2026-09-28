@@ -1,8 +1,22 @@
-# Public qualification
+# Tests
 
-`npm test` runs the copied Library, adapter, Editor, Portal, and archive tests.
-`npm run check` checks Portal types and the published source contracts. The
-conformance matrix retains exact malformed bytes under `spec/examples/`.
+From the source repository root, install the locked dependencies and run:
 
-[Verification](../docs/verification.md) describes installed npm, native, and shared-runtime
-qualification. A test pass establishes only its exercised cases.
+```sh
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm test
+pnpm test:types
+```
+
+Use Node.js 22.23.2 or later, pnpm 11.9.0 and Python 3.
+
+These commands run source tests and declaration checks.
+
+Component tests live beside their implementations, including the
+[runtime-bundle installer](../apps/installer/README.md). `qualification/` includes
+MCP probes and agreement checks with a separately written Python reader on
+representative valid and invalid records. Reader
+agreement does not establish complete format coverage or semantic quality.
+
+Coverage applies to the tested host and runtime. Service checks do not establish
+interactive browser behavior.

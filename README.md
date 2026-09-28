@@ -1,65 +1,64 @@
 # Atlas
 
-Atlas connects project documents to the decisions, questions, and perspectives
-they inform. People and agents read and contribute to the same portable files
-with stable identities and explained connections.
+Atlas makes the context around a project navigable, helping agents and people
+build a better understanding.
 
-## Get started
+Atlas organizes that context into Trees. Each Tree owns its Points. A Base
+Point explains the subject; Branches organize detail; Facets explain connections
+to other Trees. People and agents work with the same portable files.
 
-Use Node 22.23.2 or later and npm:
+This source tree is version 1.0.0. The [installation guide](docs/install.md)
+includes npm commands that require that exact version to be published. If it is
+unavailable, use the source checkout or a locally qualified tarball.
+
+## Start from source
+
+Use Node.js 22.23.2 or later and pnpm 11.9.0. From the repository root:
 
 ```sh
-npx @neutral/atlas --help
-npx @neutral/atlas open /absolute/path/to/project
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm atlas open examples/offline-notes
 ```
 
-Atlas includes command-line tools, a local browser Editor, a static site exporter,
-and an MCP adapter. Continue with the [installation guide](docs/install.md) and
-[project guide](docs/getting-started.md). Atlas **0.9.0** uses authored format **2**.
+The Editor opens in your browser. It shows one Tree on a canvas with Point pages
+beside it. Review drafts before applying them; use Export or Connect agent for
+publication and agent setup. Stop the server with Ctrl+C.
 
-The authored format also works directly with ordinary files. Read
-[Working with Atlas](spec/OPERATING.md) and the
-[starter example](spec/examples/starter/README.md).
+Open another project with `pnpm atlas open /path/to/project`. Atlas finds its
+collection or offers creation. For a read-only Portal:
 
-## Integrate
+```sh
+pnpm atlas --root examples/offline-notes serve
+```
 
-Use the [integration guide](docs/integration.md) for the shared-runtime payload,
-container operation, and fixed-scope MCP connection. The same
-[`@neutral/atlas` package](docs/sdk.md) exposes reading, workspaces, prepared
-authoring, Check evaluation, commands, and public types for embedding.
+Use Absorb to review incoming information and propose updates. Use Route to find
+an explanation, follow its detail and inspect its sources. Agents use MCP to
+read context and prepare changes for review. Drafts and recovery files live in
+private user storage.
 
-Atlas works independently of Intent and Forge. The
-[IntentForge guide](https://github.com/neutral/intentforge/blob/main/README.md)
-describes optional composition.
+Continue with [getting started](docs/getting-started.md), choose a task in the
+[documentation](docs/README.md), or embed the [Library](library/README.md).
 
-## Repository map
+## Repository
 
-| Path | Purpose |
+| Path | Responsibility |
 | --- | --- |
-| [spec/](spec/README.md) | Canonical meaning, format, schemas, and conformance fixtures. |
-| [docs/](docs/README.md) | Installation, use, integration, and verification. |
-| [examples/](examples/README.md) | Copyable examples and an optional custom evaluator. |
-| [library/](library/README.md) | Shared runtime and types. |
-| [apps/](apps/README.md) | CLI, agent, Editor, and Portal source adapters. |
-| [checks/](checks/README.md) | Optional reusable Checks, adopted deliberately. |
-| [tests/](tests/README.md) | Public source and installed artifact qualification. |
-| [distribution/](distribution/README.md) | npm package and native application assembly. |
+| `spec/` | Meaning, file format and operation contracts |
+| `library/` | Validation, reading, Absorb, Route and safe authoring |
+| `apps/cli/` | Command-line application |
+| `apps/agent/` | MCP server |
+| `apps/portal/` | Human Tree canvas and Point pages |
+| `apps/editor/` | Local authoring interface |
+| `apps/installer/` | Runtime-bundle installer and integrity checks |
+| `checks/` | Optional project Checks |
+| `tests/` | Source test support and separate-reader checks |
+| `docs/` | User guides and technical references |
+| `examples/` | Runnable sample Atlas |
 
-## Build from source
+Atlas readers accept `atlas/1`. For development, read the
+[specification](spec/SPEC.md) and [tests](tests/README.md).
 
-Source development uses Node 22.23.2 or later and pnpm 11.22.0. From the
-repository root:
-
-```sh
-corepack enable
-corepack pnpm@11.22.0 install --frozen-lockfile
-npm test
-npm run check
-```
-
-The [distribution guide](distribution/README.md) covers npm and native builds.
-Read [CONTRIBUTING](CONTRIBUTING.md) for the feedback policy.
-
-[Security](SECURITY.md) explains supported boundaries and reporting. Original
-material uses [CC0 1.0 Universal or Zero-Clause BSD](LICENSE), at the recipient's
-choice. [Third-party material](THIRD_PARTY.md) retains its own terms.
+Original material is available under [CC0 1.0 Universal or 0BSD](LICENSE).
+[Feedback and submission policy](CONTRIBUTING.md) explains how to send questions.
+[Third-party material](THIRD_PARTY.md) retains its own terms. Read
+[Security](SECURITY.md) for processing boundaries and reporting.

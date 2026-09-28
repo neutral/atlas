@@ -1,67 +1,202 @@
-export function splitFrontMatter(text) {
-  const lines = text.replace(/\r\n/gu, '\n').split('\n');
-  if (lines[0] !== '---') return { error: 'missing', frontMatter: null, body: text };
-  const close = lines.indexOf('---', 1);
-  if (close < 0) return { error: 'unclosed', frontMatter: null, body: '' };
-  return { error: null, frontMatter: lines.slice(1, close).join('\n'), body: lines.slice(close + 1).join('\n') };
+import MarkdownIt from 'markdown-it';
+
+const MAX_TEXT_LENGTH = 4 * 1024 * 1024;
+const MAX_DEPTH = 128;
+const MAX_VALUES = 100_000;
+const markdown = new MarkdownIt('commonmark', { html: true, linkify: false, typographer: false });
+
+function fail(code, message, offset) {
+  const error = new Error(message);
+  error.code = code;
+  if (offset !== undefined) error.offset = offset;
+  throw error;
 }
 
-export function parseFrontMatter(source) {
-  const split = splitFrontMatter(source);
-  if (split.error) return { ...split, value: null, errors: [] };
-  return { ...split, ...parseJsonObject(split.frontMatter) };
-}
-
-export function parseJsonObject(source) {
-  const errors = [];
-  let value = null;
-  try {
-    JSON.parse(source);
-    value = decodeJsonTokens(source, errors);
-    if (value === null || typeof value !== 'object' || Array.isArray(value)) errors.push('JSON must contain one object.');
-  } catch (error) { errors.push(error instanceof Error ? error.message : String(error)); }
-  return { value: errors.length ? null : value, errors };
-}
-
-// JSON.parse owns syntax. Decode tokens independently to preserve exact member names.
-function decodeJsonTokens(source, errors) {
-  const containers = [];
-  let root;
-  const append = (value) => {
-    const container = containers.at(-1);
-    if (!container) root = value;
-    else if (container.keys) container.values.push([container.key, value]);
-    else container.values.push(value);
-  };
-  const tokens = /"(?:\\[\s\S]|[^"\\])*"|[{}\[\]]|true|false|null|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/gu;
-  for (const match of source.matchAll(tokens)) {
-    const token = match[0];
-    if (token === '{' || token === '[') {
-      containers.push({ values: [], ...(token === '{' ? { keys: new Set() } : {}) });
-    } else if (token === '}' || token === ']') {
-      const container = containers.pop();
-      append(container.keys ? Object.fromEntries(container.values) : container.values);
-    } else if (token.startsWith('"')) {
-      const text = JSON.parse(token);
-      if (!text.isWellFormed()) errors.push(`A JSON string at offset ${match.index} contains an unpaired Unicode surrogate.`);
-      let next = match.index + token.length;
-      while (/[ \t\r\n]/u.test(source[next] ?? '')) next += 1;
-      if (source[next] === ':') {
-        const container = containers.at(-1);
-        if (container.keys.has(text)) errors.push(`Duplicate JSON object key ${JSON.stringify(text)} at offset ${match.index}.`);
-        container.keys.add(text);
-        container.key = text;
-      } else append(text);
-    } else if (token === 'true' || token === 'false' || token === 'null') {
-      append(token === 'null' ? null : token === 'true');
-    } else {
-      const number = Number(token);
-      if (!Number.isFinite(number)) errors.push(`A JSON number at offset ${match.index} is non-finite.`);
-      else if (Number.isInteger(number) && !Number.isSafeInteger(number)) {
-        errors.push(`A JSON number at offset ${match.index} is an unsafe integer.`);
+function checkUnicode(value, offset = 0) {
+  for (let index = 0; index < value.length; index += 1) {
+    const unit = value.charCodeAt(index);
+    if (unit >= 0xd800 && unit <= 0xdbff) {
+      const next = value.charCodeAt(index + 1);
+      if (!(next >= 0xdc00 && next <= 0xdfff)) {
+        fail("JSON_UNICODE", "Unpaired high surrogate.", offset + index);
       }
-      append(number);
+      index += 1;
+    } else if (unit >= 0xdc00 && unit <= 0xdfff) {
+      fail("JSON_UNICODE", "Unpaired low surrogate.", offset + index);
     }
   }
-  return root;
+}
+
+/** Parse JSON without accepting duplicate keys or lossy integer values. */
+export function parseStrictJson(text) {
+  if (typeof text !== "string") fail("JSON_SYNTAX", "JSON input must be text.");
+  if (text.length > MAX_TEXT_LENGTH) fail("JSON_LIMIT", "JSON input exceeds the text limit.");
+  checkUnicode(text);
+  let cursor = 0;
+  let values = 0;
+
+  function whitespace() {
+    while (cursor < text.length && /[\x20\t\r\n]/.test(text[cursor])) cursor += 1;
+  }
+
+  function string() {
+    const start = cursor;
+    cursor += 1;
+    let result = "";
+    while (cursor < text.length) {
+      const character = text[cursor++];
+      if (character === '"') {
+        checkUnicode(result, start);
+        return result;
+      }
+      if (character.charCodeAt(0) < 0x20) {
+        fail("JSON_SYNTAX", "Unescaped control character in a string.", cursor - 1);
+      }
+      if (character !== "\\") {
+        result += character;
+        continue;
+      }
+      const escape = text[cursor++];
+      const escapes = { '"': '"', "\\": "\\", "/": "/", b: "\b", f: "\f", n: "\n", r: "\r", t: "\t" };
+      if (Object.hasOwn(escapes, escape)) {
+        result += escapes[escape];
+      } else if (escape === "u") {
+        const digits = text.slice(cursor, cursor + 4);
+        if (!/^[0-9a-fA-F]{4}$/.test(digits)) {
+          fail("JSON_UNICODE", "Invalid Unicode escape.", cursor - 2);
+        }
+        result += String.fromCharCode(Number.parseInt(digits, 16));
+        cursor += 4;
+      } else {
+        fail("JSON_SYNTAX", "Invalid string escape.", cursor - 2);
+      }
+    }
+    fail("JSON_SYNTAX", "Unterminated string.", start);
+  }
+
+  function value(depth) {
+    whitespace();
+    values += 1;
+    if (values > MAX_VALUES) fail("JSON_LIMIT", "JSON input exceeds the value limit.", cursor);
+    const character = text[cursor];
+    if (character === '"') return string();
+    if (character === "{" || character === "[") {
+      if (depth >= MAX_DEPTH) fail("JSON_LIMIT", "JSON input exceeds the nesting limit.", cursor);
+      const object = character === "{";
+      const closing = object ? "}" : "]";
+      const result = object ? {} : [];
+      const keys = new Set();
+      cursor += 1;
+      whitespace();
+      if (text[cursor] === closing) {
+        cursor += 1;
+        return result;
+      }
+      while (true) {
+        whitespace();
+        if (object) {
+          if (text[cursor] !== '"') fail("JSON_SYNTAX", "Expected an object key.", cursor);
+          const keyOffset = cursor;
+          const key = string();
+          if (keys.has(key)) fail("JSON_DUPLICATE_KEY", `Duplicate object key: ${JSON.stringify(key)}.`, keyOffset);
+          keys.add(key);
+          whitespace();
+          if (text[cursor] !== ":") fail("JSON_SYNTAX", "Expected a colon after an object key.", cursor);
+          cursor += 1;
+          Object.defineProperty(result, key, {
+            value: value(depth + 1), enumerable: true, configurable: true, writable: true,
+          });
+        } else {
+          result.push(value(depth + 1));
+        }
+        whitespace();
+        if (text[cursor] === closing) {
+          cursor += 1;
+          return result;
+        }
+        if (text[cursor] !== ",") fail("JSON_SYNTAX", `Expected a comma or ${closing}.`, cursor);
+        cursor += 1;
+      }
+    }
+    for (const [literal, result] of [["true", true], ["false", false], ["null", null]]) {
+      if (text.startsWith(literal, cursor)) {
+        cursor += literal.length;
+        return result;
+      }
+    }
+    const match = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/.exec(text.slice(cursor));
+    if (!match) fail("JSON_SYNTAX", "Expected a JSON value.", cursor);
+    const result = Number(match[0]);
+    if (!Number.isFinite(result) || (Number.isInteger(result) && !Number.isSafeInteger(result))) {
+      fail("JSON_NUMBER", "JSON numbers must be finite and integers must be safe.", cursor);
+    }
+    cursor += match[0].length;
+    return result;
+  }
+
+  const result = value(0);
+  whitespace();
+  if (cursor !== text.length) fail("JSON_SYNTAX", "Unexpected content after a JSON value.", cursor);
+  return result;
+}
+
+function visibleText(tokens) {
+  return tokens.flatMap(token => {
+    if (token.type === 'text' || token.type === 'code_inline' || token.type === 'fence' || token.type === 'code_block') return [token.content];
+    if (token.type === 'html_inline' || token.type === 'html_block') return [token.content.replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]*>/g, '')];
+    if (token.type === 'softbreak' || token.type === 'hardbreak') return [' '];
+    return token.children ? [visibleText(token.children)] : [];
+  }).join('');
+}
+
+function hasExplanation(tokens) {
+  let heading = false;
+  return tokens.some(token => {
+    if (token.type === 'heading_open') { heading = true; return false; }
+    if (token.type === 'heading_close') { heading = false; return false; }
+    return !heading && Boolean(visibleText([token]).trim());
+  });
+}
+
+export function markdownSections(body) {
+  const tokens = markdown.parse(body, {}), sections = [];
+  let current;
+  for (let index = 0; index < tokens.length; index++) {
+    const token = tokens[index];
+    if (token.type === 'heading_open' && token.tag === 'h2' && token.level === 0) {
+      current = { title: visibleText([tokens[index + 1]]).trim(), tokens: [] };
+      sections.push(current);
+      index += 2;
+    } else if (current) current.tokens.push(token);
+  }
+  return sections.map(({ title, tokens }) => ({ title, hasExplanation: hasExplanation(tokens) }));
+}
+
+/** Extract a JSON header, one Markdown H1 title, and nonblank remaining text. */
+export function parseMarkdown(text) {
+  if (typeof text !== "string") fail("MARKDOWN_HEADER", "Markdown input must be text.");
+  if (text.length > MAX_TEXT_LENGTH) fail("JSON_LIMIT", "Markdown input exceeds the text limit.");
+  checkUnicode(text);
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  if (lines[0] !== "---") fail("MARKDOWN_HEADER", "Markdown must begin with an exact --- delimiter line.");
+  const end = lines.indexOf("---", 1);
+  if (end < 0) fail("MARKDOWN_HEADER", "Markdown JSON header has no closing --- delimiter line.");
+  const header = parseStrictJson(lines.slice(1, end).join("\n"));
+  if (header === null || typeof header !== "object" || Array.isArray(header)) {
+    fail("MARKDOWN_HEADER", "Markdown JSON header must be an object.");
+  }
+  const content = lines.slice(end + 1);
+  const tokens = markdown.parse(content.join('\n'), {});
+  const headings = tokens.flatMap((token, index) => token.type === 'heading_open' && token.level === 0
+    ? [{ level: Number(token.tag.slice(1)), title: visibleText([tokens[index + 1]]).trim(), start: token.map[0], end: token.map[1] - 1 }] : []);
+  if (!headings.length || headings[0].level !== 1 || !headings[0].title) {
+    fail("MARKDOWN_TITLE", "The first Markdown heading must be a nonblank H1 title.");
+  }
+  if (headings.filter((heading) => heading.level === 1).length !== 1) {
+    fail("MARKDOWN_TITLE", "Markdown must contain exactly one H1 title.");
+  }
+  const first = headings[0];
+  const body = [...content.slice(0, first.start), ...content.slice(first.end + 1)].join("\n").trim();
+  if (!body || !hasExplanation(markdown.parse(body, {}))) fail("MARKDOWN_BODY", "Markdown must contain an explanation beyond headings and empty markup.");
+  return { header, title: first.title, body };
 }

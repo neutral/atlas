@@ -1,0 +1,13 @@
+{
+  "id": "product",
+  "title": "Product experience",
+  "scope": "What note writers can rely on, including the limits of the offline promise.",
+  "base": "product-purpose",
+  "children": [
+    {
+      "branch": "editing",
+      "title": "Working without a connection",
+      "children": [{"point": "offline-work", "children": [{"point": "delivery-promise"}]}]
+    }
+  ]
+}

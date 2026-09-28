@@ -1,88 +1,90 @@
-# Atlas Specification
+# Atlas
 
-## Requirement language
+Atlas provides portable, navigable project context for people and software agents.
+Trees organize that context into coherent accounts. Source documents and code
+remain independently useful; Atlas adds context and paths back to them.
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, and **MAY** are normative only when uppercase and follow BCP 14.
+This document owns meaning. [Format](spec/FORMAT.md) owns encoding, and
+[Operations](spec/OPERATIONS.md) owns reading and authoring behavior. Uppercase
+MUST, MUST NOT, SHOULD and MAY express normative requirements.
+The [project workflow](spec/PROJECT.md) defines discovery and local setup.
 
-## Scope and ownership
+## Atlas and Tree
 
-This document owns Atlas purpose and conceptual meaning. [Format](spec/FORMAT.md) owns files, fields, vocabularies, and cross-record constraints. [Processing](spec/PROCESSING.md) owns algorithms and normalized output. [Validation](spec/VALIDATION.md) owns profiles, diagnostics, and fixtures. [Checks](spec/CHECKS.md), [Publication](spec/PUBLICATION.md), and [Conformance](spec/CONFORMANCE.md) own their named contracts. Each rule has one owner.
+An Atlas provides one identity namespace for Trees and Points. A Tree owns an
+account of a declared subject and perspective. Its scope guides placement. A Tree
+MAY follow a product or a discipline.
 
-## Purpose and minimum product contract
+Each Tree has exactly one Base Point. The Base is an ordinary Point that establishes
+the subject, scope and highest-level explanation. It MAY stand alone while its
+account develops. Tree metadata records identity and scope; the Base explains
+the subject.
 
-Atlas makes the context between project documents explicit, portable, and navigable. It connects material to the decisions, questions, and perspectives it informs without moving or duplicating that material.
+## Point and Branch
 
-One portable authored model supplies stable identity, explained context, state, relations, and deterministic validation. A shared consumer can generate document, Map, Area, Point, relation, and search navigation without project-specific semantic mapping or UI development. The format supplies that input contract, not portal conformance or evidence of reader benefit.
+A Point is independently meaningful and referable project knowledge. A Point MUST
+have exactly one owning Tree and one structural home. Its ID remains stable through
+ordinary revision and path changes. Separate claims deserve separate Points when
+they need independent reference, assessment or revision, even when they share a
+subject.
 
-## Thesis
+Points hold explanations at all detail levels. Base, summary, reasoning and detail
+are roles performed by the same content unit. Higher Points explain the significance
+of their developments. Parent-child placement provides context; support comes from
+sources and reasoning. Every Point MUST preserve relevant scope and uncertainty.
 
-Documents remain primary reading surfaces. Atlas records what matters, why it matters, and how context connects across durable questions. Writing and reading use the same question-led model. Neither requires a runtime, intake queue, or lifecycle for edits.
+A Branch organizes a coherent part of its Tree through Points and further Branches.
+It has a Tree-local identity and a label; its Points carry the explanations.
+The Tree outline records structural membership. Links provide references; they
+leave ownership and placement unchanged.
 
-## Conceptual model
+## Facet
 
-### Atlas
+A Facet attaches to a Point or Branch and interprets that host's matter through
+another Tree. It identifies that Tree, its relevant targets, and the reason the
+relationship matters, such as a dependency, qualification, consequence or tension.
 
-An Atlas is one portable boundary and namespace containing Maps, Point records, Resources, Checks, and optional publication profiles. Nested Atlases have independent boundaries.
+The host account owns this interpretation. A Facet MUST NOT redefine its targets
+or imply their author's endorsement. It does not transfer ownership, create a
+second placement, or automatically assert the same interpretation about every
+descendant of a Branch. Reverse and transitive consequences are not inferred.
 
-### Map
+Facets are optional. Point and Branch targets retain stable identity. Material
+outside Atlas can support the interpretation through source references.
 
-A Map is a durable semantic and authoring domain organized around one primary question. New information belongs when it answers, constrains, or materially affects that question. Maps are not generated views or exclusive owners. Physical nesting does not establish semantic hierarchy.
+## Sources and Types
 
-### Area
+A source reference identifies supporting or contextual material. It preserves the
+available revision, locator and evidence boundary. A reference does not establish
+truth or permission to retrieve the material. Missing or inaccessible sources MUST
+remain visible as limitations, not be presented as inspected evidence.
 
-An Area is an overlapping Map-local question. Each Point-record membership explains how the record affects that question. Membership is an explained edge, not a bare tag. Areas imply neither ownership nor exclusive placement.
+Point Types are optional interpretation contracts. The supported Types are
+`decision` and `observation`. A decision records source-backed status; selection
+does not establish implementation. An observation records when something was
+observed and its source; it does not establish continuing validity. Untyped Points
+remain valid.
 
-### Point
+## Absorb and Route
 
-A Point is one independently referable claim, decision, constraint, question, or other coherent item of project context under an Atlas-wide identity. Its posture and lifecycle apply to the whole item. A shared subject, posture, source, or similar wording is not sufficient to establish one Point.
+Absorb reconciles incoming material with existing identity, ownership and meaning.
+It identifies an update, a new contribution, useful contextual interpretation,
+unresolved conflict or justified non-integration. It considers affected higher
+explanations and connected accounts. Those judgments MUST remain explicit;
+Absorb MUST NOT rewrite ancestors merely because a detail changed.
 
-First decide whether independent reference, relation, or update is useful. Supporting rationale, examples, and citations may remain prose or source material. The aim is useful identity, not one Point per sentence.
+Route selects an appropriate starting level and returns a coherent reading path.
+It exposes explanations, supporting detail, relevant Facets, sources and uncertainty.
+Search proposes candidates; identity and relevance require comparison of meaning.
+A missing authored connection does not establish absence of impact.
 
-Split an item when its retained claims can independently become false, be implemented, withdrawn, or superseded. This test separates independently standing claims, not every sentence explaining one claim. State relevant scope in prose; no scope field is required. Points can record unresolved questions and uncertain observations. Preserve their uncertainty.
+## Checks and authority
 
-Every Point has exactly one anchor and optional same-named contexts in other Maps. The anchor states the canonical idea and state. Contexts explain that item's local significance without redefining it. Add a context only for a useful contribution, not for every potentially relevant Map.
+Atlas defines identity, ownership, organization, Facet interpretation and source
+boundaries. Optional Checks add project-specific requirements or review depth.
+They MAY demand exhaustive source accounting or broader evidence review.
 
-| Incoming information | Identity decision |
-| --- | --- |
-| Clearer wording or correction preserving the same item's meaning | Update its record without changing the id. |
-| The same decision's recovery implications | Add or improve operations context when useful. |
-| A Redis selection and a claim that its rollout is complete | Use separate Points; decision and implementation have independent standing. |
-| A new decision replacing the old decision | Create a separate Point; supersession can explain current context. |
-
-Retrieval proposes candidates. Authors inspect meaning, scope, and anchor provenance before deciding identity. Exact ids determine grouping; processors never merge distinct ids by similarity. Validation cannot prove the author's identity decision correct.
-
-### Point record
-
-An anchor establishes canonical meaning, state, relations, review, and primary Map. Its heading and opening paragraph state the canonical title and idea. A context states local significance in its opening paragraph. It cannot redefine canonical title, kinds, posture, lifecycle, relations, or review. Markdown explains edges; processors expose it as structured data.
-
-The primary Map records origin, not exclusive ownership or preferred routing. Preserve each record's Map and source path when assembling a Point. Keep local explanations focused on significance; link independently changing implementation facts rather than copying them into every perspective. Ordinary edits preserve identity. Point lifecycle describes context, not an edit workflow.
-
-### Posture, lifecycle, and kinds
-
-Posture states the author's stance. Lifecycle states temporal standing. Kinds classify what the Point expresses. These dimensions are independent and establish neither truth, evidence strength, implementation maturity, nor authority. Format defines their vocabularies.
-
-### Relations
-
-Relations are directional, explained edges declared on anchors. They record known authored connections, not a complete impact graph. Missing relations establish no absence of dependency, contradiction, or impact. Processing preserves authored edges and derives their direct reverse index, not inferred closure.
-
-### Resource, Content, and References
-
-A Resource is addressable material, optionally registered with identity independent of its URI. Content identifies primary material. Typed References distinguish evidence, background, implementation, history, and examples. Registration and reference roles establish neither authority nor source truth. Material need not acquire a Point to remain useful.
-
-### Derived Map relationships
-
-Shared Point identities produce symmetric Map overlap, not ownership, causality, or task relevance.
-
-### Check
-
-A Check adds project-local write policy. Core defines meaning; Checks can demand additional evidence, placement, review, or prose quality without redefining it. An Atlas needs no adopted catalog Checks. Once adopted, required Checks need actual verification; format validity alone does not satisfy them.
-
-### Publication profile
-
-A publication profile explicitly selects exact Atlas records and registered Resources. Selection does not expand through containment, shared identity, relations, or References. Core records contain no publication fields. Build, serving, and non-disclosure behavior belong to separate publication tooling.
-
-## Trust and product boundary
-
-Atlas content and Checks grant no file, network, credential, publication, execution, or instruction authority. Already-authorized people and agents use Atlas as information, not additional permission.
-
-Format conformance, Check compliance, self-hosting, and processor interoperability establish only their named claims. Authoring effort, agent effectiveness, reader benefit, accessibility, performance, and comparative value require separately recorded evidence. A valid graph and a working portal do not establish those outcomes.
+Atlas records, source references and Checks grant no file, network, credential,
+execution or publication authority. Consumers act only within caller-supplied
+permissions. Structural validity, Check compliance, operational correctness and
+reader usefulness are distinct claims with distinct evidence.

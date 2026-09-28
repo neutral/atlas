@@ -1,19 +1,15 @@
 # Third-party material
 
-Original Atlas material uses [CC0 1.0 Universal or Zero-Clause BSD](LICENSE).
-Those terms do not relicense external standards, linked websites, third-party
-names or marks, dependency packages, or referenced project material. A link or
-source grant provides no permission to redistribute its target.
+Atlas's [CC0 1.0 Universal or Zero-Clause BSD license](LICENSE) covers its original
+material. It does not relicense dependencies, referenced sources, external
+standards, names or marks. A reference grants no redistribution permission.
 
-`pnpm-lock.yaml` records source dependency resolution. npm installations have their own
-resolved dependency trees. Native Atlas archives include a
-pinned Node runtime and the locked production dependency closure. Original runtime
-licenses, package manifests, notices, and attribution files travel with each
-archive. Its manifest and `notices/inventory.json` identify the included bytes,
-package instances, available attribution, and metadata gaps.
+Assembled packages retain each runtime dependency's original package metadata
+and files. `dependency-inventory.json` records every copied package instance,
+version, declared license metadata and conventional notice files at its package
+root. The content manifest hashes those retained bytes. Missing metadata remains
+explicit; the inventory is not a rights-clearance or license-compatibility claim.
 
-[Distribution](distribution/README.md) owns assembly and
-[verification](docs/verification.md) explains exact artifact qualification.
-Missing metadata remains explicit. An inventory does not establish license
-compatibility, complete rights clearance, or redistribution permission for
-referenced source material. Included third-party material retains its original terms.
+Runtime bundles also retain Node's notices in `runtime/LICENSE`. Development
+dependencies, host system libraries and external Atlas source material are outside
+the package inventory. Their terms remain their own.

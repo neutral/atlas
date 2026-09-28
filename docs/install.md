@@ -1,52 +1,92 @@
 # Install Atlas
 
-Use Node 22.23.2 or later and npm:
+This guide covers version 1.0.0. Its npm installation commands require that
+exact version to be published. If it is unavailable, use the source checkout or
+a locally qualified tarball. The package and runtime bundle include the Library,
+CLI, MCP server, Portal, Editor, guides and optional Checks.
+
+## Source checkout
+
+Use Node.js 22.23.2 or later and pnpm 11.9.0. From the repository root:
 
 ```sh
-npm install --global @neutral/atlas
-atlas open /absolute/path/to/project
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm atlas open /path/to/project
 ```
 
-Atlas provides the command-line tools, local browser Editor, static site exporter,
-and MCP adapter. [Start with a project](getting-started.md) explains opening,
-editing, exporting, and connecting an agent.
+Use `pnpm atlas` wherever a guide shows `atlas`. The Editor opens in your browser;
+keep the terminal running while you work. To explore the included sample, run
+`pnpm atlas open examples/offline-notes`.
 
-For use without a global installation, run
-`npx @neutral/atlas open /absolute/path/to/project`. A project-local installation
-uses `npm install @neutral/atlas` and `npx atlas open /absolute/path/to/project`.
+## npm
 
-Run `npm update --global @neutral/atlas` to update or
-`npm uninstall --global @neutral/atlas` to remove the command. Updates and removal
-preserve project files and durable drafts.
-
-## Build from source
-
-From the repository root, install the locked workspace and assemble the native
-application:
+These commands require `@neutral/atlas@1.0.0` to have been published. They
+select this version explicitly. Use Node.js 22.23.2 or later:
 
 ```sh
-corepack enable
-corepack pnpm@11.22.0 install --frozen-lockfile
-npm run bundle:assemble -- --output /absolute/new-native-artifacts
+npm install --global --ignore-scripts @neutral/atlas@1.0.0
+atlas --version
+atlas open /path/to/project
 ```
 
-The [distribution guide](../distribution/README.md) covers npm package assembly and the
-shared-runtime payload. Source development uses pnpm 11.22.0.
+For a project-local installation:
 
-## Native archives
+```sh
+npm install --save-exact --ignore-scripts @neutral/atlas@1.0.0
+npx atlas --version
+npx atlas open /path/to/project
+```
 
-The native archive includes Node and browser assets. Installing it needs no
-separate Node, npm, pnpm, or frontend build. Choose the archive for the selected
-platform from [Atlas releases](https://github.com/neutral/atlas/releases), or use
-the source build above. The declared targets are macOS Apple silicon and Linux
-x64; each release record supplies its SHA-256 and qualification scope.
+The package includes its pinned Markdown dependency and supplies `atlas`,
+`atlas-cli` and `atlas-agent`. A local installation exposes these through `npx`;
+the guides use `atlas` when it is on your command path. A global installation can
+be removed with `npm uninstall --global @neutral/atlas`.
 
-Verify the archive against its recorded SHA-256, extract it, and run
-`./install.sh` from the extracted directory. The installer prints the command
-path; its default is `~/.local/bin/atlas`. Add that directory to `PATH` when needed.
-Then run `atlas open /absolute/path/to/project`.
+## Local npm tarball
 
-Run the installer from a newer archive to update. Use the version-specific
-uninstall command printed by the installer to remove it. Updates and removal
-preserve project files and durable drafts. [Application use](using-from-another-repository.md)
-explains state, recovery, and service lifetime.
+Install the exact tarball selected by local qualification, with lifecycle scripts
+disabled:
+
+```sh
+npm install --offline --ignore-scripts --no-audit /path/to/neutral-atlas-1.0.0.tgz
+npx atlas --version
+npx atlas open /path/to/project
+```
+
+Keep the recorded artifact hash and qualification result with that tarball.
+
+## Runtime bundle
+
+A runtime bundle includes Node. Choose an artifact qualified for the platform and
+architecture where it will run, then move the whole bundle together. Availability
+of the source checkout does not establish availability of a downloadable bundle.
+To run a qualified bundle directly:
+
+```sh
+/path/to/bundle/bin/atlas open /path/to/project
+```
+
+For a managed installation:
+
+```sh
+/path/to/bundle/bin/atlas-manage install /path/to/installation
+/path/to/installation/bin/atlas open /path/to/project
+```
+
+The installation parent must exist and the destination must be new. Windows
+launchers use `.cmd`. Keep project data outside the installation directory.
+
+### Update or remove a managed installation
+
+```sh
+/path/to/new-bundle/bin/atlas-manage update /path/to/installation
+/path/to/bundle/bin/atlas-manage remove /path/to/installation
+```
+
+Update and removal require an intact managed installation. Modified or extra
+files cause refusal. The helper manages that directory; shell profiles, MCP host
+settings and project data remain under your control.
+
+Drafts, recovery journals and retained reports live in
+[private user storage](reference/authoring.md#private-storage) and survive
+installation updates. Continue with [getting started](getting-started.md).

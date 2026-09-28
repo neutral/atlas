@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Atlas</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="Atlas home"><span class="brand-mark">A</span>Atlas</a>
+    <span id="atlas-title" class="atlas-title"></span>
+    <div class="header-actions"><span id="mode-label">Navigator</span><button id="refresh" class="quiet">Refresh</button><button id="checks" hidden>Checks</button><button id="export-site" hidden>Export site</button><button id="connect-agent" hidden>Connect an agent</button><button id="workspace" hidden>Drafts</button></div>
+  </header>
+  <p id="state-notice" class="state-notice" role="status" hidden></p>
+  <main id="app">
+    <section class="workspace" aria-label="Tree navigator">
+      <div class="toolbar">
+        <label class="tree-picker">Tree<select id="tree-select" aria-label="Tree"></select></label>
+        <label class="search-label">Find in this Tree<input id="filter-text" type="search" placeholder="Find a Point…"></label>
+        <label class="type-picker">Type<select id="filter-type"><option value="">All Points</option><option value="decision">Decisions</option><option value="observation">Observations</option><option value="untyped">Untyped</option></select></label>
+        <button id="clear-filters" class="quiet">Clear</button>
+      </div>
+      <div class="tree-heading"><div><p class="eyebrow">FROM OVERVIEW TO DETAIL</p><h1 id="tree-title">Atlas</h1><p id="tree-scope"></p><button id="create-atlas" class="primary" hidden>Create Atlas</button><button id="create-tree" class="primary" hidden>Create Tree</button></div><span id="point-count" class="count"></span></div>
+      <div id="canvas" tabindex="0" aria-label="Tree canvas. Drag to pan. Use zoom controls to change scale.">
+        <div id="stage"><svg id="connections" aria-hidden="true"></svg><div id="nodes"></div></div>
+        <p id="empty" hidden>No Points match. Try another filter.</p>
+      </div>
+      <div class="canvas-footer"><span><i class="legend-point"></i> Point <i class="legend-branch"></i> Branch <span class="legend-facet">↗</span> Facet</span><div><button id="zoom-out" aria-label="Zoom out">−</button><span id="zoom-level">100%</span><button id="zoom-in" aria-label="Zoom in">+</button><button id="fit">Fit</button></div></div>
+    </section>
+    <aside id="page" aria-label="Selected Point" hidden><div id="page-controls"><button id="back" class="quiet" hidden>← Back</button><button id="close-page" class="quiet" aria-label="Close Point page">Close ×</button></div><div id="page-content"></div></aside>
+  </main>
+  <div id="notice" role="status" aria-live="polite"></div>
+  <dialog id="draft-dialog"><div class="dialog-top"><h2>Drafts and recovery</h2><button id="close-drafts" aria-label="Close drafts">Close ×</button></div><div id="unsaved-warning" role="alert" hidden><p>You have unsaved changes. Keep editing, or discard them to leave this form.</p><div class="draft-actions"><button id="keep-editing" class="primary">Keep editing</button><button id="discard-edits">Discard unsaved changes</button></div></div><div id="draft-content"></div></dialog>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "id": "architecture",
+  "title": "Storage and delivery",
+  "scope": "How local persistence and cross-device delivery support the product account.",
+  "base": "storage-purpose",
+  "children": [
+    {"point": "local-persistence"},
+    {"point": "sync-policy"}
+  ]
+}

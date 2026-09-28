@@ -1,36 +1,13 @@
 {
-  "name": "atlas-reference-validator",
-  "version": "0.9.0",
-  "description": "Reference validator for Atlas format 2",
+  "name": "@atlas/library",
   "private": true,
+  "version": "1.0.0",
   "type": "module",
-  "types": "./src/index.d.ts",
+  "description": "Atlas captured reading and authoring operations.",
   "license": "CC0-1.0 OR 0BSD",
-  "exports": {
-    ".": {
-      "types": "./src/index.d.ts",
-      "default": "./src/index.mjs"
-    }
-  },
-  "files": [
-    "README.md",
-    "LICENSE",
-    "LICENSE.CC0-1.0",
-    "LICENSE.0BSD",
-    "bin",
-    "schemas",
-    "guides",
-    "src"
-  ],
-  "scripts": {
-    "test": "node --test tests/*.test.mjs"
-  },
-  "dependencies": {
-    "@hyperjump/uri": "1.3.5",
-    "ajv": "8.20.0",
-    "markdown-it": "14.3.0"
-  },
-  "engines": {
-    "node": ">=22.23.2"
-  }
+  "engines": { "node": ">=22.23.2" },
+  "exports": { ".": { "types": "./src/index.d.ts", "import": "./src/index.mjs" }, "./model": "./src/model.mjs" },
+  "types": "./src/index.d.ts",
+  "files": ["src", "README.md"],
+  "scripts": { "test": "node --import ../tests/support/state-env.mjs --test tests/*.test.mjs" }
 }

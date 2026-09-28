@@ -1,130 +1,160 @@
-import fs from 'node:fs';
-import os from 'node:os';
+import * as fs from 'node:fs/promises';
+import { constants } from 'node:fs';
 import path from 'node:path';
+import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { openWorkspace, openAtlas, localSourceTargets, prepareAtlasChange } from 'atlas-reference-validator';
+import { createInterface } from 'node:readline/promises';
+import { parseStrictJson } from '../../../library/src/frontmatter.mjs';
 
-const excluded = new Set(['.git', 'node_modules', 'dist', 'build', 'coverage', '.cache']);
-const comparePaths = (left, right) => {
-  const a = Array.from(left), b = Array.from(right);
-  for (let index = 0; index < Math.min(a.length, b.length); index++) {
-    const difference = a[index].codePointAt(0) - b[index].codePointAt(0);
-    if (difference) return difference;
+const excluded = new Set(['node_modules', 'vendor', 'dist', 'build', 'coverage', 'tmp', 'temp']);
+const failure = (code, message) => Object.assign(new Error(message), { code });
+const invalid = message => { throw failure('PROJECT_INVALID', message); };
+const discoveries = new WeakMap();
+const directoryIdentity = stat => `${stat.dev}:${stat.ino}`;
+const changed = () => { throw failure('PROJECT_CHANGED', 'Project or Atlas selection changed; retry opening.'); };
+
+async function entries(directory, limit = 20000) {
+  const result = [];
+  for await (const entry of await fs.opendir(directory)) {
+    result.push(entry);
+    if (result.length > limit) throw failure('PROJECT_DISCOVERY_LIMIT', 'Directory exceeds the discovery entry limit.');
   }
-  return a.length - b.length;
-};
-export function fail(message, code = 'atlas.launch.invalid-input') {
-  throw Object.assign(new Error(message), { code });
+  return result.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
 }
-export function exactSelection(value) {
-  if (typeof value !== 'string' || (value !== '.' && (!value || value.startsWith('/') || /[\\\x00-\x1f]/u.test(value)
-    || value.split('/').some(part => !part || part === '.' || part === '..')))) fail('Atlas selection must be an exact project-relative path.');
+
+function selection(value) {
+  if (value === '.') return value;
+  if (typeof value !== 'string' || !value || value.normalize('NFC') !== value || /[\\:\x00-\x1f\x7f]/u.test(value) || path.posix.isAbsolute(value) || value.split('/').some(part => !part || part === '.' || part === '..')) invalid('Atlas selection must be an exact project-relative path, or .');
   return value;
 }
-function canonicalSelection(repositoryRoot, atlasPath) {
-  exactSelection(atlasPath);
-  let current = repositoryRoot;
-  for (const part of atlasPath === '.' ? [] : atlasPath.split('/')) {
-    if (!fs.existsSync(current)) break;
-    const entries = fs.readdirSync(current);
-    if (!entries.includes(part) && entries.some(name => name.normalize('NFC').toLowerCase() === part.normalize('NFC').toLowerCase())) fail('Atlas selection differs in case or normalization.');
+
+async function exactDirectory(project, relative) {
+  let current = project;
+  for (const part of relative === '.' ? [] : relative.split('/')) {
+    if (!(await entries(current)).some(entry => entry.name === part)) invalid(`Atlas directory does not exist with exact spelling: ${relative}`);
     current = path.join(current, part);
-    try {
-      const stat = fs.lstatSync(current);
-      if (!stat.isDirectory() || stat.isSymbolicLink()) fail('Atlas selection must use real directories without symbolic links.');
-    } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    const stat = await fs.lstat(current);
+    if (!stat.isDirectory() || stat.isSymbolicLink()) invalid('Atlas selection must stay inside the project without symlinks.');
   }
-  return { repositoryRoot, atlasPath, atlasRoot: path.join(repositoryRoot, atlasPath) };
+  return current;
 }
 
-/** Discover project selections without parsing a second Atlas format or writing files. */
-export function discoverProject(project = '.', atlasPath) {
-  const repositoryRoot = fs.realpathSync(path.resolve(project));
-  if (!fs.statSync(repositoryRoot).isDirectory()) fail('PROJECT must identify a directory.');
-  const configFile = path.join(repositoryRoot, 'atlas.workspace.json');
-  let configured = false;
-  try { fs.lstatSync(configFile); configured = true; } catch (error) { if (error.code !== 'ENOENT') throw error; }
-  if (configured) {
-    // Validate through the public workspace before resolving a possibly absent collection.
-    const workspace = openWorkspace({ repositoryRoot, atlasPath: '.' });
-    const info = { ...workspace.info };
-    workspace.close();
-    const bytes = fs.readFileSync(configFile);
-    if (createHash('sha256').update(bytes).digest('hex') !== info.configurationSourceDigest) fail('Workspace configuration changed during discovery. Retry.', 'atlas.workspace.configuration-changed');
-    const value = JSON.parse(bytes.toString('utf8'));
-    const selection = { ...canonicalSelection(repositoryRoot, atlasPath ?? value.atlasPath), configuration: info.configuration,
-      configurationSourceDigest: info.configurationSourceDigest };
-    return { repositoryRoot, source: atlasPath === undefined ? 'workspace' : 'explicit', selections: [selection] };
+async function workspace(project) {
+  const names = (await entries(project)).map(entry => entry.name);
+  const aliases = names.filter(name => name.toLowerCase() === 'atlas.workspace.json');
+  if (!aliases.length) return null;
+  if (aliases.length !== 1 || aliases[0] !== 'atlas.workspace.json') invalid('Use the exact filename atlas.workspace.json.');
+  const file = path.join(project, aliases[0]);
+  const stat = await fs.lstat(file);
+  if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 64 * 1024) invalid('Workspace selection must be a regular JSON file of at most 64 KiB.');
+  const handle = await fs.open(file, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  let bytes;
+  try {
+    const before = await handle.stat();
+    if (!before.isFile() || before.size > 64 * 1024) invalid('Workspace selection must be a bounded regular file.');
+    const buffer = Buffer.alloc(64 * 1024 + 1);
+    let size = 0;
+    while (size < buffer.length) {
+      const { bytesRead } = await handle.read(buffer, size, buffer.length - size);
+      if (!bytesRead) break;
+      size += bytesRead;
+    }
+    bytes = buffer.subarray(0, size);
+    const after = await handle.stat(), current = await fs.lstat(file);
+    if (current.isSymbolicLink() || before.ino !== current.ino || before.dev !== current.dev || before.size !== after.size || before.mtimeMs !== after.mtimeMs || before.ctimeMs !== after.ctimeMs) throw failure('PROJECT_CHANGED', 'Workspace selection changed while reading; retry opening.');
+  } finally { await handle.close(); }
+  if (bytes.length > 64 * 1024) invalid('Workspace selection exceeds 64 KiB.');
+  let value;
+  try { value = parseStrictJson(new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes)); }
+  catch { invalid('Workspace selection must contain strict UTF-8 JSON.'); }
+  if (!value || Array.isArray(value) || Object.keys(value).some(key => !['format', 'atlasPath'].includes(key)) || value.format !== 1) invalid('Workspace selection requires format: 1 and atlasPath; other fields are unsupported.');
+  return { atlasPath: selection(value.atlasPath), identity: createHash('sha256').update(bytes).digest('hex') };
+}
+
+/** Discover project-contained collections without writing or following symlinks. */
+export async function discoverProject(directory, { atlasPath, maxEntries = 20000, maxDepth = 12 } = {}) {
+  const project = await fs.realpath(path.resolve(directory));
+  const projectStat = await fs.stat(project);
+  if (!projectStat.isDirectory()) invalid('Project must be a directory.');
+  const configured = await workspace(project);
+  const chosen = atlasPath === undefined ? configured?.atlasPath : selection(atlasPath);
+  const candidateIdentities = new Map();
+  async function finish(result) {
+    const record = { project, identity: directoryIdentity(projectStat), workspace: configured?.identity, candidates: candidateIdentities };
+    await verifyProject(record);
+    discoveries.set(result, record);
+    return result;
   }
-  if (atlasPath !== undefined) return { repositoryRoot, source: 'explicit', selections: [canonicalSelection(repositoryRoot, atlasPath)] };
-  const selections = [];
+  if (chosen !== null && chosen !== undefined) {
+    const root = await exactDirectory(project, chosen);
+    candidateIdentities.set(chosen, directoryIdentity(await fs.stat(root)));
+    return finish({ format: 'atlas.project/1', project, source: atlasPath === undefined ? 'workspace' : 'explicit', candidates: [{ path: chosen, root }] });
+  }
+  if (!Number.isSafeInteger(maxEntries) || maxEntries < 1 || !Number.isSafeInteger(maxDepth) || maxDepth < 0) invalid('Invalid discovery bounds.');
+  const candidates = [];
   let visited = 0;
-  function visit(directory, relative, depth) {
-    if (++visited > 10000 || depth > 64) fail('Project discovery exceeded its bound. Select a collection with --atlas PATH.', 'atlas.launch.discovery-limit');
-    const entries = fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => comparePaths(a.name, b.name));
-    if (entries.some(entry => entry.name === 'atlas.md' && entry.isFile())) {
-      selections.push(canonicalSelection(repositoryRoot, relative));
+  async function walk(relative, depth) {
+    const directory = path.join(project, relative);
+    const stat = await fs.lstat(directory);
+    if (!stat.isDirectory() || stat.isSymbolicLink()) throw failure('PROJECT_CHANGED', 'A project directory changed during discovery.');
+    const children = await entries(directory, maxEntries - visited);
+    visited += children.length;
+    if (visited > maxEntries) throw failure('PROJECT_DISCOVERY_LIMIT', 'Discovery exceeded its entry limit. Select the Atlas with --atlas PATH.');
+    const roots = children.filter(entry => entry.name.toLowerCase() === 'atlas.json');
+    if (roots.length) {
+      if (roots.length !== 1 || roots[0].name !== 'atlas.json' || !roots[0].isFile()) invalid(`Unsafe or incorrectly spelled atlas.json in ${relative || '.'}.`);
+      candidates.push({ path: relative || '.', root: path.join(project, relative) });
+      candidateIdentities.set(relative || '.', directoryIdentity(stat));
       return;
     }
-    for (const entry of entries) if (entry.isDirectory() && !entry.isSymbolicLink() && !excluded.has(entry.name)) {
-      visit(path.join(directory, entry.name), relative === '.' ? entry.name : `${relative}/${entry.name}`, depth + 1);
+    for (const entry of children) {
+      if (!entry.isDirectory() || entry.name.startsWith('.') || excluded.has(entry.name)) continue;
+      if (depth >= maxDepth) throw failure('PROJECT_DISCOVERY_LIMIT', 'Discovery exceeded its depth limit. Select the Atlas with --atlas PATH.');
+      await walk(relative ? `${relative}/${entry.name}` : entry.name, depth + 1);
     }
   }
-  visit(repositoryRoot, '.', 0);
-  return { repositoryRoot, source: 'discovery', selections };
+  await walk('', 0);
+  if (!candidates.length) candidateIdentities.set('.', directoryIdentity(projectStat));
+  return finish({ format: 'atlas.project/1', project, source: 'discovery', candidates, visited });
 }
 
-export function userDataRoot({ platform = process.platform, env = process.env, home = os.homedir() } = {}) {
-  if (platform === 'darwin') return path.join(home, 'Library', 'Application Support', 'Atlas');
-  if (platform === 'linux') return path.join(env.XDG_DATA_HOME && path.isAbsolute(env.XDG_DATA_HOME) ? env.XDG_DATA_HOME : path.join(home, '.local', 'share'), 'atlas');
-  fail(`Atlas bundles do not support ${platform}.`);
+async function verifyProject(record) {
+  if (await fs.realpath(record.project) !== record.project || directoryIdentity(await fs.stat(record.project)) !== record.identity) changed();
+  if ((await workspace(record.project))?.identity !== record.workspace) changed();
 }
-export function managedState(selection, surface = 'editor', options) {
-  const key = createHash('sha256').update(JSON.stringify([selection.repositoryRoot, selection.atlasPath])).digest('hex');
-  return path.join(userDataRoot(options), 'projects', key, surface);
+
+/** Recheck the selected directories and configuration after a possible user choice. */
+export async function verifySelection(discovery, selected) {
+  const record = discoveries.get(discovery);
+  if (!record || !record.candidates.has(selected.path)) invalid('Selection does not belong to this discovery.');
+  await verifyProject(record);
+  const root = await exactDirectory(record.project, selected.path);
+  if (selected.root !== root || await fs.realpath(root) !== root || directoryIdentity(await fs.stat(root)) !== record.candidates.get(selected.path)) changed();
+  return { path: selected.path, root, create: !(await entries(root)).some(entry => entry.name.toLowerCase() === 'atlas.json') };
 }
-function destinationIdentity(selected) {
-  let current = path.resolve(selected);
-  const missing = [];
-  while (!fs.existsSync(current)) { missing.unshift(path.basename(current)); current = path.dirname(current); }
-  return path.join(fs.realpathSync(current), ...missing);
+
+export async function chooseAtlas(discovery, { input = process.stdin, output = process.stderr } = {}) {
+  if (discovery.candidates.length === 1) return discovery.candidates[0];
+  if (!discovery.candidates.length) return { path: '.', root: discovery.project, create: true };
+  if (!input.isTTY || !output.isTTY) throw failure('PROJECT_AMBIGUOUS', `Choose an Atlas with --atlas PATH: ${discovery.candidates.map(candidate => candidate.path).join(', ')}`);
+  output.write(`Choose an Atlas:\n${discovery.candidates.map((candidate, index) => `${index + 1}. ${candidate.path}`).join('\n')}\n`);
+  const reader = createInterface({ input, output });
+  try {
+    const answer = await reader.question('Selection: ');
+    if (!/^[1-9][0-9]*$/.test(answer) || Number(answer) > discovery.candidates.length) invalid('Choose one listed number, or relaunch with --atlas PATH.');
+    return discovery.candidates[Number(answer) - 1];
+  } finally { reader.close(); }
 }
-export function requireExternalStorage(directory) {
-  if (!process.env.ATLAS_LAUNCHER) return;
-  const installation = path.dirname(path.dirname(fs.realpathSync(process.env.ATLAS_LAUNCHER)));
-  const inside = (parent, child) => parent === child || child.startsWith(`${parent}${path.sep}`);
-  const canonical = destinationIdentity(directory);
-  if (inside(installation, canonical) || inside(canonical, installation)) fail('Application state and cache must be separate from the product installation.');
-}
-export function requireSeparateDirectories(first, second, message) {
-  const a = destinationIdentity(first), b = destinationIdentity(second);
-  if (a === b || a.startsWith(`${b}${path.sep}`) || b.startsWith(`${a}${path.sep}`)) fail(message);
-}
-export function prepareCache(selection, selected, protectedDirectories = []) {
-  const fallback = process.platform === 'darwin' ? path.join(os.homedir(), 'Library', 'Caches', 'Atlas')
-    : path.join(process.env.XDG_CACHE_HOME && path.isAbsolute(process.env.XDG_CACHE_HOME) ? process.env.XDG_CACHE_HOME : path.join(os.homedir(), '.cache'), 'atlas');
-  const directory = path.resolve(selected ?? fallback);
-  requireExternalStorage(directory);
-  for (const protectedDirectory of [userDataRoot(), ...protectedDirectories]) requireSeparateDirectories(directory, protectedDirectory, 'Disposable cache must be separate from durable application state and export destinations.');
-  const within = (parent, child) => parent === child || child.startsWith(`${parent}${path.sep}`);
-  if (within(selection.repositoryRoot, directory) || within(directory, selection.repositoryRoot)) fail('Cache storage must be separate from the project.');
-  let mayCreate = true;
-  if (fs.existsSync(path.join(selection.atlasRoot, 'atlas.md'))) {
-    const view = openAtlas(selection.atlasRoot);
-    if (localSourceTargets(view).some(target => within(target, directory) || within(directory, target))) fail('Cache storage intersects a registered local source.');
-    mayCreate = view.validation.complete && view.freshness().status === 'fresh';
-  }
-  let ancestor = directory;
-  while (!fs.existsSync(ancestor)) ancestor = path.dirname(ancestor);
-  if (!fs.statSync(ancestor).isDirectory() || fs.realpathSync(ancestor) !== ancestor) fail('Cache storage must use canonical directories without symbolic links.');
-  if (mayCreate) fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
-  else console.error('Source capture is incomplete or stale. Cache creation is deferred; restart after repairing source to enable export. Existing draft recovery remains available.');
-  process.env.TMPDIR = directory;
-  return directory;
-}
-export function newSelection(repositoryRoot, atlasPath = 'atlas') { return canonicalSelection(repositoryRoot, atlasPath); }
-export function prepareInitialization(selection, { id = 'project', title = 'Project Atlas' } = {}) {
-  if (typeof title !== 'string' || !title.trim() || /[\r\n]/u.test(title)) fail('The title must be one nonblank line.');
-  return prepareAtlasChange({ repositoryRoot: selection.repositoryRoot, atlasPath: selection.atlasPath,
-    expected: { atlasMissing: true }, operations: [{ type: 'initialize', fields: { id }, body: `# ${title}\n\nProject context and its sources.\n` }] });
+
+export async function launchBrowser(url) {
+  const destination = new URL(url);
+  if (destination.protocol !== 'http:' || destination.hostname !== '127.0.0.1') invalid('The browser launcher accepts only the local Atlas service.');
+  const command = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'rundll32.exe' : 'xdg-open';
+  const args = process.platform === 'win32' ? ['url.dll,FileProtocolHandler', url] : [url];
+  return new Promise(resolve => {
+    const child = spawn(command, args, { stdio: 'ignore', detached: true });
+    const timer = setTimeout(() => { child.unref(); resolve('requested'); }, 2000);
+    child.once('error', () => { clearTimeout(timer); resolve('unavailable'); });
+    child.once('exit', code => { clearTimeout(timer); resolve(code === 0 ? 'requested' : 'unavailable'); });
+  });
 }
