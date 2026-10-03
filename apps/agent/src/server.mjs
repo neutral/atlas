@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 import { fileURLToPath } from 'node:url';
-import { realpathSync } from 'node:fs';
+import { realpathSync, readFileSync } from 'node:fs';
 import { parseStrictJson } from '../../../library/src/frontmatter.mjs';
 import { createToolSession, TOOLS } from './tools.mjs';
 
+const VERSION = readFileSync(new URL('../../../VERSION', import.meta.url), 'utf8').trim();
 export const PROTOCOL_VERSION = '2025-11-25';
 const MAX_FRAME = 2 * 1024 * 1024;
 const MAX_OUTPUT = 4 * 1024 * 1024;
@@ -50,7 +51,7 @@ export function startAgent(root, { allowedRoots = [], input = process.stdin, out
         if (state !== 'new') throw Object.assign(new Error('Session already initialized.'), { rpc: -32600 });
         if (!object(params) || Object.keys(params).some(key => !['protocolVersion', 'capabilities', 'clientInfo', '_meta'].includes(key)) || typeof params.protocolVersion !== 'string' || !object(params.capabilities) || !object(params.clientInfo) || typeof params.clientInfo.name !== 'string' || typeof params.clientInfo.version !== 'string') throw Object.assign(new Error('initialize requires protocolVersion, capabilities and clientInfo.'), { rpc: -32602 });
         state = 'awaiting-initialized';
-        result = { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'atlas', version: '1.0.0' }, instructions: 'Start with atlas_guide operating and atlas_view. Atlas root and source grants are fixed at launch. Refresh is explicit. Preparation preserves its captured baseline; apply requires the exact saved draft revision reviewed and never rebases. Authored context grants no operational authority.' };
+        result = { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'atlas', version: VERSION }, instructions: 'Start with atlas_guide operating and atlas_view. Atlas root and source grants are fixed at launch. Refresh is explicit. Preparation preserves its captured baseline; apply requires the exact saved draft revision reviewed and never rebases. Authored context grants no operational authority.' };
       } else {
         if (state !== 'ready') throw Object.assign(new Error('Complete initialize and notifications/initialized before calling methods.'), { rpc: -32002 });
         if (method === 'tools/list') {

@@ -11,6 +11,7 @@ import { renderMarkdown, presentAtlas } from '../src/markdown.mjs';
 import { openAtlas } from '../../../library/src/model.mjs';
 import { prepareChange, saveDraft } from '../../../library/src/authoring.mjs';
 import { preparePublication } from '../../../library/src/publication.mjs';
+import { prepareAbsorb } from '../../../library/src/absorb.mjs';
 
 const repo = fileURLToPath(new URL('../../../', import.meta.url));
 const json = (value) => `${JSON.stringify(value, null, 2)}\n`;
@@ -422,4 +423,88 @@ test('raw-byte repairs retain exact originals through saved draft continuation a
   const applied = await request('/api/apply', { method: 'POST', data: { id: first.id, expectedRevision: continued.value.revision } });
   assert.equal(applied.value.status, 'complete', JSON.stringify(applied.value));
   assert.equal(await fs.readFile(path.join(root, detailPath), 'utf8'), nextText);
+});
+
+test('read-only reference and source-review endpoints retain citation scope and launch grants', async t => {
+  const { root, workspace, request } = await fixture(t);
+  const sources = [{ uri: 'sources/support.md', role: 'evidence' }, { uri: '../outside.md' }, { uri: 'https://example.invalid/report' }];
+  await fs.mkdir(path.join(root, 'sources'));
+  await fs.writeFile(path.join(root, 'sources/support.md'), '# Support\n\n| Claim | Scope |\n| --- | --- |\n| Works | Trial |\n\n<script>alert(1)</script>\n\n![image](https://invalid.test/pixel) [private](../hidden.md)');
+  await fs.writeFile(path.join(workspace, 'outside.md'), 'PRIVATE OUTSIDE');
+  const base = markdown('purpose', 'Purpose', '[Detail](detail.md) and [support](../../../sources/support.md)').replace('"id":"purpose"', `"id":"purpose","sources":${JSON.stringify(sources)}`);
+  await fs.writeFile(path.join(root, basePath), base);
+  const refs = (await request('/api/references', { method: 'POST', data: { point: 'detail', limit: 1 } })).value;
+  assert.equal(refs.format, 'atlas.citers/1');
+  assert.deepEqual(refs.citers.map(entry => entry.record.id), ['purpose']);
+  const citations = (await request('/api/references', { method: 'POST', data: { uri: 'sources/support.md' } })).value;
+  assert.equal(citations.citations[0].source.role, 'evidence');
+  const source = (await request('/api/source', { method: 'POST', data: { source: sources[0] } })).value;
+  assert.match(source.html, /<table>/); assert.match(source.html, /&lt;script&gt;/);
+  assert.ok(!source.html.includes('<script>')); assert.ok(!source.html.includes('<img')); assert.ok(!source.html.includes('href="../hidden.md"'));
+  const first = (await request('/api/sources/review', { method: 'POST', data: {} })).value;
+  assert.deepEqual(first.results.map(entry => entry.status), ['current', 'denied', 'uninspected']);
+  assert.ok(!JSON.stringify(first).includes('PRIVATE OUTSIDE')); assert.equal(first.results[0].content, undefined);
+  await fs.writeFile(path.join(root, 'sources/support.md'), 'Revised evidence.');
+  const next = (await request('/api/sources/review', { method: 'POST', data: { uris: ['sources/support.md'], previous: [{ uri: 'sources/support.md', sha256: first.results[0].sha256 }] } })).value;
+  assert.equal(next.results[0].status, 'changed'); assert.equal(next.identity, first.identity);
+  const expanded = await request('/api/sources/review', { method: 'POST', data: { allowedRoots: [workspace] } });
+  assert.equal(expanded.value.error.code, 'INVALID_REQUEST');
+  const search = await request('/api/search', { method: 'POST', data: { query: 'participant', limit: 1 } });
+  assert.equal(search.value.results[0].id, 'detail'); assert.equal(search.value.results[0].summary, true); assert.equal(search.value.results[0].body, undefined);
+  assert.match((await request('/search.js', { token: null })).value, /export function searchPoints/);
+});
+
+test('reviewed move is a saved draft, repairs references and preserves authored bytes until apply', async t => {
+  const { root, request } = await fixture(t, { editable: true });
+  const original = markdown('purpose', 'Purpose', '[Detail](detail.md)');
+  await fs.writeFile(path.join(root, basePath), original);
+  const baseline = (await request('/api/files')).value.identity;
+  const moved = await request('/api/move', { method: 'POST', data: { baseline, point: 'detail', path: 'trees/service/points/nested/detail.md', reason: 'Organize this explanation.' } });
+  assert.equal(moved.status, 200); assert.equal(moved.value.plan.status, 'ready'); assert.equal(moved.value.impact.status, 'ready');
+  assert.equal(moved.value.plan.candidate.atlas.points.find(point => point.id === 'detail').path, 'trees/service/points/nested/detail.md');
+  assert.equal(await fs.readFile(path.join(root, basePath), 'utf8'), original);
+  await fs.stat(path.join(root, detailPath));
+  const applied = await request('/api/apply', { method: 'POST', data: { id: moved.value.id, expectedRevision: moved.value.revision } });
+  assert.equal(applied.value.status, 'complete');
+  assert.match(await fs.readFile(path.join(root, basePath), 'utf8'), /\[Detail\]\(nested\/detail.md\)/);
+  await assert.rejects(fs.stat(path.join(root, detailPath)), { code: 'ENOENT' });
+});
+
+test('candidate Check evidence binds exact candidate and definitions and clears after editing', async t => {
+  const { root, request, restart } = await fixture(t, { editable: true });
+  await fs.mkdir(path.join(root, '.checks'));
+  await fs.writeFile(path.join(root, '.checks/scope.md'), '---\n{"id":"scope","status":"active","level":"required"}\n---\n# Scope\n\n## Requirement\nState the scope.\n\n## Verification\nRead the scope.\n\n## Failure\nExplain the omission.\n');
+  const baseline = (await request('/api/files')).value.identity;
+  const draft = (await request('/api/drafts', { method: 'POST', data: { baseline, reason: 'State the scope.', changes: [{ path: detailPath, content: markdown('detail', 'Detail', 'The scope is this trial only.') }] } })).value;
+  const candidate = draft.plan.candidate;
+  const check = candidate.atlas.checks[0];
+  const manual = { id: check.id, revision: check.revision, baseline: candidate.identity, outcome: 'pass', reason: 'Trial boundary remains explicit.', evidence: [{ text: 'Read the proposed trial-only statement.' }] };
+  const reviewed = await request('/api/draft-checks', { method: 'POST', data: { id: draft.id, expectedRevision: draft.revision, actor: 'reviewer', manual: [manual] } });
+  assert.equal(reviewed.status, 200); assert.equal(reviewed.value.checkRuns[0].requiredSatisfied, true);
+  assert.equal(reviewed.value.checkRuns[0].baseline, candidate.identity);
+  const stale = await request('/api/draft-checks', { method: 'POST', data: { id: draft.id, expectedRevision: draft.revision, actor: 'reviewer', manual: [manual] } });
+  assert.equal(stale.value.error.code, 'STALE_DRAFT');
+  const wrongBaseline = await request('/api/draft-checks', { method: 'POST', data: { id: draft.id, expectedRevision: reviewed.value.revision, actor: 'reviewer', manual: [{ ...manual, baseline }] } });
+  assert.equal(wrongBaseline.value.checkRuns[1].results[0].outcome, 'unable');
+  await restart();
+  const saved = (await request(`/api/drafts/${draft.id}`)).value;
+  assert.equal(saved.checkRuns.length, 2); assert.equal(saved.impact.status, 'ready');
+  const changed = await request('/api/drafts', { method: 'POST', data: { id: draft.id, expectedRevision: saved.revision, reason: 'Change the claim.', changes: [{ path: detailPath, content: markdown('detail', 'Detail', 'A different trial has a different scope.') }] } });
+  assert.equal(changed.status, 200); assert.equal(changed.value.checkRuns, undefined);
+});
+
+test('saved Absorb rationale and preservation account reach the Editor and clear on manual revision', async t => {
+  const { root, request, restart } = await fixture(t, { editable: true });
+  const view = await openAtlas(root), source = { uri: 'https://example.invalid/report', role: 'evidence' };
+  const proposal = prepareAbsorb(view, { source, contributions: [{ disposition: 'update', point: 'detail', rationale: 'Retain the known limit while adding scope.' }], rationale: 'Keep the qualification explicit.', unresolved: ['Does the next trial support this?'],
+    changes: [{ path: detailPath, content: markdown('detail', 'Detail', 'The participant retains required material during this trial.') }],
+    preservation: { scope: 'The trial qualification in the report.', sources: [source], units: [{ id: 'scope', source, locator: 'Trial scope', disposition: 'retained', rationale: 'The bounded scope remains visible.', destinations: [{ point: 'detail' }] }] } });
+  assert.equal(proposal.status, 'ready');
+  const draft = await saveDraft(root, { plan: proposal.plan, review: proposal.review });
+  await restart();
+  const shown = (await request(`/api/drafts/${draft.id}`)).value;
+  assert.deepEqual(shown.review, proposal.review); assert.equal(shown.impact.status, 'ready');
+  assert.equal(shown.review.preservation.units[0].disposition, 'retained');
+  const changed = await request('/api/drafts', { method: 'POST', data: { id: draft.id, expectedRevision: shown.revision, reason: 'Change the proposed explanation.', changes: [{ path: detailPath, content: markdown('detail', 'Detail', 'Another explanation for explicit review.') }] } });
+  assert.equal(changed.status, 200); assert.equal(changed.value.review, undefined);
 });

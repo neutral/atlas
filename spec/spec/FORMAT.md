@@ -1,6 +1,10 @@
 # Atlas format
 
-The format identifier is `atlas/1`. Readers MUST reject other formats.
+The supported format identifiers are `atlas/1` and `atlas/1.1`. Readers MUST reject
+other formats. `atlas/1` retains its existing schema and has no adopted Style.
+`atlas/1.1` adds a required locally captured Style; its Tree, Point, Branch, Facet
+and Check encodings are unchanged. Existing legacy collections may remain
+unstyled, but an adopted Style cannot be removed by downgrading to `atlas/1`.
 Files are UTF-8. JSON is strict: duplicate decoded keys,
 unsafe integers, malformed Unicode and unknown record fields are invalid. IDs match
 `^[a-z0-9][a-z0-9-]*$` and are at most 100 characters.
@@ -9,6 +13,7 @@ unsafe integers, malformed Unicode and unknown record fields are invalid. IDs ma
 
 ```text
 atlas.json
+style.md
 trees/
   product/
     tree.json
@@ -34,15 +39,23 @@ temporary files. Relative source URIs use the Atlas root as their base.
 
 ## Atlas manifest
 
-`atlas.json` has exactly `format`, `id`, `title`, and `trees`. `trees` is an ordered
+An `atlas/1` manifest has exactly `format`, `id`, `title`, and `trees`. An
+`atlas/1.1` manifest additionally requires `style`. `trees` is an ordered
 array of unique relative directory paths, each containing one `tree.json`. Tree
 directories MUST NOT overlap. An Atlas MAY initially have no Trees.
 
+`style` is a normalized Atlas-relative path to one Markdown Style record, normally
+`style.md`. It MUST remain outside `trees/`, `.checks/` and every declared Tree
+directory. The ordinary authored path, alias, symbolic-link and reserved-path
+rules apply. A Style is captured authored content, not a source URI or a remote
+reference.
+
 ```json
 {
-  "format": "atlas/1",
+  "format": "atlas/1.1",
   "id": "example",
   "title": "Example",
+  "style": "style.md",
   "trees": ["trees/product", "trees/architecture"]
 }
 ```
@@ -78,11 +91,38 @@ unique within their respective Atlas-wide namespaces.
 
 ## Markdown records
 
-Points, Facets and Checks begin with one JSON header between exact `---` delimiter
+Points, Facets, Styles and Checks begin with one JSON header between exact `---` delimiter
 lines. The first top-level CommonMark heading is one H1 title. The remaining prose
 MUST contain a nonblank explanation; headings, comments and empty markup alone do
 not supply one. Markdown links provide references; the Tree outline defines
 membership. Raw HTML and executable content receive no execution authority.
+
+### Style
+
+The header requires `id` and `revision`. The ID follows ordinary ID rules;
+`revision` is a nonblank string identifying the adopted definition. Optional
+`derivedFrom` is nonblank plain text recording provenance. It does not load,
+inherit or compose another policy. No other header fields are allowed. The H1
+names the Style and the nonblank body contains its complete policy.
+
+This encoding example abbreviates the body; adoption requires a complete policy.
+
+```markdown
+---
+{"id":"project-subjects","revision":"1","derivedFrom":"Concise subjects, revision 1"}
+---
+# Project subjects
+
+Organize durable capabilities into complete subject accounts. Explain enough for
+readers to identify the relevant claim, its conditions and the source for detail.
+```
+
+The title, body and exact local bytes are authoritative for this adopted Style;
+an ID and revision are labels, not permission to fetch another definition. A
+revised policy SHOULD receive a new revision label. Consumers MUST still detect
+changed bytes when labels have not changed. Accepted normalized `atlas.style`
+exposes `id`, `revision`, `title`, `body`, and `path`, plus `derivedFrom` when
+supplied; it is absent for the legacy format.
 
 ### Point
 
@@ -150,7 +190,8 @@ execution requires separate caller authorization.
 Readers report deterministic diagnostics with `code`, `path`, and `message`.
 Invalid or incomplete input MUST NOT produce an accepted normalized Atlas.
 Inspection MAY retain captured raw files and diagnostics for repair. Accepted
-normalized output exposes Trees, Points, Branches, Facets, Checks, original paths,
+normalized output exposes the adopted Style when present, Trees, Points, Branches,
+Facets, Checks, original paths,
 source references and structural ancestry without duplicating canonical content.
 An invalid UTF-8 file retains its exact bytes as `rawBase64`, with `content: null`.
 It remains invalid until explicitly replaced or removed. Its hash and the view

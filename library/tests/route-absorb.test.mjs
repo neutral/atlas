@@ -140,7 +140,8 @@ test('impact reviews direct relationships without propagating to every connected
   const after = changedView(files, [{ path: 'trees/evidence/points/proof-inputs.md', content: markdown({ id: 'proof-inputs', type: 'decision', status: 'open', sources: [source] }, 'Operator proof inputs', 'The source decision is reopened.') }]);
   const result = reviewImpact(view, after);
   assert.ok(result.review.after.facets.some(({ record }) => record.id === 'assurance'));
-  assert.ok(!result.review.after.points.some(({ record }) => record.id === 'lifecycle'));
+  assert.ok(result.review.after.points.some(({ record, reasons }) => record.id === 'lifecycle' && reasons.some(reason => reason.kind === 'incoming-facet-host')));
+  assert.ok(!result.review.after.points.some(({ record }) => record.id === 'shutdown')); // no descendants or graph closure
   assert.deepEqual(reviewImpact(view, view).changedPoints, []);
 });
 
@@ -226,5 +227,7 @@ test('Absorb carries explicit local evidence hashes into apply preconditions wit
   assert.deepEqual(prepareAbsorb(view, { ...input, source: { uri: 'https://example.test/design', sha256: input.source.sha256 } }).plan.sourcePreconditions, []);
   assert.deepEqual(prepareAbsorb(view, { ...input, source: { uri: 'sources/design.md' } }).plan.sourcePreconditions, []);
   assert.throws(() => prepareAbsorb(view, { ...input, source: { ...input.source, allowedRoots: ['/'] } }), { code: 'atlas.absorb.invalid-argument' });
-  assert.throws(() => prepareAbsorb(view, { ...input, sourcePreconditions: [] }), { code: 'atlas.absorb.invalid-argument' });
+  assert.deepEqual(prepareAbsorb(view, { ...input, sourcePreconditions: [] }).plan.sourcePreconditions, local.plan.sourcePreconditions);
+  assert.throws(() => prepareAbsorb(view, { ...input, sourcePreconditions: [{ uri: input.source.uri, sha256: 'b'.repeat(64) }] }), { code: 'atlas.absorb.invalid-argument' });
+  assert.throws(() => prepareAbsorb(view, { ...input, sourcePreconditions: [null] }), { code: 'INVALID_REQUEST' });
 });

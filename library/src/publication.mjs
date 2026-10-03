@@ -27,12 +27,13 @@ function cleanRecord(record, selectedSources) {
 
 /** Select display data without expanding through Facets or source references. */
 export function preparePublication(view, input) {
-  object(input, ['trees', 'points', 'sources']);
+  object(input, ['trees', 'points', 'sources', 'includeStyle']);
+  requireValue(input.includeStyle === undefined || typeof input.includeStyle === 'boolean', 'includeStyle must be a boolean.');
   list(input.trees, 'trees', (value) => typeof value === 'string' && ID.test(value));
   requireValue(input.trees.length > 0, 'Publication requires at least one selected Tree.');
   if (input.points !== undefined) list(input.points, 'points', (value) => typeof value === 'string' && ID.test(value));
   if (input.sources !== undefined) list(input.sources, 'sources', (uri) => typeof uri === 'string' && uri.length <= 16384 && validateSource({ uri }).valid);
-  const selection = { trees: [...input.trees], ...(input.points === undefined ? {} : { points: [...input.points] }), sources: [...(input.sources ?? [])] };
+  const selection = { trees: [...input.trees], ...(input.points === undefined ? {} : { points: [...input.points] }), sources: [...(input.sources ?? [])], ...(input.includeStyle === undefined ? {} : { includeStyle: input.includeStyle }) };
   const result = { format: 'atlas.publication/1', status: 'unavailable', identity: view?.identity ?? null, selection,
     atlas: null, sources: [], exclusions: {}, diagnostics: [],
     limits: ['Publication data contains the selected subset in atlas.publication-data/1 format.', 'Facet targets retain their references; inclusion follows the explicit selection.', 'Source availability records selection. Retrieval has its own result and requires separate reading grants.'] };
@@ -81,6 +82,7 @@ export function preparePublication(view, input) {
         : target.branch ? branches.some((branch) => branch.id === target.branch && branch.tree === facet.via)
           : selectedTrees.has(target.tree)) ? 'included' : 'not-included' })) }));
   result.atlas = { format: 'atlas.publication-data/1', id: atlas.id, title: atlas.title, trees, points, branches, facets: publishedFacets, checks: [] };
+  if (input.includeStyle && atlas.style) { result.atlas.style = copy(atlas.style); delete result.atlas.style.path; }
   result.exclusions = { trees: atlas.trees.length - trees.length, points: atlas.points.length - pointRecords.length,
     facets: atlas.facets.length - facets.length, checks: atlas.checks.length,
     sourceReferences: [...references].filter(([uri]) => !selectedSources.has(uri)).reduce((count, [, refs]) => count + refs.length, 0) };

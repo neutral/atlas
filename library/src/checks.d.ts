@@ -23,3 +23,5 @@ export interface CheckReportSummary { id: string; createdAt: string; baseline: s
 export function retainCheckRun(root: string, run: CheckRun): Promise<CheckReport>;
 export function readCheckReport(root: string, id: string, options?: { view?: AtlasView }): Promise<CheckReportInspection>;
 export function listCheckReports(root: string): Promise<CheckReportSummary[]>;
+
+export function validateCheckRun(run: CheckRun): CheckRun;

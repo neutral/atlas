@@ -6,21 +6,25 @@ import { fileURLToPath } from 'node:url';
 import { parseStrictJson } from '../../../library/src/frontmatter.mjs';
 import { openAtlas, getPoint, getTree, getFacet, searchAtlas } from '../../../library/src/model.mjs';
 import {
-  prepareInitialization, prepareChangeFromDisk, applyDraft, recoverChange, listTransactions,
+  prepareInitialization, prepareStyleChange, getSourceReviewHistory, recordSourceReview, inspectChange, prepareChangeFromDisk, applyDraft, recoverChange, listTransactions,
   saveDraft, loadDraft, listDrafts, deleteDraft,
 } from '../../../library/src/authoring.mjs';
+import { listStyles, getStyle } from '../../../library/src/styles.mjs';
+import { summarizeAtlas, summarizeDraft, summarizeSourceHistory, readJsonChunk } from '../../../library/src/inventory.mjs';
 import { route } from '../../../library/src/route.mjs';
-import { inspectAbsorb, prepareAbsorb } from '../../../library/src/absorb.mjs';
+import { inspectAbsorb, prepareAbsorb, reviewChange } from '../../../library/src/absorb.mjs';
+import { referenceIndex, directCiters, sourceCitations, reviewSources, prepareMove } from '../../../library/src/references.mjs';
+import { evaluateChecks } from '../../../library/src/checks.mjs';
 import { resolveState } from '../../../library/src/state.mjs';
 import { discoverProject, chooseAtlas, verifySelection, launchBrowser } from './project.mjs';
 
 const MAX_INPUT_BYTES = 4 * 1024 * 1024;
 const ID = /^[a-z0-9][a-z0-9-]{0,99}$/;
 const commands = [
-  'init INPUT', 'validate', 'inspect [point ID | tree ID | facet TREE_ID FACET_ID]',
-  'search INPUT', 'route INPUT', 'absorb inspect INPUT', 'absorb prepare INPUT',
+  'init INPUT', 'styles [ID]', 'style INPUT', 'inventory [INPUT]', 'validate', 'inspect [point ID | tree ID | facet TREE_ID FACET_ID | style | --full]',
+  'search INPUT', 'route INPUT', 'references INPUT', 'sources INPUT', 'source-history [INPUT | --full]', 'source-record INPUT', 'move INPUT', 'draft-review ID [INPUT | --full]', 'draft-checks INPUT', 'absorb inspect INPUT', 'absorb prepare INPUT',
   'prepare INPUT', 'apply DRAFT_ID --revision REVISION', 'recover [TRANSACTION_ID]',
-  'drafts [list | show ID | delete ID --revision REVISION]', 'serve [--port PORT]', 'editor [--port PORT]',
+  'drafts [list | show ID [INPUT | --full] | delete ID --revision REVISION]', 'serve [--port PORT]', 'editor [--port PORT]',
   'mcp', 'config', 'export OUTPUT INPUT', 'state [inspect]', 'help',
 ];
 const usage = 'atlas open [PROJECT] [--atlas PATH] [--no-browser]; atlas discover [PROJECT]; atlas --root PATH [--allow-source-root PATH]... COMMAND; INPUT is a JSON file or - for stdin.';
@@ -113,7 +117,9 @@ function outcome(value) {
 }
 
 function inspection(view, args) {
-  if (!args.length) return view;
+  if (!args.length) return summarizeAtlas(view);
+  if (args.length === 1 && args[0] === '--full') return view;
+  if (args.length === 1 && args[0] === 'style') return { status: view.atlas?.style ? 'ready' : 'missing', identity: view.identity, record: view.atlas?.style ?? null };
   const [kind, id, facetId] = args;
   if (kind === 'facet') count(args, 3);
   else if (kind === 'point' || kind === 'tree') count(args, 2);
@@ -128,13 +134,14 @@ function inspection(view, args) {
 }
 
 function searchInput(value) {
-  object(value, ['query', 'tree', 'type', 'limit'], ['query']);
+  object(value, ['query', 'tree', 'type', 'limit', 'offset', 'kinds', 'presentation'], ['query']);
+  if (value.presentation !== undefined && !['full', 'summary'].includes(value.presentation)) invalid('Unknown search presentation.');
   nonblank(value.query, 'query');
   if (value.query.length > 4096) invalid('Search query exceeds 4096 characters.');
   if (value.tree !== undefined) identifier(value.tree);
   if (value.type !== undefined && !['decision', 'observation', 'untyped'].includes(value.type)) invalid('Unknown Point Type.');
   if (value.limit !== undefined && (!Number.isSafeInteger(value.limit) || value.limit < 1 || value.limit > 100)) invalid('Search limit must be 1 through 100.');
-  return value;
+  return { kinds: ['point', 'facet'], presentation: 'summary', ...value };
 }
 
 function serverOptions(args) {
@@ -240,11 +247,14 @@ async function main(argv) {
       const view = await openAtlas(root);
       return outcome({ format: 'atlas.validation/1', status: view.status, identity: view.identity, diagnostics: view.diagnostics });
     }
+    case 'styles': { count(args, 0, 1); return emit(args.length ? getStyle(args[0]) : listStyles()); }
+    case 'style': { count(args, 1); const plan = prepareStyleChange(await openAtlas(root), await inputJson(args[0])); return outcome(await saveDraft(root, { plan })); }
+    case 'inventory': { count(args, 0, 1); return outcome(summarizeAtlas(await openAtlas(root), args.length ? await inputJson(args[0]) : {})); }
     case 'inspect':
       return outcome(inspection(await openAtlas(root), args));
     case 'init': {
       count(args, 1);
-      const request = object(await inputJson(args[0]), ['id', 'title']);
+      const request = object(await inputJson(args[0]), ['id', 'title', 'styleId', 'styleContent'], ['id', 'title']);
       identifier(request.id); nonblank(request.title, 'title');
       const plan = prepareInitialization(await openAtlas(root), request);
       return outcome(await saveDraft(root, { plan }));
@@ -262,9 +272,12 @@ async function main(argv) {
     case 'drafts': {
       count(args, 0, 4);
       if (!args.length || args.length === 1 && args[0] === 'list') return emit({ format: 'atlas.drafts/1', drafts: await listDrafts(root) });
-      count(args, args[0] === 'delete' ? 4 : 2);
+      if (args[0] === 'delete') count(args, 4); else count(args, 2, 3);
       const id = identifier(args[1]);
-      if (args[0] === 'show') return outcome(await loadDraft(root, id));
+      if (args[0] === 'show') {
+        const draft = await loadDraft(root, id), options = args[2] === '--full' ? { full: true } : args[2] ? await inputJson(args[2]) : {};
+        return outcome(options.part === 'details' ? readJsonChunk(draft, options) : summarizeDraft(draft, options));
+      }
       if (args[0] === 'delete') return outcome(await deleteDraft(root, id, { expectedRevision: reviewedRevision(args.slice(2)) }));
       return invalid('Drafts accepts list, show ID, or delete ID.');
     }
@@ -276,6 +289,55 @@ async function main(argv) {
       const request = searchInput(await inputJson(args[0]));
       const view = await openAtlas(root);
       return outcome({ format: 'atlas.search/1', status: view.status === 'ready' ? 'ready' : 'unavailable', identity: view.identity, request, results: searchAtlas(view, request), diagnostics: view.diagnostics });
+    }
+    case 'references': {
+      count(args, 1);
+      const request = object(await inputJson(args[0]), ['point', 'facet', 'tree', 'uri', 'limit'], []);
+      const view = await openAtlas(root);
+      return outcome(request.uri !== undefined ? sourceCitations(view, request) : request.point || request.facet ? directCiters(view, request, { limit: request.limit }) : referenceIndex(view, request));
+    }
+    case 'source-history': {
+      count(args, 0, 1); const options = args[0] === '--full' ? { full: true } : args[0] ? await inputJson(args[0]) : {};
+      const history = await getSourceReviewHistory(root);
+      if (options.expectedRevision !== undefined) summarizeSourceHistory(history, { expectedRevision: options.expectedRevision });
+      return outcome(options.part === 'details' ? readJsonChunk(history, options) : summarizeSourceHistory(history, options));
+    }
+    case 'source-record': {
+      count(args, 1); const request = object(await inputJson(args[0]), ['review', 'decisions', 'expectedRevision'], []);
+      return outcome(summarizeSourceHistory(await recordSourceReview(root, request)));
+    }
+    case 'sources': {
+      count(args, 1);
+      const request = object(await inputJson(args[0]), ['uris', 'previous', 'limit', 'maxBytes', 'draft'], []);
+      const { draft: target, ...options } = request;
+      let view;
+      if (target !== undefined) {
+        object(target, ['id', 'revision'], ['id', 'revision']);
+        const draft = await loadDraft(root, identifier(target.id));
+        if (draft.revision !== target.revision) fail('STALE_DRAFT', 'Reopen the current draft before reviewing its sources.');
+        view = inspectChange(draft.plan).after;
+      } else view = await openAtlas(root);
+      return outcome(await reviewSources(view, { ...options, allowedRoots: sourceRoots }));
+    }
+    case 'move': {
+      count(args, 1);
+      const plan = prepareMove(await openAtlas(root), await inputJson(args[0]));
+      return outcome(await saveDraft(root, { plan }));
+    }
+    case 'draft-review': {
+      count(args, 1, 2);
+      const draft = await loadDraft(root, identifier(args[0]));
+      const options = args[1] === '--full' ? { full: true } : args[1] ? await inputJson(args[1]) : {};
+      return outcome(options.part === 'details' ? readJsonChunk({ draft: summarizeDraft(draft, { full: true }), impact: reviewChange(draft.plan) }, options) : { ...summarizeDraft(draft, options), ...(options.full ? { impact: reviewChange(draft.plan) } : {}) });
+    }
+    case 'draft-checks': {
+      count(args, 1);
+      const input = object(await inputJson(args[0]), ['id', 'expectedRevision', 'actor', 'checkIds', 'manual'], ['id', 'expectedRevision', 'actor']);
+      const draft = await loadDraft(root, identifier(input.id));
+      if (draft.revision !== input.expectedRevision) fail('STALE_DRAFT', 'The draft changed; reopen it before recording Check results.');
+      const run = await evaluateChecks(inspectChange(draft.plan).after, { actor: input.actor, checkIds: input.checkIds, manual: input.manual });
+      if (run.status !== 'complete') fail('INVALID_DRAFT', 'Repair the candidate before recording Check results.');
+      return outcome(await saveDraft(root, { id: draft.id, expectedRevision: draft.revision, plan: draft.plan, review: draft.review, checkRuns: [...(draft.checkRuns ?? []).slice(-9), run] }));
     }
     case 'route': {
       count(args, 1);
@@ -289,7 +351,7 @@ async function main(argv) {
       const view = await openAtlas(root);
       if (args[0] === 'inspect') return outcome(inspectAbsorb(view, request));
       const proposal = prepareAbsorb(view, request);
-      const draft = ['ready', 'noop'].includes(proposal.status) ? await saveDraft(root, { plan: proposal.plan }) : null;
+      const draft = ['ready', 'noop'].includes(proposal.status) ? await saveDraft(root, { plan: proposal.plan, review: proposal.review }) : null;
       return outcome({ ...proposal, draft });
     }
     case 'serve':
@@ -308,7 +370,7 @@ async function main(argv) {
     case 'export': {
       count(args, 2);
       const output = path.resolve(nonblank(args[0], 'output'));
-      const selection = object(await inputJson(args[1]), ['trees', 'points', 'sources'], ['trees']);
+      const selection = object(await inputJson(args[1]), ['trees', 'points', 'sources', 'includeStyle'], ['trees']);
       if (!Array.isArray(selection.trees) || !selection.trees.length) invalid('Export requires an explicit nonempty trees array.');
       for (const tree of selection.trees) identifier(tree);
       if (selection.points !== undefined) {
@@ -331,7 +393,7 @@ try { await main(process.argv.slice(2)); }
 catch (error) {
   const code = typeof error.code === 'string' ? error.code : error instanceof TypeError ? 'CLI_INVALID_ARGUMENT' : 'CLI_FAILED';
   const invalidInput = code.startsWith('CLI_INPUT_') || code.startsWith('JSON_') || ['CLI_INVALID_ARGUMENT', 'PROJECT_INVALID', 'PROJECT_AMBIGUOUS', 'PROJECT_DISCOVERY_LIMIT', 'INVALID_REQUEST', 'UNSAFE_PATH'].includes(code) || code.endsWith('.invalid-argument');
-  const conflict = ['STALE', 'STALE_DRAFT', 'STALE_SOURCE', 'LOCKED', 'PROJECT_CHANGED', 'CONCURRENT_CHANGE', 'RECOVERY_CONFLICT'].includes(code);
+  const conflict = ['STALE', 'STALE_DRAFT', 'STALE_HISTORY', 'STALE_SOURCE', 'LOCKED', 'PROJECT_CHANGED', 'CONCURRENT_CHANGE', 'RECOVERY_CONFLICT'].includes(code);
   process.exitCode = invalidInput ? 2 : conflict ? 3 : 1;
   emit({ error: { code, message: error.message }, ...(invalidInput ? { usage } : {}) }, process.stderr);
 }

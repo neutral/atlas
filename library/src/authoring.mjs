@@ -3,6 +3,8 @@ import { promises as fs } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { openAtlas, validateFiles, readSource } from './model.mjs';
 import { resolveState } from './state.mjs';
+import { validateCheckRun } from './checks.mjs';
+import { getStyle } from './styles.mjs';
 
 const STATE = '.atlas-state';
 const MAX_STATE_BYTES = 32 * 1024 * 1024;
@@ -33,9 +35,16 @@ function rootsFrom(files) {
   } catch { return []; }
 }
 
-function recordPath(value, roots) {
+function stylesFrom(files) {
+  try {
+    const manifest = JSON.parse(files.get('atlas.json'));
+    return manifest.format === 'atlas/1.1' && typeof manifest.style === 'string' ? [manifest.style] : [];
+  } catch { return []; }
+}
+
+function recordPath(value, roots, styles = []) {
   relativePath(value);
-  return value === 'atlas.json' || /^\.checks\/.+\.md$/u.test(value) || roots.some(root =>
+  return value === 'atlas.json' || styles.includes(value) || /^\.checks\/.+\.md$/u.test(value) || roots.some(root =>
     value === `${root}/tree.json` ||
     (value.startsWith(`${root}/points/`) || value.startsWith(`${root}/facets/`)) && value.endsWith('.md'));
 }
@@ -59,7 +68,8 @@ const contentBytes = value => value === null ? null : typeof value === 'string' 
 
 /** Prepare a complete candidate. No filesystem writes occur. */
 export function prepareChange(view, request) {
-  fields(request, ['changes', 'reason', 'sourcePreconditions'], ['changes', 'reason']);
+  fields(request, ['changes', 'reason', 'sourcePreconditions', 'styleChange'], ['changes', 'reason']);
+  if (request.styleChange !== undefined && typeof request.styleChange !== 'boolean') throw fail('INVALID_REQUEST', 'styleChange must be a boolean.');
   if (!Array.isArray(request.changes) || request.changes.length > 1000 || !nonblank(request.reason)) {
     throw fail('INVALID_REQUEST', 'Provide a reason and at most 1000 file changes.');
   }
@@ -84,8 +94,15 @@ export function prepareChange(view, request) {
     if (originalContent !== change.content) changes.push({ path: change.path, before, ...(originalContent && typeof originalContent === 'object' ? { beforeBase64: originalContent.rawBase64 } : {}), after: change.content });
   }
   const roots = [...rootsFrom(original), ...rootsFrom(candidateFiles)];
+  const originalStyles = stylesFrom(original), candidateStyles = stylesFrom(candidateFiles);
+  const styles = [...originalStyles, ...candidateStyles];
+  let candidateManifest;
+  try { candidateManifest = JSON.parse(candidateFiles.get('atlas.json')); } catch { /* Invalid drafts remain reviewable. */ }
+  if (originalStyles.length && candidateManifest?.format === 'atlas/1') throw fail('STYLE_REQUIRED', 'An adopted Style must be revised or replaced; it cannot be removed by downgrading the Atlas.');
+  const changedStyle = JSON.stringify(originalStyles) !== JSON.stringify(candidateStyles) || styles.some(file => original.get(file) !== candidateFiles.get(file));
+  if (changedStyle && request.styleChange !== true) throw fail('STYLE_CHANGE_REQUIRED', 'Changing the adopted Style requires an explicit style-change proposal.');
   for (const change of changes) {
-    if (!recordPath(change.path, roots)) throw fail('UNSAFE_PATH', `Not an authored record: ${change.path}`);
+    if (!recordPath(change.path, roots, styles)) throw fail('UNSAFE_PATH', `Not an authored record: ${change.path}`);
   }
   const sourcePreconditions = structuredClone(request.sourcePreconditions ?? []);
   if (!Array.isArray(sourcePreconditions) || sourcePreconditions.length > 100) throw fail('INVALID_REQUEST', 'Too many source preconditions.');
@@ -98,6 +115,7 @@ export function prepareChange(view, request) {
     format: 'atlas.change/1',
     status: candidate.status !== 'ready' ? 'invalid' : changes.length ? 'ready' : 'noop',
     reason: request.reason,
+    ...(changedStyle ? { styleChange: true } : {}),
     baseline: { identity: view.identity, files: view.files.map(({ path, sha256 }) => ({ path, sha256 })) },
     changes,
     validation: { status: candidate.status, identity: candidate.identity, diagnostics: candidate.diagnostics },
@@ -139,12 +157,36 @@ export async function prepareChangeFromDisk(root, request, { view, observedFiles
 }
 
 /** Empty Atlas initialization uses the same review/apply path as other changes. */
-export function prepareInitialization(view, { id, title }) {
+function selectedStyle({ styleId, styleContent }) {
+  if (styleId !== undefined && styleContent !== undefined) throw fail('INVALID_REQUEST', 'Choose a curated Style or a complete custom Style, not both.');
+  if (styleContent !== undefined) {
+    if (!nonblank(styleContent)) throw fail('INVALID_REQUEST', 'Custom Style must contain its complete definition.');
+    return styleContent;
+  }
+  const style = getStyle(styleId === undefined ? 'explanatory-perspectives' : styleId);
+  if (!style) throw fail('INVALID_REQUEST', 'Unknown curated Style.');
+  return style.content;
+}
+
+export function prepareInitialization(view, { id, title, styleId, styleContent }) {
   if (view.files.some(file => file.path === 'atlas.json')) throw fail('ALREADY_EXISTS', 'An Atlas manifest already exists.');
   return prepareChange(view, {
-    reason: 'Initialize Atlas',
-    changes: [{ path: 'atlas.json', content: `${JSON.stringify({ format: 'atlas/1', id, title, trees: [] }, null, 2)}\n` }],
+    reason: 'Initialize Atlas with its selected Style', styleChange: true,
+    changes: [{ path: 'atlas.json', content: `${JSON.stringify({ format: 'atlas/1.1', id, title, trees: [], style: 'style.md' }, null, 2)}\n` },
+      { path: 'style.md', content: selectedStyle({ styleId, styleContent }) }],
   });
+}
+
+/** Explicit adoption keeps one locally captured definition; review its structural consequences. */
+export function prepareStyleChange(view, { styleId, styleContent, reason }) {
+  if (view.status !== 'ready' || !view.atlas) throw fail('INVALID_VIEW', 'A valid Atlas is required before changing its Style.');
+  if (styleId === undefined && styleContent === undefined) throw fail('INVALID_REQUEST', 'Select a Style explicitly.');
+  const manifest = JSON.parse(view.files.find(file => file.path === 'atlas.json').content);
+  const stylePath = manifest.style ?? 'style.md';
+  return prepareChange(view, { reason, styleChange: true, changes: [
+    { path: 'atlas.json', content: JSON.stringify({ ...manifest, format: 'atlas/1.1', style: stylePath }, null, 2) + '\n' },
+    { path: stylePath, content: selectedStyle({ styleId, styleContent }) },
+  ] });
 }
 
 async function checkedRoot(root) {
@@ -236,6 +278,19 @@ async function readState(root, relative) {
   try { return JSON.parse(value); } catch { throw fail('INVALID_STATE', 'Saved state is malformed.'); }
 }
 
+async function readContendedLock(root, relative) {
+  let value;
+  try { value = await readState(root, relative); }
+  catch (error) {
+    // Exclusive creation precedes metadata writing; release can also win this
+    // read. Neither observation permits removing or taking over the lock.
+    if (['INVALID_STATE', 'NOT_FOUND'].includes(error.code)) throw fail('LOCKED', 'Lock metadata is unavailable; another writer may be acquiring or releasing it.');
+    throw error;
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw fail('LOCKED', 'Invalid lock metadata; inspect saved state.');
+  return value;
+}
+
 async function acquire(root, transaction, recover = false) {
   const filename = await safePath(root, `${STATE}/lock.json`, { internal: true, createState: true });
   await fs.mkdir(path.dirname(filename), { recursive: true });
@@ -243,7 +298,7 @@ async function acquire(root, transaction, recover = false) {
   try { handle = await fs.open(filename, 'wx', 0o600); }
   catch (error) {
     if (error.code !== 'EEXIST') throw error;
-    const previous = await readState(root, `${STATE}/lock.json`);
+    const previous = await readContendedLock(root, `${STATE}/lock.json`);
     let alive = true;
     if (!Number.isSafeInteger(previous.pid) || previous.pid <= 0) throw fail('LOCKED', 'Invalid lock; inspect state before recovery.');
     try { process.kill(previous.pid, 0); } catch (probe) { if (probe.code === 'ESRCH') alive = false; }
@@ -295,6 +350,41 @@ function planChanges(plan) {
   return plan.changes.map(({ path, after }) => ({ path, content: after }));
 }
 
+/** Reconstruct exact before/after observations from a saved plan; supplied models are not authority. */
+export function inspectChange(plan) {
+  planChanges(plan);
+  if (!plan.candidate || !nonblank(plan.candidate.root)) throw fail('INVALID_PLAN', 'A captured candidate is required.');
+  const after = validateFiles(captureMap(plan.candidate), { root: plan.candidate.root });
+  if (after.identity !== plan.candidate.identity || after.identity !== plan.validation?.identity || after.status !== plan.validation?.status) throw fail('INVALID_PLAN', 'Candidate bytes do not match the plan identity.');
+  const originals = captureMap(after), changedPaths = new Set();
+  for (const change of plan.changes) {
+    relativePath(change.path);
+    if (changedPaths.has(change.path) || !sameBytes(contentBytes(originals.get(change.path) ?? null), afterBytes(change))) throw fail('INVALID_PLAN', 'Candidate differs from the proposed file effects.');
+    changedPaths.add(change.path);
+    if (change.beforeBase64 !== undefined) originals.set(change.path, { rawBase64: change.beforeBase64 });
+    else if (change.before === null) originals.delete(change.path);
+    else originals.set(change.path, change.before);
+  }
+  for (const observed of plan.observedFiles ?? []) {
+    if (!sameBytes(contentBytes(originals.get(observed.path) ?? null), contentBytes(capturedContent(observed)))) throw fail('INVALID_PLAN', 'Observed original bytes differ from the plan.');
+    originals.delete(observed.path);
+  }
+  const before = validateFiles(originals, { root: after.root });
+  const inventory = files => [...files].map(({ path, sha256 }) => ({ path, sha256 })).sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
+  if (before.identity !== plan.baseline.identity || !Array.isArray(plan.baseline.files) || JSON.stringify(inventory(before.files)) !== JSON.stringify(inventory(plan.baseline.files))) throw fail('INVALID_PLAN', 'Original bytes do not match the captured baseline.');
+  const expectedStatus = after.status !== 'ready' ? 'invalid' : plan.changes.length ? 'ready' : 'noop';
+  if (plan.status !== expectedStatus) throw fail('INVALID_PLAN', 'Plan status does not match its candidate.');
+  return { before, after };
+}
+
+/** Bind review context to exact proposed effects, not merely a candidate label. */
+export function changePlanIdentity(plan) {
+  inspectChange(plan);
+  return sha(JSON.stringify({ baseline: plan.baseline, changes: plan.changes, reason: plan.reason,
+    sourcePreconditions: plan.sourcePreconditions ?? [], observedFiles: plan.observedFiles ?? [], candidateIdentity: plan.candidate.identity,
+    ...(plan.styleChange ? { styleChange: true } : {}) }));
+}
+
 /** Apply revalidates the complete candidate and current baseline before writing. */
 export async function applyChange(root, plan, { allowedRoots, onProgress } = {}) {
   plan = structuredClone(plan);
@@ -330,7 +420,7 @@ export async function applyChange(root, plan, { allowedRoots, onProgress } = {})
       if (!sameBytes(await bytesAt(root, change.path), beforeBytes(change))) throw fail('STALE', `Existing or changed target: ${change.path}`);
     }
     const workingView = validateFiles(currentFiles, { root });
-    const prepared = prepareChange(workingView, { changes, reason: plan.reason, sourcePreconditions: plan.sourcePreconditions ?? [] });
+    const prepared = prepareChange(workingView, { changes, reason: plan.reason, sourcePreconditions: plan.sourcePreconditions ?? [], ...(plan.styleChange ? { styleChange: true } : {}) });
     if (prepared.status === 'invalid') throw fail('INVALID_CANDIDATE', 'Candidate Atlas is invalid.');
     const checkSources = async () => {
       for (const source of prepared.sourcePreconditions) {
@@ -410,6 +500,7 @@ export async function recoverChange(root, id) {
     const current = await openAtlas(root);
     const candidate = captureMap(current);
     const knownRoots = rootsFrom(candidate);
+    const knownStyles = stylesFrom(candidate);
     for (const change of transaction.changes) {
       fields(change, ['path', 'before', 'beforeBase64', 'after'], ['path', 'before', 'after']);
       if (![change.before, change.after].every(v => v === null || typeof v === 'string')) throw fail('INVALID_STATE', 'Invalid recovery bytes.');
@@ -417,11 +508,13 @@ export async function recoverChange(root, id) {
       if (change.path === 'atlas.json') {
         if (change.before !== null) knownRoots.push(...rootsFrom(new Map([['atlas.json', change.before]])));
         if (change.after !== null) knownRoots.push(...rootsFrom(new Map([['atlas.json', change.after]])));
+        if (change.before !== null) knownStyles.push(...stylesFrom(new Map([['atlas.json', change.before]])));
+        if (change.after !== null) knownStyles.push(...stylesFrom(new Map([['atlas.json', change.after]])));
       }
     }
     const seen = new Set();
     for (const change of transaction.changes) {
-      if (seen.has(change.path) || !recordPath(change.path, knownRoots)) throw fail('INVALID_STATE', 'Unsafe recovery record.');
+      if (seen.has(change.path) || !recordPath(change.path, knownRoots, knownStyles)) throw fail('INVALID_STATE', 'Unsafe recovery record.');
       seen.add(change.path);
       const content = await bytesAt(root, change.path);
       if (!sameBytes(content, beforeBytes(change)) && !sameBytes(content, afterBytes(change))) throw fail('RECOVERY_CONFLICT', `Foreign edits prevent recovery: ${change.path}`);
@@ -460,7 +553,7 @@ async function withDraftLock(root, id, action) {
   try { handle = await fs.open(filename, 'wx', 0o600); }
   catch (error) {
     if (error.code !== 'EEXIST') throw error;
-    const previous = await readState(root, relative);
+    const previous = await readContendedLock(root, relative);
     if (!Number.isSafeInteger(previous.pid) || previous.pid <= 0) throw fail('LOCKED', 'Invalid draft lock; inspect saved state.');
     let alive = true;
     try { process.kill(previous.pid, 0); } catch (probe) { if (probe.code === 'ESRCH') alive = false; }
@@ -482,7 +575,49 @@ async function withDraftLock(root, id, action) {
   }
 }
 
-export async function saveDraft(root, { id = randomUUID(), plan, expectedRevision }) {
+async function reviewMetadata(root, plan, review, checkRuns) {
+  if (review === undefined && checkRuns === undefined) return {};
+  const { after } = inspectChange(plan);
+  if (path.resolve(after.root) !== root) throw fail('INVALID_REVIEW', 'Review belongs to another Atlas.');
+  // Never retain a caller-invented normalized model or diagnostics as reviewed content.
+  plan.candidate = after;
+  plan.validation = { status: after.status, identity: after.identity, diagnostics: after.diagnostics };
+  const metadata = {};
+  if (review !== undefined) {
+    const { validateAbsorbReview } = await import('./absorb.mjs');
+    metadata.review = validateAbsorbReview(plan, review);
+  }
+  if (checkRuns !== undefined) {
+    if (!Array.isArray(checkRuns) || checkRuns.length > 10 || after.status !== 'ready') throw fail('INVALID_REVIEW', 'At most ten candidate Check runs may be retained for a valid candidate.');
+    const active = after.atlas.checks.filter(check => check.status === 'active').map(({ id, revision, level }) => ({ id, revision, level }));
+    const seen = new Set();
+    metadata.checkRuns = checkRuns.map(value => {
+      const run = validateCheckRun(value);
+      if (seen.has(run.id) || run.baseline !== after.identity || path.resolve(run.root) !== root || JSON.stringify(run.active) !== JSON.stringify(active)) throw fail('INVALID_REVIEW', 'Check evidence does not match this exact candidate and its definitions.');
+      seen.add(run.id);
+      return run;
+    });
+  }
+  return metadata;
+}
+
+function validateReviewHistory(history) {
+  if (history === undefined) return;
+  if (!Array.isArray(history) || history.length > 100) throw fail('INVALID_STATE', 'Review history must contain at most 100 retained revisions.');
+  const seen = new Set();
+  for (const item of history) {
+    fields(item, ['revision', 'updatedAt', 'planIdentity', 'candidate', 'reason', 'review', 'checkRuns'], ['revision', 'updatedAt', 'planIdentity', 'candidate', 'reason']);
+    if (seen.has(item.revision) || ![item.revision, item.planIdentity, item.candidate].every(value => typeof value === 'string' && /^[a-f0-9]{64}$/u.test(value)) || !nonblank(item.reason) || !Number.isFinite(Date.parse(item.updatedAt))) throw fail('INVALID_STATE', 'Invalid historical review identity.');
+    seen.add(item.revision);
+    if (item.review !== undefined && (item.review?.candidateIdentity !== item.candidate || item.review?.planIdentity !== item.planIdentity)) throw fail('INVALID_STATE', 'Historical reasoning must name its original candidate and plan.');
+    if (item.checkRuns !== undefined) {
+      if (!Array.isArray(item.checkRuns) || item.checkRuns.length > 10) throw fail('INVALID_STATE', 'Invalid historical Check evidence.');
+      for (const run of item.checkRuns) if (validateCheckRun(run).baseline !== item.candidate) throw fail('INVALID_STATE', 'Historical Checks must name their original candidate.');
+    }
+  }
+}
+
+export async function saveDraft(root, { id = randomUUID(), plan, expectedRevision, review, checkRuns }) {
   plan = structuredClone(plan);
   planChanges(plan);
   if (expectedRevision !== undefined) expectedDraftRevision(expectedRevision);
@@ -491,7 +626,16 @@ export async function saveDraft(root, { id = randomUUID(), plan, expectedRevisio
     try { previous = await loadDraft(canonical, id); } catch (error) { if (error.code !== 'NOT_FOUND') throw error; }
     if (previous ? previous.revision !== expectedRevision : expectedRevision !== undefined) throw fail('STALE_DRAFT', 'The saved draft changed or was removed; reload it before saving.');
     if (previous && JSON.stringify(previous.plan.baseline) !== JSON.stringify(plan.baseline)) throw fail('STALE_DRAFT', 'A saved draft must retain its original baseline.');
-    const draft = { format: 'atlas.draft/1', id: stateId(id), updatedAt: new Date().toISOString(), plan };
+    const metadata = await reviewMetadata(canonical, plan, review, checkRuns);
+    const reviewHistory = structuredClone(previous?.reviewHistory ?? []);
+    if (previous && (previous.review !== undefined || previous.checkRuns?.length) &&
+        (changePlanIdentity(previous.plan) !== changePlanIdentity(plan) || JSON.stringify({ review: previous.review, checkRuns: previous.checkRuns }) !== JSON.stringify(metadata))) {
+      if (reviewHistory.length >= 100) throw fail('LIMIT_EXCEEDED', 'This draft has 100 reviewed revisions; retain it and start a new proposal rather than discard review history.');
+      reviewHistory.push({ revision: previous.revision, updatedAt: previous.updatedAt, planIdentity: changePlanIdentity(previous.plan), candidate: previous.plan.candidate.identity,
+        reason: previous.plan.reason, ...(previous.review === undefined ? {} : { review: previous.review }), ...(previous.checkRuns === undefined ? {} : { checkRuns: previous.checkRuns }) });
+    }
+    validateReviewHistory(reviewHistory);
+    const draft = { format: 'atlas.draft/1', id: stateId(id), updatedAt: new Date().toISOString(), plan, ...metadata, ...(reviewHistory.length ? { reviewHistory } : {}) };
     draft.revision = draftRevision(draft);
     await saveState(canonical, draftPath(id), draft);
     return draft;
@@ -503,6 +647,8 @@ export async function loadDraft(root, id) {
   if (draft.format !== 'atlas.draft/1' || draft.id !== id) throw fail('INVALID_STATE', 'Invalid draft.');
   if (draft.revision !== draftRevision(draft)) throw fail('INVALID_STATE', 'Saved draft integrity failed.');
   planChanges(draft.plan);
+  validateReviewHistory(draft.reviewHistory);
+  await reviewMetadata(root, draft.plan, draft.review, draft.checkRuns);
   return draft;
 }
 export async function listDrafts(root) {
@@ -529,5 +675,120 @@ export async function deleteDraft(root, id, { expectedRevision } = {}) {
     await fs.unlink(filename);
     await syncDirectory(path.dirname(filename));
     return { status: 'deleted', id };
+  });
+}
+
+const hashText = value => typeof value === 'string' && /^[a-f0-9]{64}$/u.test(value);
+const workingCopyPath = id => `${STATE}/working-copies/${stateId(id)}.json`;
+
+function validateWorkingCopy(value) {
+  if (value?.format !== 'atlas.working-copy/1' || value.revision !== draftRevision(value) || !hashText(value.baseline) || !Number.isFinite(Date.parse(value.updatedAt))) throw fail('INVALID_STATE', 'Invalid saved working copy.');
+  stateId(value.id);
+  fields(value.form, ['kind', 'title', 'context', 'fields'], ['kind', 'title', 'fields']);
+  if (!nonblank(value.form.kind) || !nonblank(value.form.title) || !value.form.fields || typeof value.form.fields !== 'object' || Array.isArray(value.form.fields)) throw fail('INVALID_STATE', 'A working copy requires named form fields.');
+  return value;
+}
+
+/** Recoverable typing is private work, never a prepared proposal or apply permission. */
+export async function saveWorkingCopy(root, { id = randomUUID(), expectedRevision, baseline, form }) {
+  stateId(id);
+  if (expectedRevision !== undefined) expectedDraftRevision(expectedRevision);
+  if (!hashText(baseline)) throw fail('INVALID_REQUEST', 'A captured baseline is required.');
+  return withDraftLock(root, `working-${sha(id)}`, async canonical => {
+    let previous;
+    try { previous = await loadWorkingCopy(canonical, id); } catch (error) { if (error.code !== 'NOT_FOUND') throw error; }
+    if (previous ? previous.revision !== expectedRevision : expectedRevision !== undefined) throw fail('STALE_DRAFT', 'The recoverable work changed; reopen it before saving.');
+    if (previous && previous.baseline !== baseline) throw fail('STALE_DRAFT', 'Recoverable work retains its original baseline.');
+    const saved = { format: 'atlas.working-copy/1', id, baseline, updatedAt: new Date().toISOString(), form: structuredClone(form) };
+    saved.revision = draftRevision(saved);
+    validateWorkingCopy(saved);
+    if (Buffer.byteLength(JSON.stringify(saved)) > 4 * 1024 * 1024) throw fail('LIMIT_EXCEEDED', 'Recoverable typing exceeds 4 MiB; save a reviewed draft.');
+    await saveState(canonical, workingCopyPath(id), saved);
+    return saved;
+  });
+}
+
+export async function loadWorkingCopy(root, id) {
+  root = await checkedRoot(root);
+  const saved = validateWorkingCopy(await readState(root, workingCopyPath(id)));
+  if (saved.id !== id) throw fail('INVALID_STATE', 'Working copy identity differs from its path.');
+  return saved;
+}
+
+export async function listWorkingCopies(root) {
+  return (await listState(root, 'working-copies')).map(value => {
+    const { id, revision, baseline, updatedAt, form } = validateWorkingCopy(value);
+    return { id, revision, baseline, updatedAt, kind: form.kind, title: form.title };
+  });
+}
+
+export async function discardWorkingCopy(root, { id, expectedRevision }) {
+  expectedDraftRevision(expectedRevision);
+  return withDraftLock(root, `working-${sha(stateId(id))}`, async canonical => {
+    const saved = await loadWorkingCopy(canonical, id);
+    if (saved.revision !== expectedRevision) throw fail('STALE_DRAFT', 'Recoverable work changed before deletion.');
+    const filename = await safePath(canonical, workingCopyPath(id), { internal: true });
+    await fs.unlink(filename); await syncDirectory(path.dirname(filename));
+    return { status: 'deleted', id };
+  });
+}
+
+const sourceHistoryPath = `${STATE}/source-reviews/history.json`;
+const reviewOutcomes = ['needs-review', 'reviewed-unchanged', 'updated'];
+function validateSourceHistory(history, root) {
+  if (history?.format !== 'atlas.source-history/1' || history.root !== root || history.revision !== draftRevision(history) || !Array.isArray(history.observations) || !Array.isArray(history.inspections) || !Array.isArray(history.decisions) || [history.observations, history.inspections, history.decisions].some(items => items.length > 10000)) throw fail('INVALID_STATE', 'Invalid source review history.');
+  for (const item of history.observations) if (!nonblank(item.uri) || !hashText(item.sha256) || !['unreviewed', ...reviewOutcomes].includes(item.reviewStatus)) throw fail('INVALID_STATE', 'Invalid retained source observation.');
+  for (const item of history.decisions) if (!nonblank(item.uri) || !hashText(item.sha256) || !reviewOutcomes.includes(item.outcome) || !nonblank(item.reason)) throw fail('INVALID_STATE', 'Invalid source review decision.');
+  return history;
+}
+
+export async function getSourceReviewHistory(root) {
+  root = await checkedRoot(root);
+  try { return validateSourceHistory(await readState(root, sourceHistoryPath), root); }
+  catch (error) {
+    if (error.code !== 'NOT_FOUND') throw error;
+    return { format: 'atlas.source-history/1', root, revision: null, observations: [], inspections: [], decisions: [] };
+  }
+}
+
+/** Retain observed bytes and explicit review decisions; neither establishes semantic truth. */
+export async function recordSourceReview(root, { review, decisions = [], expectedRevision } = {}) {
+  if (expectedRevision !== undefined && expectedRevision !== null) expectedDraftRevision(expectedRevision);
+  if (!Array.isArray(decisions) || decisions.length > 1000 || review === undefined && decisions.length === 0) throw fail('INVALID_REQUEST', 'Supply a source observation or review decisions.');
+  return withDraftLock(root, 'source-review-history', async canonical => {
+    const previous = await getSourceReviewHistory(canonical);
+    if (previous.revision !== (expectedRevision ?? null)) throw fail('STALE_DRAFT', 'Source review history changed; read it again.');
+    const observations = new Map(previous.observations.map(item => [item.uri, item]));
+    const inspections = new Map(previous.inspections.map(item => [item.uri, item]));
+    const recordedAt = new Date().toISOString();
+    if (review !== undefined) {
+      if (review?.format !== 'atlas.source-review/1' || review.status !== 'ready' || !hashText(review.identity) || !Number.isFinite(Date.parse(review.observedAt)) || !Array.isArray(review.results) || review.results.length > 1000) throw fail('INVALID_REQUEST', 'A bounded successful source-review response is required.');
+      for (const item of review.results) {
+        if (!nonblank(item.uri) || !['current', 'changed', 'missing', 'denied', 'uninspected', 'incomplete', 'invalid'].includes(item.status)) throw fail('INVALID_REQUEST', 'Invalid source review result.');
+        inspections.set(item.uri, { uri: item.uri, status: item.status, observedAt: review.observedAt, identity: review.identity, ...(item.reason ? { reason: item.reason } : {}), ...(item.code ? { code: item.code } : {}) });
+        if (!['current', 'changed'].includes(item.status)) continue;
+        if (!hashText(item.sha256)) throw fail('INVALID_REQUEST', 'Successful source observations require a SHA-256 identity.');
+        const old = observations.get(item.uri);
+        const same = old?.sha256 === item.sha256;
+        observations.set(item.uri, { uri: item.uri, sha256: item.sha256, observedAt: review.observedAt, identity: review.identity, status: item.status,
+          reviewStatus: same ? old.reviewStatus : old || item.status === 'changed' ? 'needs-review' : 'unreviewed',
+          ...(same && old.reason ? { reason: old.reason } : {}) });
+      }
+    }
+    const retainedDecisions = [...previous.decisions];
+    for (const decision of decisions) {
+      fields(decision, ['uri', 'sha256', 'outcome', 'reason'], ['uri', 'sha256', 'outcome', 'reason']);
+      if (!nonblank(decision.uri) || !hashText(decision.sha256) || !reviewOutcomes.includes(decision.outcome) || !nonblank(decision.reason)) throw fail('INVALID_REQUEST', 'A source decision needs exact observed bytes, outcome and reason.');
+      const observed = observations.get(decision.uri);
+      if (!observed || observed.sha256 !== decision.sha256 || !['current', 'changed'].includes(inspections.get(decision.uri)?.status)) throw fail('STALE_SOURCE', 'Read the available source bytes before recording this decision.');
+      observations.set(decision.uri, { ...observed, reviewStatus: decision.outcome, reason: decision.reason });
+      retainedDecisions.push({ ...structuredClone(decision), recordedAt, identity: observed.identity });
+    }
+    if ([observations.size, inspections.size, retainedDecisions.length].some(count => count > 10000)) throw fail('LIMIT_EXCEEDED', 'Source review history reached its bound; retain it before starting another history.');
+    const history = { format: 'atlas.source-history/1', root: canonical, updatedAt: recordedAt, observations: [...observations.values()], inspections: [...inspections.values()], decisions: retainedDecisions };
+    history.revision = draftRevision(history);
+    validateSourceHistory(history, canonical);
+    await saveState(canonical, sourceHistoryPath, history);
+    return history;
   });
 }

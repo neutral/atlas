@@ -1,6 +1,6 @@
 import type { AtlasView, Branch, Facet, Point, Source, SourceReadResult, TargetPointer, Tree } from './index.js';
 
-export interface PublicationOptions { trees: string[]; points?: string[]; sources?: string[] }
+export interface PublicationOptions { trees: string[]; points?: string[]; sources?: string[]; includeStyle?: boolean }
 export interface PublicationSourceReference extends Source { publicationAvailable: boolean }
 export interface PublishedPoint extends Omit<Point, 'path' | 'sources'> { publicationAvailable: true; sources?: PublicationSourceReference[] }
 export interface PointPlaceholder { id: string; tree: string; publicationAvailable: false }
@@ -10,6 +10,7 @@ export interface PublishedFacet extends Omit<Facet, 'path' | 'sources'> {
 }
 export interface PublicationData {
   format: 'atlas.publication-data/1'; id: string; title: string;
+  style?: { id: string; revision: string; title: string; body: string; derivedFrom?: string };
   trees: Array<Omit<Tree, 'path'>>; points: Array<PublishedPoint | PointPlaceholder>; branches: Branch[]; facets: PublishedFacet[]; checks: [];
 }
 export interface PublicationSourceSelection { uri: string; publicationAvailable: boolean; status: 'selected' | 'not-included'; references: Source[] }

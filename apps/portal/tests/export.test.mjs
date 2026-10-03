@@ -28,7 +28,7 @@ test('static export includes chosen account and labels excluded targets without 
   assert(!JSON.stringify(data).includes('The trial did not test interrupted writes or delivery.'));
   assert.equal(data.atlas.points.find(point => point.id === 'delivery-promise').sources[0].publishedPath, undefined);
   assert(result.excludedTargets.length > 0);
-  assert.deepEqual((await fs.readdir(output)).sort(), ['app.js', 'data.json', 'index.html', 'selection.json', 'style.css']);
+  assert.deepEqual((await fs.readdir(output)).sort(), ['app.js', 'data.json', 'index.html', 'search.js', 'selection.json', 'style.css']);
   assert.match(await fs.readFile(path.join(output, 'index.html'), 'utf8'), /data-mode="publication"/u);
   await assert.rejects(exportPortal(example, output, { trees: ['product'] }), { code: 'EXPORT_EXISTS' });
 });
@@ -125,4 +125,26 @@ test('published Markdown links resolve only to included Points', async t => {
   assert.match(html, /unavailable-reference/u);
   assert.match(data.atlas.facets.find(facet => facet.id === 'delivery-dependency').html, /href="\?tree=product&amp;point=delivery-promise"/u);
   assert(!JSON.stringify(data).includes('trees/architecture/points/sync.md"'));
+});
+
+test('selected Markdown sources receive inert rendered sidecars without widening publication', async t => {
+  const root = await folder(t), copied = path.join(root, 'atlas'), output = path.join(root, 'site');
+  await fs.cp(example, copied, { recursive: true });
+  const source = '# Source\n\n| Claim | Limit |\n| --- | --- |\n| Works | In this trial |\n\n<script>alert(1)</script>\n\n![image](https://invalid.test/pixel) [private](../private.md) [remote](https://example.com).\n';
+  await fs.writeFile(path.join(copied, 'sources/brief.md'), source);
+  await fs.writeFile(path.join(copied, 'private.md'), 'UNSELECTED PRIVATE SOURCE');
+  await fs.appendFile(path.join(copied, 'trees/product/points/purpose.md'), '\n[Read source](../../../sources/brief.md)\n');
+  const prepared = await prepareExport(copied, output, { trees: ['product'], sources: ['sources/brief.md'] });
+  assert.equal(prepared.counts.sources, 1);
+  const result = await applyExport(prepared);assert.equal(result.sources[0].status, 'ready');
+  const selected = result.sources[0];assert.match(selected.htmlPath,/^sources\/[a-f0-9]{64}\.html$/);
+  assert.equal(await fs.readFile(path.join(output, selected.path), 'utf8'), source);
+  const html=await fs.readFile(path.join(output,selected.htmlPath),'utf8');
+  assert.match(html,/<table>/);assert.ok(!html.includes('<script>'));assert.ok(!html.includes('<img'));assert.match(html,/&lt;script&gt;/);
+  assert.ok(!html.includes('href="../private.md"'));assert.ok(!html.includes('UNSELECTED PRIVATE SOURCE'));assert.match(html,/default-src 'none'/);
+  const data=JSON.parse(await fs.readFile(path.join(output,'data.json')));assert.equal(data.atlas.points.find(p=>p.id==='product-purpose').sources[0].publishedHtmlPath,selected.htmlPath);
+  assert.match(data.atlas.points.find(p=>p.id==='product-purpose').html,new RegExp(selected.htmlPath));
+  const hidden=await exportPortal(copied,path.join(root,'hidden'),{trees:['product']});assert.equal(hidden.sources.length,0);await assert.rejects(fs.stat(path.join(root,'hidden/sources')),{code:'ENOENT'});
+  const { searchPoints } = await import(pathToFileURL(path.join(output,'search.js')).href);
+  assert.equal(typeof searchPoints,'function');
 });

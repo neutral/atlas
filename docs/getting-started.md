@@ -3,6 +3,10 @@
 Open a project, give its knowledge a home, and write an explanation someone else
 can use. This walkthrough creates a small Atlas for a fictional notes product.
 
+For a working example first, take the [guided notes-app tour](../examples/README.md).
+It follows a question from a product promise through a technical decision to a
+qualified observation, using search, Facets and source reading.
+
 ## Open your project
 
 [Install Atlas](install.md) and create an empty project folder for this walkthrough.
@@ -17,15 +21,20 @@ the terminal running while using the Editor. Press **Ctrl+C** in the terminal to
 stop the service; run the same command to reopen the Atlas later.
 
 From a source checkout with dependencies installed, use
-`pnpm atlas open /path/to/empty-project` instead. To explore the existing example
-without this creation walkthrough, run `pnpm atlas open examples/offline-notes`
-and continue with [reading](reading.md).
+`pnpm atlas open /path/to/empty-project` instead.
 
 ## Create the collection
 
 If the selected folder has no Atlas, the Editor offers **Create Atlas**. Enter
-`notes` as its **Stable ID** and `Notes` as its **Title**. Select **Save and review**,
-read the proposed files, then select **Apply draft**.
+`notes` as its **Stable ID** and `Notes` as its **Title**. Choose
+**Explanatory perspectives** for this walkthrough. Read its organizing principle
+and source-depth commitment, then select **Save and review**, inspect the proposed
+manifest and local Style definition, and select **Apply draft**.
+
+[Styles](../spec/SPEC.md#style) are complete organizing policies.
+**Concise subjects** is the other curated choice, and you can supply a custom
+complete definition. The chosen Style governs the whole Atlas until you explicitly
+revise or replace it; later catalogue updates leave your adopted copy unchanged.
 
 Opening a project without an existing Atlas offers creation in the project folder
 itself. Use `--atlas` with an existing subfolder if you want a separate location.
@@ -58,6 +67,18 @@ Base Point under **Develop beneath**. Enter:
 Save, review and apply. The new Point appears beneath the Base Point. Stable IDs
 keep references usable when you improve titles or wording; choose them for the
 subject the Point will continue to explain.
+
+## Read it as someone new to the project
+
+Select **Search Atlas** and search for `offline`. Open the Point you just wrote,
+then select **Focus reading**. Can a reader tell what is promised, why it matters
+and what remains uncertain? Use **Show Tree** and the breadcrumbs to return to
+the overview and check that it introduces the detail well.
+
+As evidence arrives, cite its source and qualify the explanation. When another
+perspective changes how the promise should be understood, add a Tree for that
+account and a Facet explaining the connection. The [example tour](../examples/README.md)
+shows these next steps in a complete, small Atlas.
 
 You now have an overview and a useful detail beneath it. Continue with
 [organizing knowledge](organizing-knowledge.md) to decide what deserves another

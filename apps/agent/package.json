@@ -1,7 +1,7 @@
 {
   "name": "@atlas/agent",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "license": "CC0-1.0 OR 0BSD",
   "engines": { "node": ">=22.23.2" },

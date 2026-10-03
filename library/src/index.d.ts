@@ -4,6 +4,7 @@ export * from './navigation.js';
 export * from './checks.js';
 export * from './publication.js';
 export * from './state.js';
+export * from './references.js';
 export interface Source {
   uri: string;
   title?: string;
@@ -32,8 +33,12 @@ export interface Check {
   id: string; status: 'draft' | 'active' | 'retired'; level: 'required' | 'advisory';
   path: string; title: string; body: string; revision: string;
 }
+export interface AtlasStyle { id: string; revision: string; title: string; body: string; path: string; derivedFrom?: string }
+export interface CuratedStyle extends Omit<AtlasStyle, 'path'> { content: string }
+export function listStyles(): Array<Pick<AtlasStyle, 'id' | 'revision' | 'title'>>;
+export function getStyle(id: string): CuratedStyle | null;
 export interface Atlas {
-  format: 'atlas/1'; id: string; title: string;
+  format: 'atlas/1' | 'atlas/1.1'; id: string; title: string; style?: AtlasStyle;
   trees: Tree[]; points: Point[]; branches: Branch[]; facets: Facet[]; checks: Check[];
 }
 export interface CapturedFile { path: string; content: string | null; rawBase64?: string; sha256: string; bytes: number }
@@ -52,9 +57,18 @@ export interface FacetInspection extends Facet { owner: Tree; host: Point | Bran
 export function getPoint(view: AtlasView, id: string): PointInspection | null;
 export function getTree(view: AtlasView, id: string): TreeInspection | null;
 export function getFacet(view: AtlasView, target: { tree: string; id: string }): FacetInspection | null;
-export interface SearchOptions { query: string; tree?: string; type?: PointType | 'untyped'; limit?: number }
-export interface SearchResult extends Point { score: number; matches: Array<{ field: 'id' | 'title' | 'body' | 'uncertainty'; term: string }>; reason: string }
-export function searchAtlas(view: AtlasView, options: SearchOptions): SearchResult[];
+export interface SearchOptions { query: string; tree?: string; type?: PointType | 'untyped'; limit?: number; offset?: number; kinds?: Array<'point' | 'facet'>; presentation?: 'full' | 'summary' }
+export interface SearchResult extends Point { kind?: 'point'; score: number; matches: Array<{ field: 'id' | 'title' | 'body' | 'uncertainty'; term: string }>; reason: string }
+export interface PointSummary { summary: true; id: string; tree: string; path: string; title: string; type?: PointType; status?: DecisionStatus; observedAt?: string; uncertainty?: string; sourceCount: number; snippet: { text: string; start: number; end: number; totalLength: number }; selector: { point: string } }
+export interface FacetSummary extends Omit<PointSummary, 'selector'> { kind: 'facet'; on: HostPointer; via: string; targets: TargetPointer[]; selector: { tree: string; facet: string } }
+export type FacetSearchResult = Facet & { kind: 'facet' } & Pick<SearchResult, 'score' | 'matches' | 'reason'>;
+export type FacetSearchSummary = FacetSummary & Pick<SearchResult, 'score' | 'matches' | 'reason'>;
+export type SearchSummary = PointSummary & Pick<SearchResult, 'score' | 'matches' | 'reason'>;
+export function searchAtlas(view: AtlasView, options: SearchOptions & { kinds: Array<'point' | 'facet'>; presentation: 'summary' }): Array<SearchSummary | FacetSearchSummary>;
+export function searchAtlas(view: AtlasView, options: SearchOptions & { kinds: Array<'point' | 'facet'>; presentation?: 'full' }): Array<SearchResult | FacetSearchResult>;
+export function searchAtlas(view: AtlasView, options: SearchOptions & { presentation: 'summary' }): SearchSummary[];
+export function searchAtlas(view: AtlasView, options: SearchOptions & { presentation?: 'full' }): SearchResult[];
+export function searchAtlas(view: AtlasView, options: SearchOptions): Array<SearchResult | SearchSummary | FacetSearchResult | FacetSearchSummary>;
 export interface ViewComparison { same: boolean; before: string; after: string; added: string[]; removed: string[]; changed: string[] }
 export function compareViews(before: AtlasView, after: AtlasView): ViewComparison;
 export function validateSource(source: unknown): { valid: boolean; diagnostics: Diagnostic[] };
@@ -64,3 +78,9 @@ export interface SourceReadResult {
   source: Source; message: string; code?: string; path?: string; content?: string; bytes?: number; sha256?: string;
 }
 export function readSource(view: Pick<AtlasView, 'root'>, source: Source, options?: SourceReadOptions): Promise<SourceReadResult>;
+
+export interface InventoryOptions { limit?: number; offset?: number; section?: 'files' | 'trees' | 'points' | 'branches' | 'facets' | 'checks' | 'diagnostics'; expectedIdentity?: string; full?: boolean }
+export function summarizeAtlas(view: AtlasView, options?: InventoryOptions): Record<string, unknown>;
+export function summarizeDraft(draft: import('./authoring.js').Draft, options?: Pick<InventoryOptions, 'limit' | 'offset' | 'full'>): Record<string, unknown>;
+export function readJsonChunk(value: unknown, options?: { offset?: number; maxBytes?: number; expectedSha256?: string }): { status: 'ready'; encoding: 'utf-8'; byteLength: number; sha256: string; offset: number; returnedBytes: number; nextOffset: number | null; complete: boolean; text: string };
+export function summarizeSourceHistory(history: import('./authoring.js').SourceHistory, options?: Pick<InventoryOptions, 'limit' | 'offset' | 'full'> & { expectedRevision?: string | null }): Record<string, unknown>;

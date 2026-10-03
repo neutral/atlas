@@ -5,6 +5,15 @@ directory. Opening discovers or selects an Atlas without writing authored files.
 When discovery finds no Atlas, the Editor offers reviewed creation at the project
 root.
 
+New setup offers the curated Styles and a custom complete definition, explaining
+each choice's organizing principle and source depth. Creation records the chosen
+Style locally with an `atlas/1.1` manifest through the normal reviewed change.
+An application MAY recommend a choice from the intended readers and questions,
+but MUST make the selected policy visible before application. It MUST NOT infer
+new consent to replace that policy during later authoring. Opening a legacy
+`atlas/1` collection preserves its format and content. Adopting a Style there is
+an explicit reviewed migration.
+
 Selection precedence is `--atlas PATH`, `atlas.workspace.json`, then discovery.
 The workspace file is strict UTF-8 JSON: `{ "format": 1, "atlasPath": "context" }`.
 Unknown fields are rejected even when an explicit selection overrides the path.

@@ -10,7 +10,8 @@ the reviewed revision against its original baseline. Import these operations fro
 | --- | --- |
 | `prepareChange(view, request)` | An `atlas.change/1` plan from a captured view. |
 | `prepareChangeFromDisk(root, request, {view?, observedFiles?}?)` | A plan that also captures existing records in a proposed manifest's Tree scope. |
-| `prepareInitialization(view, {id, title})` | A plan for an empty Atlas; requires an absent `atlas.json`. |
+| `prepareInitialization(view, {id, title, styleId?, styleContent?})` | A styled empty Atlas; requires an absent `atlas.json`. Select a curated ID or complete custom record. Omission defaults to Explanatory perspectives. |
+| `prepareStyleChange(view, {styleId?, styleContent?, reason})` | Explicit adoption, replacement or revision of the complete local Style; requires a valid Atlas and one explicit selection. |
 
 The change request contains:
 
@@ -18,6 +19,7 @@ The change request contains:
 | --- | --- |
 | `changes` | Array of `{path, content}`. Paths are normalized Atlas-relative authored records; `null` content proposes deletion. |
 | `reason` | Nonblank explanation of the change. |
+| `styleChange` | Must be `true` for an explicit Style adoption or revision; ordinary edits cannot change policy silently. |
 | `sourcePreconditions` | Optional array of `{uri, sha256}`; at most 100. Apply requires matching local bytes within caller-granted roots. |
 
 Preparation writes no authored files. The plan contains `baseline`, complete
@@ -35,7 +37,7 @@ Review those original bytes alongside the replacement.
 
 | Function | Behavior |
 | --- | --- |
-| `saveDraft(root, {plan, id?, expectedRevision?})` | Save privately; return `{id, revision, plan, …}`. Updating an ID requires its current revision. |
+| `saveDraft(root, {plan, id?, expectedRevision?, review?, checkRuns?})` | Save privately; return `{id, revision, plan, …}`. Optional Absorb reasoning and candidate Check runs join the exact draft revision. Updating an ID requires its current revision. |
 | `loadDraft(root, id)` | Read the complete saved draft. |
 | `listDrafts(root)` | List draft identities, revisions, reasons, statuses and baselines. |
 | `applyDraft(root, id, {expectedRevision, allowedRoots?, onProgress?})` | Apply the exact reviewed revision. |
@@ -46,6 +48,23 @@ Apply checks the baseline, changed files, observed records, source preconditions
 and complete candidate before the first authored write. Paths remain within the
 selected Atlas's authored records. A stale draft or unmet precondition is refused.
 Saved drafts keep their original baseline across refresh and restart.
+
+`inspectChange(plan)` reconstructs `{before, after}` from exact plan bytes and
+checks their identities; a supplied normalized candidate is not authority.
+`changePlanIdentity(plan)` identifies the proposed effects and source preconditions.
+[`reviewChange(plan)`](absorb-review.md#review-consequences) uses those observations
+to show affected explanations, Facets, direct mentions and link diagnostics.
+
+Optional `review` retains an Absorb packet; `checkRuns` retains up to ten complete
+Check runs matching the candidate, root and active definitions. Changed plans need
+matching active metadata. Omitting either field removes its active value, so
+carry still-current metadata explicitly when adding evidence. Updating a plan
+retains previous reasoning and Check runs in `reviewHistory`, each naming its
+original draft revision, candidate identity and plan identity. This history is
+not active evidence for the changed proposal; at most 100 reviewed revisions
+are retained before a new proposal is required. These records
+are revision-bound reasoning and evidence, not approval. See
+[Absorb draft review](absorb-review.md) for exact examples and removal/consolidation.
 
 Apply returns `atlas.apply/1` with `complete`, `noop` or `interrupted` status and a
 transaction ID when applicable. Each file replacement is atomic; a multi-file
@@ -69,7 +88,7 @@ const root = path.join(scratch, 'context');
 await fs.mkdir(root);
 process.env.ATLAS_STATE_HOME = path.join(scratch, 'state');
 const view = await openAtlas(root);
-const plan = prepareInitialization(view, { id: 'notes', title: 'Notes' });
+const plan = prepareInitialization(view, { id: 'notes', title: 'Notes', styleId: 'explanatory-perspectives' });
 const draft = await saveDraft(root, { plan });
 console.log(JSON.stringify(draft, null, 2));
 ```
@@ -108,3 +127,33 @@ directory keyed by its canonical path and bound to that path by ownership metada
 
 Drafts, journals and retained Check reports can contain full source text. Keep
 this storage private. Installation updates leave it in place.
+
+## Styles, working copies and retained source review
+
+`listStyles()` returns curated `{id, revision, title}` choices. `getStyle(id)`
+returns the complete normalized definition and `content`, or `null` for an unknown
+ID. Adoption copies exact local bytes; it never stores a remote lookup or silently
+replaces an existing definition. Downgrading a styled collection to `atlas/1` is
+refused with `STYLE_REQUIRED`; revise or replace its complete policy instead.
+Custom `styleContent` is one complete Markdown
+Style record. Supplying both `styleId` and `styleContent` is invalid.
+
+Private working copies preserve unfinished forms separately from prepared drafts:
+`saveWorkingCopy(root, {id?, expectedRevision?, baseline, form})` records
+`form: {kind, title, context?, fields}`. `listWorkingCopies(root)` lists summaries;
+`loadWorkingCopy(root, id)` reads a saved form; `discardWorkingCopy(root,
+{id, expectedRevision})` removes its exact revision. Working copies retain their
+original baseline and require current revisions when updating; they do not imply
+candidate validity or approval. Each saved working copy is limited to 4 MiB before
+pretty-printed storage; the shared private-state record ceiling is 32 MiB.
+
+`getSourceReviewHistory(root)` returns retained observations and dispositions.
+`recordSourceReview(root, {review?, decisions?, expectedRevision?})` saves a source
+review and/or decisions. Each decision names `{uri, sha256, outcome, reason}`;
+outcome is `needs-review`, `reviewed-unchanged` or `updated`. A disposition applies
+only to those observed bytes. History preserves later failed inspections as well
+as the last successful observation, so old evidence cannot hide missing or denied
+sources. Supply the exact history revision when it exists; an outdated revision
+is refused. A request accepts at most 1,000 review results and 1,000 decisions.
+History has at most 10,000 observed URIs, 10,000 latest inspection outcomes and
+10,000 decisions, subject to the 32 MiB state-record bound. See [source review](references.md) for interpretation boundaries.

@@ -99,7 +99,7 @@ test('initialization creates only a durable draft until a separate apply process
   assert.deepEqual(await fs.readdir(root), []);
   assert.equal(run(root, ['state']).result.state.exists, true);
   const draft = prepared.result;
-  const shown = run(root, ['drafts', 'show', draft.id]);
+  const shown = run(root, ['drafts', 'show', draft.id, '--full']);
   assert.deepEqual(shown.result, draft);
   const listed = run(root, ['drafts']);
   assert.equal(listed.result.drafts[0].id, draft.id);
@@ -110,7 +110,7 @@ test('initialization creates only a durable draft until a separate apply process
   const validation = run(root, ['validate']);
   assert.equal(validation.code, 0);
   assert.equal(validation.result.status, 'ready');
-  assert.deepEqual(run(root, ['drafts', 'show', draft.id]).result.plan.baseline, draft.plan.baseline);
+  assert.deepEqual(run(root, ['drafts', 'show', draft.id, '--full']).result.plan.baseline, draft.plan.baseline);
   const transactions = run(root, ['recover']);
   assert.equal(transactions.result.transactions[0].phase, 'complete');
 });
@@ -127,7 +127,7 @@ test('persisted drafts retain their baseline and stale apply preserves interveni
   assert.equal(stale.code, 3);
   assert.equal(stale.error.error.code, 'STALE');
   assert.equal(JSON.parse(await fs.readFile(path.join(root, 'atlas.json'), 'utf8')).title, 'First');
-  assert.deepEqual(run(root, ['drafts', 'show', b.result.id]).result, b.result);
+  assert.deepEqual(run(root, ['drafts', 'show', b.result.id, '--full']).result, b.result);
   const deleted = run(root, ['drafts', 'delete', b.result.id, '--revision', b.result.revision]);
   assert.equal(deleted.code, 0);
   assert.equal(deleted.result.status, 'deleted');
@@ -137,7 +137,7 @@ test('invalid candidate stays inspectable and cannot be applied', async (t) => {
   const { root } = await fixture(t);
   initialize(root);
   const before = await fs.readFile(path.join(root, 'atlas.json'), 'utf8');
-  const prepared = run(root, ['prepare', '-'], { input: JSON.stringify({ reason: 'Invalid proposal', changes: [{ path: 'atlas.json', content: '{}' }] }) });
+  const prepared = run(root, ['prepare', '-'], { input: JSON.stringify({ reason: 'Invalid proposal', styleChange: true, changes: [{ path: 'atlas.json', content: '{}' }] }) });
   assert.equal(prepared.code, 1);
   assert.equal(prepared.result.plan.status, 'invalid');
   const applied = run(root, ['apply', prepared.result.id, '--revision', prepared.result.revision]);
@@ -188,7 +188,7 @@ test('inspect, search and Route return authored records; invalid Absorb decision
   initialize(root);
   const point = '---\n{"id":"purpose"}\n---\n# Service purpose\n\nCustody preserves evidence.\n';
   const prepare = run(root, ['prepare', '-'], { input: JSON.stringify({ reason: 'Add service account', changes: [
-    { path: 'atlas.json', content: JSON.stringify({ format: 'atlas/1', id: 'example', title: 'Example', trees: ['trees/service'] }) },
+    { path: 'atlas.json', content: JSON.stringify({ ...JSON.parse(await fs.readFile(path.join(root, 'atlas.json'), 'utf8')), trees: ['trees/service'] }) },
     { path: 'trees/service/tree.json', content: JSON.stringify({ id: 'service', title: 'Service', scope: 'Service responsibilities.', base: 'purpose', children: [] }) },
     { path: 'trees/service/points/purpose.md', content: point },
   ] }) });

@@ -1,11 +1,12 @@
 import { searchAtlas, validateSource } from './model.mjs';
-import { prepareChange } from './authoring.mjs';
+import { prepareChange, inspectChange, changePlanIdentity } from './authoring.mjs';
+import { referenceIndex } from './references.mjs';
 
 const copy = (value) => value === undefined ? undefined : structuredClone(value);
 const same = (left, right) => JSON.stringify(left) === JSON.stringify(right);
 const accepted = (view) => view?.format === 'atlas.view/1' && view.status === 'ready' && view.atlas;
 const ID = /^[a-z0-9][a-z0-9-]{0,99}$/;
-const DISPOSITIONS = new Set(['update', 'create', 'facet', 'conflict', 'reference-only', 'non-integration']);
+const DISPOSITIONS = new Set(['update', 'create', 'facet', 'conflict', 'reference-only', 'non-integration', 'remove']);
 const STOP = new Set('a an and are as at be been but by can could for from has have in into is it its may not of on or our should that the their then there these this to was were will with would'.split(' '));
 const LIMITS = [
   'Candidates and impact paths support review. The author decides identity and how incoming information changes the account.',
@@ -84,6 +85,7 @@ export function inspectAbsorb(view, input) {
   });
   return {
     ...result, status: candidates.length || owners.length ? 'candidates' : 'no-candidates',
+    ...(atlas.style ? { style: copy(atlas.style) } : {}),
     terms, candidates, owners: owners.slice(0, limit), interpretations: interpretations.slice(0, limit),
     bounds: { limit, searchWindow: 100, candidateWindowCount: matches.length, searchExhaustive: matches.length < 100,
       owners: { available: owners.length, returned: Math.min(owners.length, limit) },
@@ -156,15 +158,23 @@ function impactContext(atlas, changedPoints, changedFacets, changedTrees, change
       if (target.tree) add(trees, target.tree, atlas.trees.find((item) => item.id === target.tree), why);
     }
   }
-  // One pass over explicit attachments and targets; there is no transitive closure.
+  // Freeze the affected set: direct references add review context, never graph closure.
+  const affectedPoints = new Set(points.keys()), affectedBranches = new Set(branches.keys()), affectedTrees = new Set(trees.keys());
   for (const facet of atlas.facets) {
     const key = `${facet.tree}/${facet.id}`;
-    if (facet.on.point && points.has(facet.on.point)) add(facets, key, facet, { kind: 'attached-review-point', point: facet.on.point });
-    if (facet.on.branch && branches.has(`${facet.tree}/${facet.on.branch}`)) add(facets, key, facet, { kind: 'attached-review-branch', tree: facet.tree, branch: facet.on.branch });
+    if (facet.on.point && affectedPoints.has(facet.on.point)) add(facets, key, facet, { kind: 'attached-review-point', point: facet.on.point });
+    if (facet.on.branch && affectedBranches.has(`${facet.tree}/${facet.on.branch}`)) add(facets, key, facet, { kind: 'attached-review-branch', tree: facet.tree, branch: facet.on.branch });
     for (const target of facet.targets) {
-      if (target.point && points.has(target.point)) add(facets, key, facet, { kind: 'incoming-point-reference', point: target.point });
-      if (target.branch && branches.has(`${facet.via}/${target.branch}`)) add(facets, key, facet, { kind: 'incoming-branch-reference', tree: facet.via, branch: target.branch });
-      if (target.tree && trees.has(target.tree)) add(facets, key, facet, { kind: 'incoming-tree-reference', tree: target.tree });
+      let reason;
+      if (target.point && affectedPoints.has(target.point)) reason = { kind: 'incoming-point-reference', point: target.point };
+      if (target.branch && affectedBranches.has(`${facet.via}/${target.branch}`)) reason = { kind: 'incoming-branch-reference', tree: facet.via, branch: target.branch };
+      if (target.tree && affectedTrees.has(target.tree)) reason = { kind: 'incoming-tree-reference', tree: target.tree };
+      if (reason) {
+        add(facets, key, facet, reason);
+        const hostReason = { kind: 'incoming-facet-host', tree: facet.tree, facet: facet.id };
+        if (facet.on.point) point(facet.on.point, hostReason);
+        if (facet.on.branch) add(branches, `${facet.tree}/${facet.on.branch}`, atlas.branches.find(item => item.tree === facet.tree && item.id === facet.on.branch), hostReason);
+      }
     }
   }
   return { points: [...points.values()], branches: [...branches.values()], trees: [...trees.values()], facets: [...facets.values()] };
@@ -182,9 +192,53 @@ export function reviewImpact(before, after) {
   const changedFacets = recordsChanged(left.facets, right.facets, (facet) => `${facet.tree}/${facet.id}`);
   const changedTrees = recordsChanged(left.trees, right.trees, (tree) => tree.id);
   const changedBranches = recordsChanged(left.branches, right.branches, (branch) => `${branch.tree}/${branch.id}`);
+  const contexts = { before: impactContext(left, changedPoints, changedFacets, changedTrees, changedBranches, 'before'),
+    after: impactContext(right, changedPoints, changedFacets, changedTrees, changedBranches, 'after') };
+  const mentions = {}, indexes = {};
+  for (const [side, view] of [['before', before], ['after', after]]) {
+    const index = indexes[side] = referenceIndex(view, { limit: 10000 });
+    const cited = new Map();
+    for (const reference of index.references) {
+      if (reference.status !== 'resolved' || !['point', 'facet'].includes(reference.target?.kind)) continue;
+      const targetKey = reference.target.kind === 'point' ? `point:${reference.target.id}` : `facet:${reference.target.tree}/${reference.target.id}`;
+      if (!cited.has(targetKey)) cited.set(targetKey, new Map());
+      const owners = cited.get(targetKey), ownerKey = `${reference.from.kind}/${reference.from.tree}/${reference.from.id}`;
+      if (!owners.has(ownerKey)) owners.set(ownerKey, { record: reference.from, references: [] });
+      owners.get(ownerKey).references.push(reference);
+    }
+    const targets = [...changedPoints.filter(item => item[side]).map(item => ({ point: item.id })),
+      ...changedFacets.filter(item => item[side]).map(item => ({ facet: item[side].id, tree: item[side].tree }))];
+    mentions[side] = targets.map(target => {
+      const key = target.point ? `point:${target.point}` : `facet:${target.tree}/${target.facet}`;
+      const citers = [...(cited.get(key)?.values() ?? [])];
+      return { target, format: 'atlas.citers/1', status: index.status, identity: index.identity,
+        citers: citers.slice(0, 100), bounds: { available: citers.length, returned: Math.min(citers.length, 100), exhaustive: index.bounds.exhaustive }, limits: [...index.limits] };
+    });
+  }
   return { ...result, status: 'ready', changedPoints, changedFacets, changedTrees, changedBranches,
-    review: { before: impactContext(left, changedPoints, changedFacets, changedTrees, changedBranches, 'before'),
-      after: impactContext(right, changedPoints, changedFacets, changedTrees, changedBranches, 'after') } };
+    ...(same(left.style, right.style) ? {} : { changedStyle: { before: copy(left.style ?? null), after: copy(right.style ?? null) } }),
+    review: contexts, mentions, linkDiagnostics: indexes.after.diagnostics };
+}
+
+/** Recompute impact from exact draft bytes, including a deleted record's former links. */
+export function reviewChange(plan) {
+  const { before, after } = inspectChange(plan);
+  return reviewImpact(before, after);
+}
+
+function destinations(value, label, { required = false } = {}) {
+  argument(Array.isArray(value) && value.length <= 100 && (!required || value.length > 0), `${label} must contain ${required ? '1 through' : 'at most'} 100 destinations.`);
+  const seen = new Set();
+  return value.map(item => {
+    object(item, ['point', 'tree', 'facet'], 'destination');
+    const key = item.point !== undefined && item.tree === undefined && item.facet === undefined ? `point:${item.point}`
+      : item.point === undefined && item.tree && item.facet ? `facet:${item.tree}/${item.facet}` : null;
+    argument(key && Object.values(item).every(id => typeof id === 'string' && ID.test(id)) && !seen.has(key), 'A destination names one unique Point or Tree-local Facet.');
+    seen.add(key); return copy(item);
+  });
+}
+function destinationExists(atlas, target) {
+  return target.point ? atlas.points.some(point => point.id === target.point) : atlas.facets.some(facet => facet.id === target.facet && facet.tree === target.tree);
 }
 
 function contributions(value, view) {
@@ -192,48 +246,84 @@ function contributions(value, view) {
   const atlas = accepted(view);
   argument(atlas, 'Absorb preparation requires a valid baseline.');
   const targets = new Set();
-  return value.map((item) => {
-    object(item, ['disposition', 'rationale', 'point', 'tree', 'facet'], 'contribution');
+  return value.map(item => {
+    object(item, ['disposition', 'rationale', 'point', 'tree', 'facet', 'destinations'], 'contribution');
     argument(DISPOSITIONS.has(item.disposition), 'Unsupported contribution disposition.');
     text(item.rationale, 'contribution rationale');
     for (const field of ['point', 'tree', 'facet']) argument(item[field] === undefined || typeof item[field] === 'string' && ID.test(item[field]), `${field} must be an exact ID.`);
-    const noExtra = (...fields) => argument(['point', 'tree', 'facet'].every((field) => fields.includes(field) || item[field] === undefined), 'Contribution has an unrelated target selector.');
+    const noExtra = (...fields) => argument(['point', 'tree', 'facet'].every(field => fields.includes(field) || item[field] === undefined), 'Contribution has an unrelated target selector.');
     let key;
     if (item.disposition === 'non-integration') noExtra();
-    else if (item.disposition === 'facet') {
+    else if (item.disposition === 'facet' || item.disposition === 'remove' && item.facet !== undefined) {
       noExtra('tree', 'facet');
       argument(item.tree && item.facet, 'A Facet contribution names its owning tree and facet ID.');
+      if (item.disposition === 'remove') argument(atlas.facets.some(facet => facet.tree === item.tree && facet.id === item.facet), 'Removal requires an existing Facet.');
       key = `facet:${item.tree}/${item.facet}`;
     } else {
       noExtra(...(item.disposition === 'create' ? ['point', 'tree'] : ['point']));
       argument(item.point, 'This contribution requires a Point ID.');
-      const existing = atlas.points.find((point) => point.id === item.point);
+      const existing = atlas.points.find(point => point.id === item.point);
       if (item.disposition === 'create') argument(item.tree, 'Creation requires a Point ID and its owning Tree.');
       else argument(existing, `${item.disposition} requires an existing Point.`);
       key = `point:${item.point}`;
     }
+    argument(item.destinations === undefined || item.disposition === 'remove', 'Only removal can declare surviving destinations.');
+    if (item.destinations !== undefined) destinations(item.destinations, 'Removal destinations');
     if (key) { argument(!targets.has(key), 'Each contribution target has one decision.'); targets.add(key); }
     return copy(item);
   });
 }
 
+function preservationReview(value) {
+  if (value === undefined) return undefined;
+  object(value, ['scope', 'sources', 'units'], 'preservation review');
+  text(value.scope, 'preservation scope');
+  argument(Array.isArray(value.sources) && value.sources.length >= 1 && value.sources.length <= 100, 'Preservation scope needs 1 through 100 sources.');
+  const sources = value.sources.map(source);
+  argument(new Set(sources.map(item => JSON.stringify(item))).size === sources.length, 'Preservation sources must be unique.');
+  argument(Array.isArray(value.units) && value.units.length <= 1000, 'Preservation review allows at most 1000 declared units.');
+  const ids = new Set();
+  const units = value.units.map(unit => {
+    object(unit, ['id', 'source', 'locator', 'disposition', 'rationale', 'destinations'], 'preservation unit');
+    argument(typeof unit.id === 'string' && ID.test(unit.id) && !ids.has(unit.id), 'Preservation units need unique IDs.'); ids.add(unit.id);
+    const unitSource = source(unit.source);
+    argument(sources.some(item => same(item, unitSource)), 'Each unit source must match a source in the declared scope.');
+    text(unit.locator, 'unit locator'); text(unit.rationale, 'unit rationale');
+    argument(['retained', 'reframed', 'superseded', 'historical', 'non-integration', 'unresolved'].includes(unit.disposition), 'Unknown preservation disposition.');
+    const required = ['retained', 'reframed'].includes(unit.disposition);
+    if (required || unit.destinations !== undefined) destinations(unit.destinations, 'Unit destinations', { required });
+    return copy(unit);
+  });
+  return { scope: value.scope, sources, units };
+}
+
 /** Validate explicit author decisions, then prepare their exact file changes without writing. */
 export function prepareAbsorb(view, input) {
-  object(input, ['source', 'contributions', 'changes', 'rationale', 'unresolved'], 'Absorb proposal');
+  object(input, ['source', 'contributions', 'changes', 'rationale', 'unresolved', 'preservation', 'sourcePreconditions'], 'Absorb proposal');
   const incomingSource = source(input.source), decisions = contributions(input.contributions, view);
+  const preservation = preservationReview(input.preservation);
   text(input.rationale, 'rationale');
   argument(Array.isArray(input.changes), 'changes must be an explicit array.');
   const unresolved = input.unresolved ?? [];
   argument(Array.isArray(unresolved) && unresolved.length <= 100, 'unresolved must be an array of at most 100 questions.');
   unresolved.forEach((item) => text(item, 'unresolved question'));
   if (decisions.every((item) => item.disposition === 'non-integration')) argument(input.changes.length === 0, 'Non-integration alone cannot include file changes.');
-  const sourcePreconditions = incomingSource.sha256 && !/^https?:\/\//i.test(incomingSource.uri)
-    ? [{ uri: incomingSource.uri, sha256: incomingSource.sha256 }] : [];
+  const sourcePreconditions = copy(input.sourcePreconditions ?? []);
+  argument(Array.isArray(sourcePreconditions), 'Source preconditions must be an array.');
+  if (incomingSource.sha256 && !/^https?:\/\//i.test(incomingSource.uri)) {
+    const existing = sourcePreconditions.find(item => item?.uri === incomingSource.uri);
+    argument(!existing || existing.sha256 === incomingSource.sha256, 'Incoming source hash conflicts with a source precondition.');
+    if (!existing) sourcePreconditions.push({ uri: incomingSource.uri, sha256: incomingSource.sha256 });
+  }
   const plan = prepareChange(view, { changes: input.changes, reason: input.rationale, sourcePreconditions });
   const candidate = accepted(plan.candidate), decisionDiagnostics = [];
   if (candidate) for (const decision of decisions) {
     const add = (message) => decisionDiagnostics.push({ code: 'ABSORB_DECISION', point: decision.point ?? null, tree: decision.tree ?? null, facet: decision.facet ?? null, message });
-    if (decision.disposition === 'facet') {
+    if (decision.disposition === 'remove') {
+      const exists = decision.point ? candidate.points.some(point => point.id === decision.point) : candidate.facets.some(facet => facet.tree === decision.tree && facet.id === decision.facet);
+      if (exists) add('The removed identity still exists in the proposed result.');
+      for (const destination of decision.destinations ?? []) if (!destinationExists(candidate, destination)) add('A surviving destination is absent from the proposed result.');
+    } else if (decision.disposition === 'facet') {
       if (!candidate.facets.some((facet) => facet.id === decision.facet && facet.tree === decision.tree)) add('The proposed result does not contain the declared Facet in its owning Tree.');
     } else if (decision.point) {
       const after = candidate.points.find((point) => point.id === decision.point);
@@ -261,10 +351,33 @@ export function prepareAbsorb(view, input) {
       decisionDiagnostics.push({ code: 'ABSORB_DECISION', facet: facet.id, message: 'This changed Facet has no explicit contribution decision.' });
     }
   }
+  if (candidate && preservation) for (const unit of preservation.units) {
+    for (const destination of unit.destinations ?? []) if (!destinationExists(candidate, destination)) {
+      decisionDiagnostics.push({ code: 'ABSORB_PRESERVATION', message: `Preservation unit ${unit.id} names a destination absent from the candidate.` });
+    }
+  }
+  const status = plan.status === 'invalid' || decisionDiagnostics.length ? 'invalid' : plan.status;
+  const review = status === 'invalid' ? undefined : {
+    format: 'atlas.absorb-review/1', baseline: view.identity, candidateIdentity: plan.candidate.identity, planIdentity: changePlanIdentity(plan),
+    source: incomingSource, contributions: decisions, rationale: input.rationale, unresolved: copy(unresolved), ...(preservation ? { preservation } : {}),
+  };
   return {
-    format: 'atlas.absorb-proposal/1', status: plan.status === 'invalid' || decisionDiagnostics.length ? 'invalid' : plan.status,
+    format: 'atlas.absorb-proposal/1', status,
     source: incomingSource, contributions: decisions, rationale: input.rationale, unresolved: copy(unresolved),
-    plan, decisionDiagnostics, impact, limits: [...LIMITS,
+    plan, decisionDiagnostics, impact, ...(review ? { review } : {}), ...(preservation ? { preservation } : {}), limits: [...LIMITS,
       'Assess source support and unresolved conflicts, then apply the reviewed proposal within the caller’s authorization.'],
   };
+}
+
+/** Revalidate a review packet against exact draft bytes; no field can claim approval. */
+export function validateAbsorbReview(plan, value) {
+  object(value, ['format', 'baseline', 'candidateIdentity', 'planIdentity', 'source', 'contributions', 'rationale', 'unresolved', 'preservation'], 'Absorb review');
+  const { before, after } = inspectChange(plan);
+  argument(value.format === 'atlas.absorb-review/1' && value.baseline === before.identity && value.candidateIdentity === after.identity && value.planIdentity === changePlanIdentity(plan), 'Absorb review does not match this exact plan.');
+  argument((plan.observedFiles ?? []).length === 0, 'Absorb review requires a complete captured baseline.');
+  const replay = prepareAbsorb(before, { source: value.source, contributions: value.contributions, rationale: value.rationale,
+    unresolved: value.unresolved, ...(value.preservation ? { preservation: value.preservation } : {}),
+    sourcePreconditions: plan.sourcePreconditions, changes: plan.changes.map(({ path, after }) => ({ path, content: after })) });
+  argument(replay.status !== 'invalid' && replay.review?.planIdentity === value.planIdentity && same(replay.review, value), 'Absorb decisions do not describe this plan.');
+  return copy(replay.review);
 }

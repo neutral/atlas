@@ -358,3 +358,27 @@ test('pending source reads retain the requested reference and caller grants', as
   assert.equal(result.content, 'Original evidence.');
   assert.deepEqual(result.source, { uri: 'sources/original.md', title: 'Original' });
 });
+
+test('Atlas 1.1 captures one local Style while legacy Atlas 1 remains unchanged', async t => {
+  const files = changeJson(fixture(), 'atlas.json', value => { value.format = 'atlas/1.1'; value.style = 'style.md'; });
+  files.set('style.md', markdown({ id: 'custom', revision: 'team-3', derivedFrom: 'explanatory-perspectives revision 1' }, 'Team policy', 'Own durable accounts and retain their reasons.'));
+  const view = validate(files);
+  assert.equal(view.status, 'ready', JSON.stringify(view.diagnostics));
+  assert.equal(view.atlas.format, 'atlas/1.1');
+  assert.deepEqual(view.atlas.style, { id: 'custom', revision: 'team-3', derivedFrom: 'explanatory-perspectives revision 1', title: 'Team policy', body: 'Own durable accounts and retain their reasons.', path: 'style.md' });
+  const { root } = await diskFixture(t, files);
+  const captured = await openAtlas(root);
+  assert.equal(captured.status, 'ready', JSON.stringify(captured.diagnostics));
+  assert.equal(captured.identity, view.identity);
+  assert.ok(captured.files.some(file => file.path === 'style.md'));
+  files.set('style.md', files.get('style.md') + '\n');
+  assert.notEqual(validate(files).identity, view.identity);
+  assert.equal(validate().atlas.style, undefined);
+  for (const invalidPath of ['trees/service/style.md', 'trees/unlisted.md', '.checks/style.md', 'https://example.test/style.md', '../style.md', 'style.json']) {
+    has(validate(changeJson(new Map(files), 'atlas.json', value => { value.style = invalidPath; })), 'STYLE_PATH');
+  }
+  const missing = new Map(files); missing.delete('style.md'); has(validate(missing), 'FILE_MISSING');
+  const missingSelection = changeJson(new Map(files), 'atlas.json', value => { delete value.style; }); has(validate(missingSelection), 'FIELD_REQUIRED');
+  const invalidRevision = new Map(files); invalidRevision.set('style.md', markdown({ id: 'custom', revision: 1 }, 'Policy', 'A complete policy.')); has(validate(invalidRevision), 'TEXT_REQUIRED');
+  const empty = new Map(files); empty.set('style.md', markdown({ id: 'custom', revision: '1' }, 'Policy', '## Only a heading')); has(validate(empty), 'MARKDOWN_BODY');
+});

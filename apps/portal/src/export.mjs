@@ -5,7 +5,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { openAtlas } from '../../../library/src/model.mjs';
 import { preparePublication, readPublicationSources } from '../../../library/src/publication.mjs';
 import { isPrivateStatePath, stateHome } from '../../../library/src/state.mjs';
-import { presentAtlas } from './markdown.mjs';
+import { presentAtlas, renderMarkdown } from './markdown.mjs';
 
 const assets = fileURLToPath(new URL('../public/', import.meta.url));
 const applicationRoot = fileURLToPath(new URL('../', import.meta.url));
@@ -46,7 +46,7 @@ async function protectedPaths(view) {
   return roots;
 }
 
-async function inspectExport(root, output, { trees, points, sources, allowedRoots } = {}) {
+async function inspectExport(root, output, { trees, points, sources, includeStyle, allowedRoots } = {}) {
   root = await fs.realpath(path.resolve(root));
   output = await intendedPath(output);
   if (inside(root, output) || inside(output, root)) throw failure('EXPORT_OVERLAP', 'Publication output must be separate from the Atlas.');
@@ -54,7 +54,7 @@ async function inspectExport(root, output, { trees, points, sources, allowedRoot
   try { await fs.lstat(output); throw failure('EXPORT_EXISTS', 'Choose a new output directory.'); }
   catch (error) { if (error.code !== 'ENOENT') throw error; }
   const view = await openAtlas(root);
-  const publication = preparePublication(view, { trees, ...(points === undefined ? {} : { points }), ...(sources === undefined ? {} : { sources }) });
+  const publication = preparePublication(view, { trees, ...(includeStyle === undefined ? {} : { includeStyle }), ...(points === undefined ? {} : { points }), ...(sources === undefined ? {} : { sources }) });
   if (publication.status !== 'ready') throw failure('INVALID_PUBLICATION', publication.diagnostics.map(item => item.message).join(' ') || 'A valid Atlas and explicit selection are required.');
   if ((await protectedPaths(view)).some(target => inside(target, output) || inside(output, target))) {
     throw failure('EXPORT_OVERLAP', 'Publication output must be separate from the application and every declared local source.');
@@ -63,25 +63,32 @@ async function inspectExport(root, output, { trees, points, sources, allowedRoot
   const selected = new Set(publication.atlas.points.filter(point => point.publicationAvailable).map(point => point.id));
   const pointPaths = view.atlas.points.filter(point => selected.has(point.id)).map(({ id, tree, path }) => ({ id, tree, path }));
   const facetPaths = view.atlas.facets.filter(facet => publication.atlas.facets.some(item => item.id === facet.id && item.tree === facet.tree)).map(({ id, tree, path }) => ({ id, tree, path }));
-  const data = presentAtlas({ ...view, atlas: publication.atlas }, { editable: false, pointPaths, facetPaths });
+  const publishedAtlas = structuredClone(publication.atlas);
   const sourceResults = [];
   const sourceFiles = [];
   for (const observation of observed) {
-    let filename;
+    let filename, htmlFilename;
     if (observation.status === 'ready') {
       filename = `sources/${createHash('sha256').update(observation.uri).digest('hex')}.txt`;
       sourceFiles.push({ path: filename, content: observation.content });
-      for (const record of [...data.atlas.points, ...data.atlas.facets]) for (const source of record.sources ?? []) {
-        if (source.uri === observation.uri) source.publishedPath = filename;
+      if (/\.md(?:#|$)/i.test(observation.uri)) {
+        htmlFilename = filename.replace(/\.txt$/, '.html');
+        const escapedUri = observation.uri.replace(/[&<>"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[character]);
+        const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"><title>Published source</title><style>body{max-width:75ch;margin:3rem auto;padding:0 1.5rem;font:17px/1.6 system-ui,sans-serif;color:#202020}pre{overflow:auto;padding:1rem;background:#f4f4f4}table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:.4rem}.unavailable-reference{color:#666}a{color:#175399}</style></head><body><p>${escapedUri} · <a href="${path.posix.basename(filename)}">Raw source</a></p>${renderMarkdown(observation.content, { headingPrefix: 'source-' })}</body></html>`;
+        sourceFiles.push({ path: htmlFilename, content: html });
+      }
+      for (const record of [...publishedAtlas.points, ...publishedAtlas.facets]) for (const source of record.sources ?? []) {
+        if (source.uri === observation.uri) { source.publishedPath = filename; if (htmlFilename) source.publishedHtmlPath = htmlFilename; }
       }
     }
-    sourceResults.push({ uri: observation.uri, status: observation.status, ...(filename ? { path: filename, sha256: observation.sha256 } : { message: observation.message }) });
+    sourceResults.push({ uri: observation.uri, status: observation.status, ...(filename ? { path: filename, ...(htmlFilename ? { htmlPath: htmlFilename } : {}), sha256: observation.sha256 } : { message: observation.message }) });
   }
+  const data = presentAtlas({ ...view, atlas: publishedAtlas }, { editable: false, pointPaths, facetPaths });
   data.publication = { selection: publication.selection, exclusions: publication.exclusions, sources: sourceResults };
   const excludedTargets = publication.atlas.facets.flatMap(facet => facet.targetAvailability.filter(target => target.availability !== 'included').map(target => ({ facet: facet.id, tree: facet.via, target })));
   const summary = { format: 'atlas.export-preview/1', status: 'ready', output, identity: view.identity,
     selection: publication.selection, excludedTargets, sources: sourceResults,
-    counts: { trees: publication.atlas.trees.length, points: selected.size, facets: publication.atlas.facets.length, sources: sourceFiles.length } };
+    counts: { trees: publication.atlas.trees.length, points: selected.size, facets: publication.atlas.facets.length, sources: sourceResults.filter(source => source.status === 'ready').length } };
   return { root, output, data, sourceFiles, summary };
 }
 
@@ -120,6 +127,7 @@ export async function applyExport(prepared) {
     html = html.replace('<meta name="viewport"', '<meta http-equiv="Content-Security-Policy" content="default-src \'self\'; script-src \'self\'; style-src \'self\' \'unsafe-inline\'; img-src \'none\'; object-src \'none\'; base-uri \'none\'; form-action \'none\'">\n  <meta name="viewport"');
     await fs.writeFile(path.join(temporary, 'index.html'), html);
     for (const file of ['app.js', 'style.css']) await fs.copyFile(path.join(assets, file), path.join(temporary, file));
+    await fs.copyFile(new URL('../../../library/src/search.mjs', import.meta.url), path.join(temporary, 'search.js'));
     await fs.writeFile(path.join(temporary, 'data.json'), JSON.stringify(data));
     await fs.writeFile(path.join(temporary, 'selection.json'), JSON.stringify({ format: 'atlas.export-selection/1', identity: prepared.identity, ...data.publication }, null, 2) + '\n');
     if (sourceFiles.length) {

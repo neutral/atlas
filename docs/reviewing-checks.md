@@ -19,8 +19,9 @@ required, so review those choices when adopting them. Each Atlas maintains its
 own copy.
 
 Open **Checks** in the Editor to confirm the definition is present. This panel
-shows definitions and review gaps. Complete the review with a connected agent or
-the Library; opening the panel performs no evaluation.
+shows definitions and review gaps. Opening the panel performs no evaluation. Review current content with a connected
+agent or the Library, or choose **Review candidate Checks** from a saved draft
+to review a proposed change in the Editor.
 
 ## Review against evidence
 
@@ -39,6 +40,12 @@ review outcomes; the reviewer performs the judgment described by each Check.
 Inspect individual results before relying on the summary. A completed run can
 contain failures or gaps. A zero required count means the Atlas has no active
 required Checks. Judge its evidence through the underlying Points and sources.
+
+For a saved draft, choose **Review candidate Checks**, enter the reviewer, and
+record each inspected outcome with reasons and evidence. Leave other Checks
+unreviewed. **Save Check evidence** updates the draft revision and returns to the
+complete review; saved evidence is tied to the candidate's exact content and
+Check definitions. Changing the candidate requires fresh evidence.
 
 ## Keep a review useful
 

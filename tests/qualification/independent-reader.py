@@ -254,7 +254,7 @@ class Reader:
             reject("I_PATH", str(value), "Invalid record path.")
         parts = value.split("/")
         if (value.startswith("/") or "\\" in value or any(ord(c) < 32 or ord(c) == 127 for c in value)
-                or re.match(r"[A-Za-z]:", value) or any(part in ["", ".", ".."] for part in parts)
+                or any(c in value for c in ":#?") or re.match(r"[A-Za-z]:", value) or any(part in ["", ".", ".."] for part in parts)
                 or unicodedata.normalize("NFC", value) != value or any(part.lower().startswith(".atlas-") for part in parts)):
             reject("I_PATH", value, "Record path is not normalized or uses a reserved component.")
         for index in range(1, len(parts) + 1):
@@ -359,9 +359,12 @@ class Reader:
 
     def load(self):
         manifest = strict_json(self.read("atlas.json"), "atlas.json")
-        exact(manifest, ["format", "id", "title", "trees"], ["format", "id", "title", "trees"], "atlas.json")
-        if manifest["format"] != "atlas/1":
-            reject("I_FORMAT", "atlas.json", "Only atlas/1 is supported.")
+        if not isinstance(manifest, dict):
+            reject("I_RECORD", "atlas.json", "Manifest must be a JSON object.")
+        fields = ["format", "id", "title", "trees"] + (["style"] if manifest.get("format") == "atlas/1.1" else [])
+        exact(manifest, fields, fields, "atlas.json")
+        if manifest["format"] not in ["atlas/1", "atlas/1.1"]:
+            reject("I_FORMAT", "atlas.json", "Supported formats are atlas/1 and atlas/1.1.")
         identifier(manifest["id"], "atlas.json")
         prose(manifest["title"], "atlas.json")
         array(manifest["trees"], "atlas.json")
@@ -376,6 +379,20 @@ class Reader:
             directories.append(key)
 
         atlas = {"id": manifest["id"], "title": manifest["title"], "trees": [], "points": [], "branches": [], "facets": [], "checks": []}
+        if manifest["format"] == "atlas/1.1":
+            filename = self.relative(manifest["style"])
+            key = filename.casefold()
+            if (not filename.endswith(".md") or key.startswith(".checks/") or key.startswith("trees/")
+                    or key in ["trees", ".checks", "atlas.json"]
+                    or any(key == prior or key.startswith(prior + "/") or prior.startswith(key + "/") for prior in directories)):
+                reject("I_STYLE_PATH", "atlas.json", "The Style is a local Markdown record outside Tree and Check directories.")
+            header, title, body = markdown(self.read(filename), filename)
+            exact(header, ["id", "revision", "derivedFrom"], ["id", "revision"], filename)
+            identifier(header["id"], filename)
+            prose(header["revision"], filename)
+            if "derivedFrom" in header:
+                prose(header["derivedFrom"], filename)
+            atlas["style"] = {**header, "title": title, "body": body, "path": filename}
         trees, points, branches = {}, {}, {}
         for directory in manifest["trees"]:
             filename = directory + "/tree.json"

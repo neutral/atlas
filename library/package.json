@@ -1,7 +1,7 @@
 {
   "name": "@atlas/library",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "description": "Atlas captured reading and authoring operations.",
   "license": "CC0-1.0 OR 0BSD",

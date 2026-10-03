@@ -55,6 +55,25 @@ required count means the Atlas has no active required Checks. Results cover the
 recorded baseline and definitions; evidence accuracy remains the reviewer's
 responsibility.
 
+## Proposed candidates
+
+Evaluate `inspectChange(draft.plan).after` to review the exact proposed candidate.
+A current-source run cannot be reused as candidate evidence when their identities
+differ. Save a complete candidate run through `saveDraft`'s optional `checkRuns`
+field, preserving still-matching `review` explicitly. The saved revision covers
+those results along with the proposed files.
+
+At most ten runs can be attached. Each must match the candidate's root, identity
+and active Check definitions, and its results and required summary must agree.
+`validateCheckRun(run)` validates and returns a copied complete run; it does not
+authenticate the reviewer or authorize a write. Non-passing outcomes remain valid
+evidence to retain. See [Absorb draft review](absorb-review.md#review-the-proposed-candidate-against-checks)
+for the complete save example and metadata invalidation rules.
+
+Candidate evidence remains distinct from applied-source evidence. A report can
+help assess a proposal without claiming that its content is already current, and
+a passed Check cannot establish complete source coverage beyond what was reviewed.
+
 ## Retained reports
 
 | Function | Behavior |

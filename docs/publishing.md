@@ -22,7 +22,8 @@ that would overlap its records, declared source files, private state or installa
 1. Select **Export site** and check the displayed destination.
 2. Choose the Trees and Points to include. All are selected initially.
 3. Under **Include source files**, select any referenced files readers need. Source
-   files start unselected.
+   files start unselected. Select **Include the captured Atlas style in this publication** only if readers should
+   receive the complete organizing policy; it starts unselected too.
 4. Select **Preview selection**. Inspect the chosen IDs, source-read results and
    unavailable Facet targets. Use **Change selection** to revise the selection.
 5. Select **Export this selection** to build the site.
@@ -46,12 +47,25 @@ the terminal to stop it. To share the site, deploy the output directory with you
 chosen hosting system. Export itself creates local files; hosting is a separate
 step.
 
-Readers see the selected explanations and their structure. Excluded Points appear
-as unavailable positions, and Facet targets outside the selection are marked
-unavailable. References stay visible even when their source files were excluded.
-Checks, drafts and recovery records are outside the exported site.
+Readers can **Search Atlas** across the included Points and Facets, open an explanation,
+choose **Focus reading**, and follow its detail, Facets and direct citations.
+Included Markdown sources have readable pages; the original source files remain
+available too.
 
-Open the site as a reader and follow the important explanations and connections.
-Check that the selected material provides enough context and evidence for its
-intended use. The [publication reference](reference/publication.md) specifies the
-selection and source rules.
+Selection bounds this experience. Search and citation lists cover the selected
+material. Excluded Points appear as unavailable positions, and Facet targets
+outside the selection are marked unavailable. References stay visible even when
+their source files were excluded. Checks, drafts and recovery records are outside
+the exported site.
+
+Before sharing, try a question your reader will bring:
+
+1. Search for it and open the relevant explanation.
+2. Follow a Facet into another perspective and return to its host.
+3. Read the cited source and check its stated limits.
+4. Check that unavailable targets and omitted sources leave an understandable
+   account for the intended audience.
+
+The [publication reference](reference/publication.md) specifies the selection and
+source rules. The [guided example](../examples/README.md) offers a small Atlas to
+practice with.

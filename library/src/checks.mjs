@@ -138,6 +138,13 @@ function validateRun(run) {
   run.limits.forEach((entry) => text(entry, 'Run limit'));
 }
 
+/** Validate recorded evidence; this does not authenticate an actor or authorize a change. */
+export function validateCheckRun(value) {
+  const run = copy(value);
+  validateRun(run);
+  return run;
+}
+
 async function directory(root, create = false) {
   const state = await resolveState(root, { create });
   const canonical = state.root;

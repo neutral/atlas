@@ -165,6 +165,94 @@ test('draft saves refuse rebasing, concurrent overwrite and changed storage', as
   await assert.rejects(applyDraft(root, draft.id, { expectedRevision: current.revision }), { code: 'INVALID_STATE' });
 });
 
+test('competing draft and Atlas writers refuse locks whose metadata is not available', async t => {
+  for (const kind of ['draft', 'writer']) for (const window of ['before metadata write', 'after release']) {
+    await t.test(`${kind}: ${window}`, async t => {
+      const root = await fixture(t);
+      const baseline = await openAtlas(root);
+      const draft = await saveDraft(root, { id: 'contended', plan: edit(baseline) });
+      const winnerPlan = edit(baseline, '\nWinning update.\n');
+      const contenderPlan = edit(baseline, '\nContending update.\n');
+      const state = await resolveState(root);
+      const lock = path.join(state.directory, kind === 'draft' ? 'drafts/contended.lock' : 'lock.json');
+      const attempt = plan => kind === 'draft'
+        ? saveDraft(root, { id: draft.id, expectedRevision: draft.revision, plan })
+        : applyChange(root, plan);
+      let releaseOwner, observeWrite, owner, intercepted = false;
+      const canWrite = new Promise(resolve => { releaseOwner = resolve; });
+      const writing = new Promise(resolve => { observeWrite = resolve; });
+      const originalOpen = fs.open;
+      t.mock.method(fs, 'open', async (filename, flags, ...options) => {
+        let handle;
+        try { handle = await originalOpen(filename, flags, ...options); }
+        catch (error) {
+          if (filename === lock && flags === 'wx' && error.code === 'EEXIST' && window === 'after release') {
+            // The contender has observed the lock, but its metadata inspection
+            // happens only after the successful owner removes it.
+            releaseOwner();
+            await owner;
+          }
+          throw error;
+        }
+        if (filename === lock && flags === 'wx' && !intercepted) {
+          intercepted = true;
+          const write = handle.writeFile.bind(handle);
+          handle.writeFile = async (...args) => {
+            observeWrite();
+            await canWrite;
+            return write(...args);
+          };
+        }
+        return handle;
+      });
+      owner = attempt(winnerPlan);
+      let result;
+      try {
+        await Promise.race([writing, owner.then(() => { throw new Error('The owner did not reach the lock write.'); })]);
+        await assert.rejects(attempt(contenderPlan), { code: 'LOCKED' });
+      } finally {
+        releaseOwner();
+        try { result = await owner; } finally { t.mock.restoreAll(); }
+      }
+      if (kind === 'draft') {
+        assert.equal((await loadDraft(root, draft.id)).revision, result.revision);
+        assert.deepEqual((await loadDraft(root, draft.id)).plan, winnerPlan);
+        assert.equal((await openAtlas(root)).identity, baseline.identity);
+      } else {
+        assert.equal(result.status, 'complete');
+        assert.equal((await openAtlas(root)).identity, winnerPlan.candidate.identity);
+        assert.equal((await listTransactions(root)).length, 1);
+      }
+      await assert.rejects(fs.stat(lock), { code: 'ENOENT' });
+    });
+  }
+});
+
+test('invalid lock values remain locked without masking malformed saved drafts', async t => {
+  const root = await fixture(t);
+  const baseline = await openAtlas(root);
+  const draft = await saveDraft(root, { id: 'invalid-lock', plan: edit(baseline) });
+  const state = await resolveState(root);
+  for (const kind of ['draft', 'writer']) {
+    const lock = path.join(state.directory, kind === 'draft' ? 'drafts/invalid-lock.lock' : 'lock.json');
+    for (const contents of ['null', '[]', 'false', '"invalid"', '{']) {
+      await fs.writeFile(lock, contents);
+      const attempt = kind === 'draft'
+        ? saveDraft(root, { id: draft.id, expectedRevision: draft.revision, plan: edit(baseline) })
+        : applyChange(root, edit(baseline));
+      await assert.rejects(attempt, { code: 'LOCKED' });
+      assert.equal(await fs.readFile(lock, 'utf8'), contents, 'Unusable lock metadata must never authorize removing the lock.');
+      assert.equal((await openAtlas(root)).identity, baseline.identity);
+      await fs.unlink(lock);
+    }
+  }
+  assert.equal((await loadDraft(root, draft.id)).revision, draft.revision);
+  await fs.writeFile(path.join(state.directory, 'drafts/invalid-lock.json'), '{');
+  await assert.rejects(loadDraft(root, draft.id), { code: 'INVALID_STATE' });
+  await assert.rejects(saveDraft(root, { id: draft.id, expectedRevision: draft.revision, plan: edit(baseline) }), { code: 'INVALID_STATE' });
+  await assert.rejects(applyDraft(root, draft.id, { expectedRevision: draft.revision }), { code: 'INVALID_STATE' });
+});
+
 test('applying a reviewed draft excludes concurrent saves until application finishes', async t => {
   const root = await fixture(t);
   const baseline = await openAtlas(root);
@@ -202,7 +290,7 @@ test('empty initialization and invalid-source repair use prepared changes', asyn
   await fs.writeFile(path.join(root, 'atlas.json'), '{broken');
   const invalid = await openAtlas(root);
   assert.equal(invalid.status, 'invalid');
-  const repair = prepareChange(invalid, { reason: 'Repair malformed manifest', changes: [{ path: 'atlas.json', content: plan.changes[0].after }] });
+  const repair = await prepareChangeFromDisk(root, { reason: 'Repair malformed manifest and restore its selected Style', styleChange: true, changes: [{ path: 'atlas.json', content: plan.changes[0].after }] }, { view: invalid });
   assert.equal((await applyChange(root, repair)).status, 'complete');
 });
 
@@ -243,7 +331,7 @@ test('repairing a malformed manifest captures existing Tree records and rejects 
   const manifest = await fs.readFile(path.join(root, 'atlas.json'), 'utf8');
   await fs.writeFile(path.join(root, 'atlas.json'), '{broken');
   const invalid = await openAtlas(root);
-  const request = { reason: 'Repair manifest', changes: [{ path: 'atlas.json', content: manifest }] };
+  const request = { reason: 'Repair manifest and restore its selected Style', styleChange: true, changes: [{ path: 'atlas.json', content: manifest }] };
   const plan = await prepareChangeFromDisk(root, request, { view: invalid });
   assert.equal(plan.status, 'ready');
   assert(plan.observedFiles.length > 5);

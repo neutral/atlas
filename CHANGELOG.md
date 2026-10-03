@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0
+
+- Add six authoring Styles, custom definitions, and reviewed adoption and revisions.
+- Expand Point and Facet search, linked reading, source display, and agent pagination.
+- Add rendered draft comparisons, complete candidate browsing, citation and structure
+  controls, and unfinished typing recovery.
+- Persist source reviews and draft reasoning; strengthen link checks and concurrent saves.
+- Refresh guides and examples; add an advisory editorial Check.
+
 ## 1.0.0
 
 Atlas makes the context around a project navigable, helping agents and people build a better understanding.

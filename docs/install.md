@@ -1,6 +1,6 @@
 # Install Atlas
 
-This guide covers version 1.0.0. Its npm installation commands require that
+This guide covers version 1.1.0. Its npm installation commands require that
 exact version to be published. If it is unavailable, use the source checkout or
 a locally qualified tarball. The package and runtime bundle include the Library,
 CLI, MCP server, Portal, Editor, guides and optional Checks.
@@ -20,11 +20,11 @@ keep the terminal running while you work. To explore the included sample, run
 
 ## npm
 
-These commands require `@neutral/atlas@1.0.0` to have been published. They
+These commands require `@neutral/atlas@1.1.0` to have been published. They
 select this version explicitly. Use Node.js 22.23.2 or later:
 
 ```sh
-npm install --global --ignore-scripts @neutral/atlas@1.0.0
+npm install --global --ignore-scripts @neutral/atlas@1.1.0
 atlas --version
 atlas open /path/to/project
 ```
@@ -32,7 +32,7 @@ atlas open /path/to/project
 For a project-local installation:
 
 ```sh
-npm install --save-exact --ignore-scripts @neutral/atlas@1.0.0
+npm install --save-exact --ignore-scripts @neutral/atlas@1.1.0
 npx atlas --version
 npx atlas open /path/to/project
 ```
@@ -48,7 +48,7 @@ Install the exact tarball selected by local qualification, with lifecycle script
 disabled:
 
 ```sh
-npm install --offline --ignore-scripts --no-audit /path/to/neutral-atlas-1.0.0.tgz
+npm install --offline --ignore-scripts --no-audit /path/to/neutral-atlas-1.1.0.tgz
 npx atlas --version
 npx atlas open /path/to/project
 ```

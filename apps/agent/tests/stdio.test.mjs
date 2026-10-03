@@ -131,7 +131,7 @@ test('draft persistence across restart and stale apply preserve the original bas
   assert.equal(value(await rpc.call('atlas_save_draft', { proposalId: prepared.proposalId, id: 'first' })).status, 'saved');
   await rpc.close();
   const restarted = client(t, root); await restarted.init();
-  const saved = value(await restarted.call('atlas_load_draft', { id: 'first' })).draft;
+  const saved = value(await restarted.call('atlas_load_draft', { full: true, id: 'first' })).draft;
   assert.equal(saved.plan.baseline.identity, baseline);
   assert.equal(value(await restarted.call('atlas_apply_draft', { id: 'first', expectedRevision: saved.revision })).status, 'complete');
   const newView = value(await restarted.call('atlas_view'));

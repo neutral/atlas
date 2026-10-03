@@ -7,13 +7,14 @@ for the Editor workflow.
 ## Prepare a selection
 
 ```js
-preparePublication(view, { trees, points, sources })
+preparePublication(view, { trees, points, sources, includeStyle })
 ```
 
 | Field | Contract |
 | --- | --- |
 | `trees` | Required nonempty array of unique Tree IDs. |
 | `points` | Optional unique Point IDs owned by selected Trees. Omission includes all their Points; `[]` includes none. |
+| `includeStyle` | Optional boolean, default `false`; explicitly publish the complete adopted Style. |
 | `sources` | Optional unique source URIs referenced by included Points or Facets. Default: `[]`. |
 
 Each list is bounded to 10,000 entries. Points outside selected Trees are rejected.
@@ -32,6 +33,7 @@ Preparation reads no source bytes.
 | Selected Point | Explanation, Type, uncertainty and references; authored file path removed. |
 | Excluded Point in a selected Tree | `{id, tree, publicationAvailable: false}` placeholder. |
 | Facet | Included when its host Point is selected or its host Branch is retained. |
+| Style | Excluded by default; complete definition without its local path when `includeStyle: true`. |
 | Check | Excluded. |
 
 Facet targets retain their IDs. `viaAvailability` and `targetAvailability` mark
@@ -68,3 +70,10 @@ Build rechecks Atlas and source identities before writing; changed input require
 another preview. Existing output, Atlas data, declared local sources, private
 state and installation paths are refused as destinations. Source-reading grants
 permit retrieval; publication still requires an explicit selection.
+
+Published navigation, search and direct citers use only the selected content.
+Point, Facet and declared-source body links resolve through that selection; no
+link expands it. Hidden bodies and paths stay absent. An included, successfully
+retrieved Markdown source gets both an inert readable HTML page and its exact
+raw-text copy; omitted, denied or failed source reads get neither. A source page's
+local links remain inert and remote links require an explicit reader action.

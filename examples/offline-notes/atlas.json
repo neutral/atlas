@@ -1,6 +1,10 @@
 {
-  "format": "atlas/1",
+  "format": "atlas/1.1",
   "id": "offline-notes",
-  "title": "Offline notes — fictional example",
-  "trees": ["trees/product", "trees/architecture"]
+  "title": "Offline notes \u2014 fictional example",
+  "trees": [
+    "trees/product",
+    "trees/architecture"
+  ],
+  "style": "style.md"
 }

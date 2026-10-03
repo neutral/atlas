@@ -218,3 +218,39 @@ test('both readers reject authored symlinks and oversized authored files', async
   await fs.writeFile(original, markdown({ id: 'holding' }, 'Holders preserve material', 'x'.repeat(2 * 1024 * 1024)));
   assert.equal((await rejectedByBoth(root)).status, 'incomplete');
 });
+
+test('independent reader agrees on a captured Atlas 1.1 Style and rejects missing or conflicting selection', async t => {
+  const files = fixture();
+  changeJson(files, 'atlas.json', manifest => { manifest.format = 'atlas/1.1'; manifest.style = 'style.md'; });
+  files.set('style.md', markdown({ id: 'local-style', revision: '1', derivedFrom: 'concise-subjects revision 1' }, 'Local account policy', 'Trees own durable subjects. Retain the explanation needed to choose a source.'));
+  const root = await materialize(t, files);
+  const independent = independentlyRead(root), library = await openAtlas(root);
+  assert.equal(independent.code, 0, JSON.stringify(independent.value));
+  assert.equal(library.status, 'ready', JSON.stringify(library.diagnostics));
+  assert.deepEqual(independent.value.style, library.atlas.style);
+  await fs.rm(path.join(root, 'style.md'));
+  await rejectedByBoth(root);
+  await fs.writeFile(path.join(root, 'style.md'), files.get('style.md'));
+  for (const style of ['trees/service/style.md', '.checks/style.md', '../style.md', 'style.json']) {
+    const manifest = JSON.parse(files.get('atlas.json')); manifest.style = style;
+    await fs.writeFile(path.join(root, 'atlas.json'), json(manifest));
+    await rejectedByBoth(root);
+  }
+});
+
+test('independent manifest dispatch rejects non-objects without an implementation traceback', async t => {
+  const root = await materialize(t, fixture());
+  for (const content of ['[]', 'null', '"atlas/1.1"', '1', 'false', '0', '""']) {
+    await fs.writeFile(path.join(root, 'atlas.json'), content);
+    await rejectedByBoth(root);
+  }
+});
+
+
+test('declared Tree records reject falsy JSON instead of disappearing from the normalized Atlas', async t => {
+  const root = await materialize(t, new Map([['atlas.json', json({ format: 'atlas/1', id: 'example', title: 'Example', trees: ['trees/empty'] })], ['trees/empty/tree.json', 'null']]));
+  for (const content of ['null', 'false', '0', '""']) {
+    await fs.writeFile(path.join(root, 'trees/empty/tree.json'), content);
+    await rejectedByBoth(root);
+  }
+});

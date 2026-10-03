@@ -4,6 +4,7 @@ import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import { parseStrictJson, parseMarkdown, markdownSections } from './frontmatter.mjs';
 import { isPrivateStatePath } from './state.mjs';
+import { searchPoints, searchRecords } from './search.mjs';
 
 const DEFAULT_BYTES = 2 * 1024 * 1024;
 const DEFAULT_FILES = 10000;
@@ -193,11 +194,15 @@ export function validateFiles(input, options = {}) {
   }
 
   const manifest = parse('atlas.json');
-  if (!manifest || !fields(manifest, ['format', 'id', 'title', 'trees'], ['format', 'id', 'title', 'trees'], 'atlas.json')) return finishView(root, files, diagnostics, null, incomplete);
-  if (manifest.format !== 'atlas/1') add('FORMAT_UNSUPPORTED', 'atlas.json', 'Only atlas/1 is supported.');
+  if (!object(manifest)) {
+    if (!diagnostics.length) add('RECORD_OBJECT', 'atlas.json', 'The manifest must be a JSON object.');
+    return finishView(root, files, diagnostics, null, incomplete);
+  }
+  if (!fields(manifest, ['format', 'id', 'title', 'trees', ...(manifest.format === 'atlas/1.1' ? ['style'] : [])], ['format', 'id', 'title', 'trees', ...(manifest.format === 'atlas/1.1' ? ['style'] : [])], 'atlas.json')) return finishView(root, files, diagnostics, null, incomplete);
+  if (!['atlas/1', 'atlas/1.1'].includes(manifest.format)) add('FORMAT_UNSUPPORTED', 'atlas.json', 'Supported formats are atlas/1 and atlas/1.1.');
   id(manifest.id, 'atlas.json'); textField(manifest.title, 'atlas.json', 'title');
   if (!array(manifest.trees, 'atlas.json', 'trees')) return finishView(root, files, diagnostics, null, incomplete);
-  const atlas = { format: 'atlas/1', id: manifest.id, title: manifest.title, trees: [], points: [], branches: [], facets: [], checks: [] };
+  const atlas = { format: manifest.format, id: manifest.id, title: manifest.title, trees: [], points: [], branches: [], facets: [], checks: [] };
   const directories = [];
   for (const directory of manifest.trees) {
     if (!relativeRecordPath(directory) || pathKey(directory) === '.checks' || pathKey(directory).startsWith('.checks/') || pathKey(directory) === 'atlas.json') { add('TREE_PATH', 'atlas.json', 'Tree folders must be normalized relative directories outside .checks and reserved .atlas-* paths.'); continue; }
@@ -206,12 +211,26 @@ export function validateFiles(input, options = {}) {
     directories.push(directory);
   }
   const recognized = new Set(['atlas.json']);
+  if (manifest.format === 'atlas/1.1') {
+    const file = manifest.style, key = typeof file === 'string' ? pathKey(file) : '';
+    if (!relativeRecordPath(file) || !file.endsWith('.md') || key === '.checks' || key.startsWith('.checks/') || key === 'trees' || key.startsWith('trees/') || directories.some(directory => key === pathKey(directory) || key.startsWith(pathKey(directory) + '/') || pathKey(directory).startsWith(key + '/'))) {
+      add('STYLE_PATH', 'atlas.json', 'style must name one normalized local .md record outside Tree directories, trees/ and .checks/.');
+    } else {
+      recognized.add(file);
+      const parsed = parse(file, true);
+      if (parsed && fields(parsed.header, ['id', 'revision', 'derivedFrom'], ['id', 'revision'], file)) {
+        id(parsed.header.id, file); textField(parsed.header.revision, file, 'revision');
+        if (own(parsed.header, 'derivedFrom')) textField(parsed.header.derivedFrom, file, 'derivedFrom');
+        atlas.style = { ...parsed.header, title: parsed.title, body: parsed.body, path: file };
+      }
+    }
+  }
   const treeById = new Map(), pointById = new Map(), branchByKey = new Map();
   for (const directory of directories) {
     const file = `${directory}/tree.json`;
     recognized.add(file);
     const tree = parse(file);
-    if (!tree || !fields(tree, ['id', 'title', 'scope', 'base', 'children'], ['id', 'title', 'scope', 'base', 'children'], file)) continue;
+    if (!fields(tree, ['id', 'title', 'scope', 'base', 'children'], ['id', 'title', 'scope', 'base', 'children'], file)) continue;
     id(tree.id, file); id(tree.base, file, 'base'); textField(tree.title, file, 'title'); textField(tree.scope, file, 'scope');
     array(tree.children, file, 'children');
     const record = { ...tree, path: file };
@@ -438,6 +457,7 @@ export async function openAtlas(root, options = {}) {
       ? options.overrides.get('atlas.json') : captured.get('atlas.json');
     manifest = typeof manifestText === 'string' ? parseStrictJson(manifestText) : null;
   } catch { /* Validation reports syntax. */ }
+  if (manifest?.format === 'atlas/1.1' && relativeRecordPath(manifest.style) && !options.overrides?.has?.(manifest.style)) await take(manifest.style);
   if (Array.isArray(manifest?.trees) && manifest.trees.length <= MAX_ENTRIES) {
     const seen = new Set();
     for (const folder of manifest.trees) {
@@ -497,20 +517,8 @@ export function getFacet(view, target) {
   return { ...facet, owner: atlas.trees.find(tree => tree.id === facet.tree), host: resolve(facet.on, facet.tree), viaTree: atlas.trees.find(tree => tree.id === facet.via), resolvedTargets: facet.targets.map(target => resolve(target, facet.via)), sources: facet.sources ?? [] };
 }
 
-export function searchAtlas(view, { query, tree, type, limit = 20 } = {}) {
-  if (!accepted(view) || typeof query !== 'string' || query.length > 4096 || !query.trim()) return [];
-  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) throw new TypeError('Search limit must be 1..100.');
-  const terms = [...new Set(query.toLocaleLowerCase('en').match(/[\p{L}\p{N}]+(?:[-_][\p{L}\p{N}]+)*/gu) ?? [])].slice(0, 64);
-  const results = [];
-  for (const point of view.atlas.points) {
-    if ((tree && point.tree !== tree) || (type && (type === 'untyped' ? point.type !== undefined : point.type !== type))) continue;
-    const fields = { id: point.id, title: point.title, body: point.body, uncertainty: point.uncertainty ?? '' };
-    const matches = Object.entries(fields).flatMap(([field, value]) => terms.filter(term => value.toLocaleLowerCase('en').includes(term)).map(term => ({ field, term })));
-    if (!matches.length) continue;
-    const score = matches.reduce((total, match) => total + ({ id: 8, title: 4, body: 1, uncertainty: 1 })[match.field], 0);
-    results.push({ ...point, score, matches, reason: 'Lexical matches are candidates, not an identity or relevance judgment.' });
-  }
-  return results.sort((a, b) => b.score - a.score || compare(a.id, b.id)).slice(0, limit);
+export function searchAtlas(view, options = {}) {
+  return accepted(view) ? options.kinds === undefined ? searchPoints(view.atlas.points, options) : searchRecords(view.atlas, options) : [];
 }
 
 export function compareViews(before, after) {

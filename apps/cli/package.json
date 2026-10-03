@@ -1,7 +1,7 @@
 {
   "name": "@atlas/cli",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "description": "Atlas command-line adapter.",
   "license": "CC0-1.0 OR 0BSD",

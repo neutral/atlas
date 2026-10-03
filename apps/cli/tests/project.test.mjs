@@ -51,7 +51,7 @@ test('top-level help and version work without a project or Atlas', async t => {
   }
   const version = run(['--version'], root);
   assert.equal(version.status, 0, version.stderr);
-  assert.equal(version.value.version, '1.0.0');
+  assert.equal(version.value.version, '1.1.0');
   assert.deepEqual(await fs.readdir(root), []);
 });
 
