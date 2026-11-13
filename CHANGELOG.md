@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+- Portal rebuild.
+
 ## 1.1.0
 
 - Add six authoring Styles, custom definitions, and reviewed adoption and revisions.

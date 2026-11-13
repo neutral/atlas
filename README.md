@@ -8,7 +8,7 @@ and inspect the material behind it. Trees organize these accounts; their Points
 carry explanations, and Facets show how another Tree's perspective matters.
 People and agents work with the same portable files.
 
-This source tree is version 1.1.0.
+This source tree is version 1.1.1.
 
 ## Install
 

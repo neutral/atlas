@@ -77,3 +77,8 @@ link expands it. Hidden bodies and paths stay absent. An included, successfully
 retrieved Markdown source gets both an inert readable HTML page and its exact
 raw-text copy; omitted, denied or failed source reads get neither. A source page's
 local links remain inert and remote links require an explicit reader action.
+
+The site's `index.html` holds its first page rendered from the selection: the
+first selected Tree and its Points read before the reader's script runs, and the
+script then opens Points, search and sources. The site also carries `licenses.txt`,
+the license texts of the third-party code bundled into the reader's script.

@@ -28,7 +28,7 @@ test('static export includes chosen account and labels excluded targets without 
   assert(!JSON.stringify(data).includes('The trial did not test interrupted writes or delivery.'));
   assert.equal(data.atlas.points.find(point => point.id === 'delivery-promise').sources[0].publishedPath, undefined);
   assert(result.excludedTargets.length > 0);
-  assert.deepEqual((await fs.readdir(output)).sort(), ['app.js', 'data.json', 'index.html', 'search.js', 'selection.json', 'style.css']);
+  assert.deepEqual((await fs.readdir(output)).sort(), ['app.js', 'data.json', 'index.html', 'licenses.txt', 'search.js', 'selection.json', 'style.css']);
   assert.match(await fs.readFile(path.join(output, 'index.html'), 'utf8'), /data-mode="publication"/u);
   await assert.rejects(exportPortal(example, output, { trees: ['product'] }), { code: 'EXPORT_EXISTS' });
 });
@@ -74,7 +74,9 @@ test('CLI export invokes the actual static adapter', async t => {
   const command = spawnSync(process.execPath, ['apps/cli/src/cli.mjs', '--root', example, 'export', output, '-'], { cwd: repo, input: JSON.stringify({ trees: ['product'] }), encoding: 'utf8' });
   assert.equal(command.status, 0, command.stderr + command.stdout);
   assert.equal(JSON.parse(command.stdout).status, 'complete');
-  assert.match(await fs.readFile(path.join(output, 'app.js'), 'utf8'), /renderTree/u);
+  // The site loads the built reader, and its first page is prerendered from the selection.
+  assert.equal(await fs.readFile(path.join(output, 'app.js'), 'utf8'), await fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
+  assert.match(await fs.readFile(path.join(output, 'index.html'), 'utf8'), /<h1 id="tree-title">Product experience<\/h1>/u);
 });
 
 test('export refuses unselected local source destinations before creating any output', async t => {

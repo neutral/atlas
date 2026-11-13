@@ -27,5 +27,6 @@ and loads no referenced images.
 Select Trees, optionally Points, and any source URIs explicitly. Referenced
 material outside that selection remains unavailable. Serve the directory over HTTP.
 Static publications use the same reader and search, with navigation and source
-pages limited to the selected material. See the
+pages limited to the selected material. A publication's first page is rendered
+from its selection, so its Tree reads before the reader's script runs. See the
 [publication rules](../../docs/reference/publication.md).

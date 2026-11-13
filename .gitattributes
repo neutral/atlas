@@ -2,3 +2,5 @@
 *.png binary
 *.jpg binary
 *.woff2 binary
+# The Portal's build output, regenerated from apps/portal/ui by `pnpm --filter @atlas/portal build`.
+apps/portal/public/** linguist-generated=true

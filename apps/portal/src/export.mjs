@@ -1,6 +1,6 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
 import { openAtlas } from '../../../library/src/model.mjs';
 import { preparePublication, readPublicationSources } from '../../../library/src/publication.mjs';
@@ -13,6 +13,9 @@ const packageRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const inside = (root, candidate) => candidate === root || candidate.startsWith(root + path.sep);
 const failure = (code, message) => Object.assign(new Error(message), { code });
 const preparedExports = new WeakMap();
+const mono = 'ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace';
+// A published Markdown source on the Portal's sheet: the cited text in black, its address and the raw-text link in blue.
+const sourcePageStyle = `:root{color-scheme:light}body{max-width:40rem;margin:0 auto;padding:2rem 1.5rem 3rem;font:16px/1.65 -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif;color:#15191e;background:#fff}body>p:first-child{margin:0 0 1.5rem;padding-bottom:.6rem;font:12px/1.5 ${mono};color:#3d6288;overflow-wrap:anywhere;border-bottom:1px solid #3d6288}a{color:inherit;text-decoration:underline 1px #b9cadb;text-underline-offset:3px}a:hover{text-decoration-color:currentColor}a:focus-visible{outline:2px solid #3d6288;outline-offset:2px}h1,h2,h3{line-height:1.25}code{font-family:${mono};font-size:.88em}pre{overflow:auto;padding:.5rem .75rem;font:13px/1.55 ${mono};border:1px solid #b9cadb}table{display:block;max-width:100%;overflow-x:auto;border-collapse:collapse}td,th{padding:.25rem .5rem;text-align:left;vertical-align:top;border:1px solid #b9cadb}blockquote{margin-left:0;padding-left:.75rem;border-left:1px solid #5a7a9b}.unavailable-reference{text-decoration:underline dotted #5a7a9b;text-underline-offset:3px}.image-reference{font:.85em ${mono};color:#3d6288}::selection{background:#edf2f7}`;
 
 async function intendedPath(value) {
   const absolute = path.resolve(value);
@@ -74,7 +77,7 @@ async function inspectExport(root, output, { trees, points, sources, includeStyl
       if (/\.md(?:#|$)/i.test(observation.uri)) {
         htmlFilename = filename.replace(/\.txt$/, '.html');
         const escapedUri = observation.uri.replace(/[&<>"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[character]);
-        const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"><title>Published source</title><style>body{max-width:75ch;margin:3rem auto;padding:0 1.5rem;font:17px/1.6 system-ui,sans-serif;color:#202020}pre{overflow:auto;padding:1rem;background:#f4f4f4}table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:.4rem}.unavailable-reference{color:#666}a{color:#175399}</style></head><body><p>${escapedUri} · <a href="${path.posix.basename(filename)}">Raw source</a></p>${renderMarkdown(observation.content, { headingPrefix: 'source-' })}</body></html>`;
+        const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"><title>Published source</title><style>${sourcePageStyle}</style></head><body><p>${escapedUri} · <a href="${path.posix.basename(filename)}">Raw source</a></p>${renderMarkdown(observation.content, { headingPrefix: 'source-' })}</body></html>`;
         sourceFiles.push({ path: htmlFilename, content: html });
       }
       for (const record of [...publishedAtlas.points, ...publishedAtlas.facets]) for (const source of record.sources ?? []) {
@@ -123,10 +126,15 @@ export async function applyExport(prepared) {
   await fs.mkdir(temporary);
   try {
     let html = await fs.readFile(path.join(assets, 'index.html'), 'utf8');
+    // The publication's first page is rendered now, from the selected data, so it reads before any script runs.
+    const { renderPortal } = await import(pathToFileURL(path.join(assets, 'prerender.mjs')).href);
+    const page = await renderPortal(data, true);
+    html = html.replace(/<div id="root">[\s\S]*?<\/div><!--\/root-->/u, () => `<div id="root">${page}</div><!--/root-->`);
     html = html.replace('<body>', '<body data-mode="publication">');
     html = html.replace('<meta name="viewport"', '<meta http-equiv="Content-Security-Policy" content="default-src \'self\'; script-src \'self\'; style-src \'self\' \'unsafe-inline\'; img-src \'none\'; object-src \'none\'; base-uri \'none\'; form-action \'none\'">\n  <meta name="viewport"');
     await fs.writeFile(path.join(temporary, 'index.html'), html);
-    for (const file of ['app.js', 'style.css']) await fs.copyFile(path.join(assets, file), path.join(temporary, file));
+    // The reader's bundled third-party code travels with its license texts.
+    for (const file of ['app.js', 'style.css', 'licenses.txt']) await fs.copyFile(path.join(assets, file), path.join(temporary, file));
     await fs.copyFile(new URL('../../../library/src/search.mjs', import.meta.url), path.join(temporary, 'search.js'));
     await fs.writeFile(path.join(temporary, 'data.json'), JSON.stringify(data));
     await fs.writeFile(path.join(temporary, 'selection.json'), JSON.stringify({ format: 'atlas.export-selection/1', identity: prepared.identity, ...data.publication }, null, 2) + '\n');

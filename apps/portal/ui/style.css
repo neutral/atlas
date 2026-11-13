@@ -1,0 +1,425 @@
+/* The sheet (handbook/practices/sheet.md): white paper, two inks, two faces and a red pencil.
+   Black is what a person wrote: explanations, Tree scopes, uncertainty, cited source text and
+   the reasons and evidence people type. Blue is everything the Portal draws or says: the Tree,
+   names, kinds, metadata, messages, controls, lines and marks. Red is only a difference the
+   reader must attend to: a changed or missing source, an error, a failed Check, the candidate
+   side of a revision, a control that discards work.
+   Lines carry the structure, by weight: the sheet's border, the rule under the title strip and
+   the rule beside the reading pane; hairlines within; a 2px left line on what is selected.
+   No pattern, texture, gradient, rounded card or ornament. React Aria components are styled by
+   their state attributes; :focus-visible stays beside [data-focus-visible] for prerendered pages. */
+:root {
+  color-scheme: light;
+  --paper: #ffffff;
+  --ink: #15191e;    /* what a person wrote */
+  --blue-9: #1f3a5a; /* the Portal's text: names, messages */
+  --blue-7: #3d6288; /* structure lines, labels, metadata, controls, focus */
+  --blue-5: #5a7a9b; /* Tree connectors and disabled outlines; never text */
+  --blue-3: #b9cadb; /* hairlines, field borders, link underlines; never text */
+  --blue-1: #edf2f7; /* wash: the selected node, the chosen option, selected text */
+  --blue-0: #f6f8fb; /* lighter wash: a node under the pointer, code, a read-only field */
+  --red: #b0412a;    /* a difference to attend to */
+  --red-1: #f9ece8;  /* wash behind a warning */
+  --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --margin: 12px;    /* paper outside the sheet's border */
+  --gutter: 24px;    /* inside the border, at each region's sides */
+}
+* { box-sizing: border-box; }
+html { height: 100dvh; padding: var(--margin); background: var(--paper); }
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  color: var(--blue-9);
+  background: var(--paper);
+  font: 13px/1.5 var(--mono);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+#root { height: 100%; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--blue-7); }
+h1, h2, h3, h4, h5, p, pre, blockquote, ul, ol, dl, figure, fieldset { margin: 0; }
+::selection { background: var(--blue-1); }
+[hidden] { display: none !important; }
+/* Without a script the prerendered page reads; this line says what waits for one. */
+.noscript { position: fixed; inset: auto calc(var(--margin) + 1px) calc(var(--margin) + 1px); z-index: 5; margin: 0; padding: 12px var(--gutter); font-size: 12px; background: var(--paper); border-top: 1px solid var(--blue-7); }
+
+/* Two faces. What a person wrote is proportional and black; what the Portal says is fixed-width and blue. */
+.words, .title, .prose, #tree-scope, .excerpt, .snippet { font-family: var(--sans); color: var(--ink); }
+.words { font-size: 14px; line-height: 1.55; }
+.cap, .badge, .node-kind, .node-facets, .status, .section > h3, .expand.section > .expand-head .expand-trigger, .citation-fields legend {
+  font: 500 10.5px/1.5 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--blue-7);
+}
+.minor, .record-path { font-size: 12px; color: var(--blue-7); }
+.record-path, .source-info, .field, .tick { overflow-wrap: anywhere; }
+h3.record-path { font-weight: 600; color: var(--blue-9); }
+h2 { font: 600 15px/1.3 var(--mono); color: var(--blue-9); }
+h3, h4, h5 { font: 600 13px/1.4 var(--mono); color: var(--blue-9); }
+h2.title { font: 600 21px/1.25 var(--sans); letter-spacing: -0.01em; color: var(--ink); }
+h3.title, h4.title { font: 600 15px/1.35 var(--sans); color: var(--ink); }
+strong { font-weight: 600; }
+
+/* Red: a difference to attend to. Every status carries its mark and its word. */
+.attend, .status.attend { color: var(--red); }
+.status { white-space: nowrap; }
+.alert { padding: 8px 12px; color: var(--red); background: var(--red-1); border-left: 2px solid var(--red); }
+.alert > * + * { margin-top: 8px; }
+.alert .words { color: var(--ink); }
+.note { padding-left: 12px; font-size: 12px; color: var(--blue-9); border-left: 1px solid var(--blue-3); }
+.diagnostics { font: 12px/1.6 var(--mono); color: var(--red); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Links: the text keeps its ink; a hairline beneath says it leads somewhere. */
+a { color: inherit; text-decoration: underline 1px var(--blue-3); text-underline-offset: 3px; }
+a:hover, a[data-hovered] { text-decoration-color: currentColor; }
+
+/* Focus: a 2px line around whatever has keyboard focus, never removed. */
+:focus-visible, [data-focus-visible] { outline: 2px solid var(--blue-7); outline-offset: 2px; }
+#canvas:focus-visible, .sheet-dialog:focus-visible, .sheet-dialog[data-focus-visible] { outline-offset: -2px; }
+.sheet-dialog:focus { outline: none; }
+.sheet-dialog:focus-visible { outline: 2px solid var(--blue-7); }
+
+/* Controls. A button is a ruled box that fills when pressed; the primary action is filled at rest. */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  min-height: 32px;
+  padding: 6px 12px;
+  font: 500 12px/1.3 var(--mono);
+  color: var(--blue-7);
+  text-align: center;
+  text-decoration: none;
+  background: var(--paper);
+  border: 1px solid var(--blue-7);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.button[data-hovered], .button[data-pressed] { color: var(--paper); background: var(--blue-7); }
+.button.primary { color: var(--paper); background: var(--blue-7); }
+.button.primary[data-hovered], .button.primary[data-pressed] { background: var(--blue-9); border-color: var(--blue-9); }
+.button.danger { color: var(--red); border-color: var(--red); }
+.button.danger[data-hovered], .button.danger[data-pressed] { color: var(--paper); background: var(--red); }
+.button[data-disabled], .button.primary[data-disabled] { color: var(--blue-7); background: var(--paper); border: 1px dashed var(--blue-5); cursor: not-allowed; }
+.button.zoom { width: 32px; padding: 0; font-size: 14px; }
+
+/* A reference to another record: its name, underlined, in a ruled list or a line of names. */
+.ref { color: var(--blue-9); text-decoration: underline 1px var(--blue-3); text-underline-offset: 3px; cursor: pointer; }
+.ref[data-hovered] { text-decoration-color: currentColor; }
+.ref[data-disabled] { color: var(--blue-7); text-decoration: none; cursor: not-allowed; }
+.refs { display: grid; border-top: 1px solid var(--blue-3); }
+.refs > .ref { display: block; padding: 8px 0; font-size: 13px; border-bottom: 1px solid var(--blue-3); }
+.refs > article { padding: 8px 0; border-bottom: 1px solid var(--blue-3); }
+.refs > article > .ref { font-size: 13px; font-weight: 600; }
+.refs > article > p { margin-top: 2px; }
+.refs .kind { margin-right: 8px; }
+.excerpt { font-size: 13px; line-height: 1.5; }
+
+/* Fields. A field is ruled in a hairline that darkens with focus; what the person types is in their ink. */
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field > .react-aria-Label, .field-label { font-size: 12px; color: var(--blue-7); }
+.field .react-aria-Input, .field .react-aria-TextArea {
+  width: 100%;
+  min-height: 32px;
+  padding: 5px 8px;
+  font: 14px/1.5 var(--sans);
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--blue-5);
+  border-radius: 3px;
+}
+.field .react-aria-Input[data-focused], .field .react-aria-TextArea[data-focused] { border-color: var(--blue-7); }
+.field .react-aria-Input[data-focus-visible], .field .react-aria-TextArea[data-focus-visible] { outline: 2px solid var(--blue-7); outline-offset: 2px; }
+.field .react-aria-Input::placeholder, .field .react-aria-TextArea::placeholder { font: 12px var(--mono); color: var(--blue-7); opacity: 1; }
+.field .react-aria-Input[data-disabled], .field .react-aria-TextArea[data-disabled] { background: var(--blue-0); border: 1px dashed var(--blue-5); cursor: not-allowed; }
+.field .react-aria-TextArea { min-height: 240px; resize: vertical; }
+.field .react-aria-TextArea.short-text { min-height: 96px; }
+.field .react-aria-TextArea.code { font: 12px/1.6 var(--mono); }
+.field[data-readonly] .react-aria-TextArea { color: var(--blue-9); background: var(--blue-0); }
+.search-query .react-aria-Input::-webkit-search-cancel-button { display: none; }
+.group { gap: 4px; }
+
+/* A choice opens a list of the Portal's own names. */
+.choice-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  padding: 5px 8px;
+  font: 13px/1.4 var(--mono);
+  color: var(--blue-9);
+  text-align: left;
+  background: var(--paper);
+  border: 1px solid var(--blue-5);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.choice-button[data-hovered], .choice[data-open] .choice-button { border-color: var(--blue-7); }
+.choice-button[data-disabled] { background: var(--blue-0); border-style: dashed; border-color: var(--blue-5); cursor: not-allowed; }
+.choice-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.choice-mark { flex: none; color: var(--blue-7); }
+.choice-popover { min-width: var(--trigger-width); max-width: calc(100vw - 2 * var(--margin)); max-height: 60vh; overflow: auto; background: var(--paper); border: 1px solid var(--blue-7); }
+.choice-list { padding: 4px 0; outline: none; }
+.choice-option { padding: 6px 12px; font: 13px/1.4 var(--mono); color: var(--blue-9); cursor: pointer; outline: none; overflow-wrap: anywhere; border-left: 2px solid transparent; }
+.choice-option[data-hovered], .choice-option[data-focused] { background: var(--blue-0); }
+.choice-option[data-selected] { background: var(--blue-1); border-left-color: var(--blue-7); }
+.choice-option[data-focus-visible] { outline: 2px solid var(--blue-7); outline-offset: -2px; }
+
+/* A tick box: drawn square, ticked in blue. */
+.tick { display: flex; align-items: flex-start; gap: 8px; padding: 4px 0; font-size: 12px; color: var(--blue-9); cursor: pointer; }
+.tick-box { flex: none; position: relative; width: 16px; height: 16px; margin-top: 1px; background: var(--paper); border: 1px solid var(--blue-7); border-radius: 2px; }
+.tick[data-selected] .tick-box { background: var(--blue-7); }
+.tick[data-selected] .tick-box::after { content: ""; position: absolute; left: 4px; top: 1px; width: 5px; height: 9px; border: solid var(--paper); border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.tick[data-focus-visible] .tick-box { outline: 2px solid var(--blue-7); outline-offset: 2px; }
+.tick[data-disabled] { cursor: not-allowed; }
+.tick[data-disabled] .tick-box { background: var(--blue-0); border-style: dashed; border-color: var(--blue-5); }
+.ticks { display: grid; }
+.tick.nested { padding-left: 24px; }
+
+/* The title strip: the name, the Atlas, the session, and the commands. */
+.topbar { flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; min-height: 52px; padding: 10px var(--gutter); border-bottom: 1px solid var(--blue-7); }
+.brand { font: 600 15px/1.2 var(--mono); letter-spacing: 0.01em; color: var(--blue-9); text-decoration: none; }
+.atlas-title { min-width: 0; padding-left: 16px; font-size: 12px; color: var(--blue-7); border-left: 1px solid var(--blue-3); }
+.tag { padding: 3px 6px 2px; font: 500 10.5px/1.4 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--blue-7); white-space: nowrap; border: 1px solid var(--blue-3); border-radius: 3px; }
+.header-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-left: auto; }
+.state-notice { flex: none; padding: 8px var(--gutter); font-size: 12px; color: var(--red); background: var(--red-1); border-bottom: 1px solid var(--blue-7); }
+#state-notice::before { content: "✗ "; content: "✗ " / ""; }
+#preview-notice::before { content: "△ "; content: "△ " / ""; }
+
+/* The workspace: the filters, the Tree's title, the drawing, and its scale. */
+#app { flex: 1; display: flex; min-height: 0; }
+.workspace { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: auto; container-type: inline-size; }
+.toolbar { flex: none; display: flex; align-items: flex-end; gap: 12px; padding: 12px var(--gutter); border-bottom: 1px solid var(--blue-3); }
+.tree-picker { flex: 0 1 240px; }
+.search-label { flex: 1 1 200px; max-width: 280px; }
+.type-picker { flex: 0 0 150px; }
+.tree-heading { flex: none; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 16px var(--gutter); border-bottom: 1px solid var(--blue-3); }
+.tree-heading > div { min-width: 0; }
+.tree-heading > div > * + * { margin-top: 8px; }
+.tree-heading > div > .reading-start, .tree-heading > div > .button { margin-top: 12px; }
+#tree-title { font: 600 19px/1.25 var(--mono); letter-spacing: 0.01em; color: var(--blue-9); }
+#tree-scope { max-width: 38rem; font-size: 15px; line-height: 1.5; }
+#tree-scope.tool { font: 12px/1.5 var(--mono); color: var(--blue-7); }
+#tree-scope.tool.attend { color: var(--red); white-space: pre-line; }
+.reading-start { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; font-size: 12px; color: var(--blue-7); }
+.count { flex: none; padding-top: 4px; font-size: 12px; color: var(--blue-7); white-space: nowrap; }
+
+/* The Tree, drawn: boxes for Points, the base in a heavier line, a Branch as a band between two rules. */
+#canvas { position: relative; flex: 1; min-height: 240px; overflow: hidden; touch-action: none; cursor: grab; }
+#canvas:active { cursor: grabbing; }
+#stage, #connections, #nodes { position: absolute; left: 0; top: 0; }
+#stage { transform-origin: 0 0; }
+#connections { overflow: visible; pointer-events: none; }
+#connections path { fill: none; stroke: var(--blue-5); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.node {
+  position: absolute;
+  width: 225px;
+  min-height: 86px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 14px;
+  font: inherit;
+  color: var(--blue-9);
+  text-align: left;
+  background: var(--paper);
+  border: 1px solid var(--blue-7);
+  border-radius: 0;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.node[data-hovered], .node[data-pressed] { background: var(--blue-0); }
+.node.base { border-width: 2px; padding: 11px 13px; }
+.node.branch { width: 210px; min-height: 66px; border-width: 1px 0; padding: 11px 14px; }
+.node.selected, .node.selected[data-hovered] { background: var(--blue-1); border-left-width: 2px; padding-left: 13px; }
+.node.branch.selected { border-left-style: solid; padding-left: 12px; }
+.node.context { color: var(--blue-7); border-color: var(--blue-3); }
+.node-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 8px; }
+.node-label { font-size: 13px; font-weight: 600; line-height: 1.35; }
+#empty { position: absolute; top: 30%; width: 100%; padding: 0 var(--gutter); font-size: 12px; text-align: center; color: var(--blue-7); }
+.canvas-footer { flex: none; display: flex; align-items: center; justify-content: flex-end; min-height: 48px; padding: 8px var(--gutter); border-top: 1px solid var(--blue-3); }
+.canvas-footer > div { display: flex; align-items: center; gap: 8px; }
+#zoom-level { min-width: 4.5ch; font-size: 12px; text-align: center; color: var(--blue-7); }
+
+/* The reading pane: one selected Point, Branch, Facet or source, beside its Tree. */
+#page { flex: none; width: 416px; min-width: 320px; max-width: 48vw; overflow-y: auto; background: var(--paper); border-left: 1px solid var(--blue-7); }
+#page-controls { position: sticky; top: 0; z-index: 1; display: flex; flex-wrap: wrap; gap: 8px; padding: 12px var(--gutter); background: var(--paper); border-bottom: 1px solid var(--blue-3); }
+#close-page { margin-left: auto; }
+#page-content { padding: 16px var(--gutter) 32px; }
+#page-content > * + * { margin-top: 16px; }
+#page-content > .breadcrumb + .point-meta { margin-top: 12px; }
+#page-content > .point-meta + h2 { margin-top: 4px; }
+#page-content > .section, #page-content > .expand.section { margin-top: 32px; }
+#page-content [id] { scroll-margin-top: 72px; }
+.breadcrumb { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; font-size: 12px; }
+.breadcrumb .ref { padding: 4px 0; }
+.breadcrumb .sep { color: var(--blue-7); }
+.point-meta { display: flex; flex-wrap: wrap; gap: 0 8px; }
+.badge + .badge::before { content: "·"; content: "·" / ""; margin-right: 8px; }
+.reference { padding-top: 12px; font-size: 12px; color: var(--blue-7); border-top: 1px solid var(--blue-3); }
+.edit-actions, .draft-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.edit-actions > .field { flex: 1 1 16rem; }
+.source-title { overflow-wrap: anywhere; }
+.source-status { font-size: 12px; }
+
+/* A section: its name in capitals and a rule drawn out to the edge. */
+.section > * + * { margin-top: 12px; }
+.section > h3, .expand.section > .expand-head .expand-trigger { display: flex; align-items: center; gap: 12px; }
+.section > h3::after, .expand.section > .expand-head .expand-trigger::after { content: ""; flex: 1; margin-right: calc(-1 * var(--gutter)); border-top: 1px solid var(--blue-7); }
+.expand-head { font: inherit; }
+.expand-trigger { display: flex; align-items: baseline; width: 100%; padding: 4px 0; font: 12px/1.5 var(--mono); color: var(--blue-7); text-align: left; background: none; border: 0; cursor: pointer; }
+.expand-trigger::before { content: "▸"; content: "▸" / ""; flex: none; width: 1.4em; }
+.expand[data-expanded] > .expand-head .expand-trigger::before { content: "▾"; content: "▾" / ""; }
+.expand-trigger[data-hovered] { color: var(--blue-9); }
+.expand-trigger[data-focus-visible] { outline-offset: 0; }
+.expand-panel > * + * { margin-top: 12px; }
+.expand-panel { padding-top: 8px; }
+.expand.draft-entry > .expand-head .expand-trigger { font-size: 13px; color: var(--blue-9); }
+
+/* An author's prose, in the author's ink. */
+.prose { font-size: 15px; line-height: 1.65; overflow-wrap: break-word; }
+.prose > * + * { margin-top: 0.8em; }
+.prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 { font-family: var(--sans); color: var(--ink); }
+.prose h1 { font-size: 21px; line-height: 1.25; font-weight: 600; letter-spacing: -0.01em; }
+.prose h2 { font-size: 17px; line-height: 1.3; font-weight: 600; }
+.prose h3, .prose h4, .prose h5, .prose h6 { font-size: 15px; line-height: 1.4; font-weight: 600; }
+.prose > * + :is(h1, h2, h3, h4, h5, h6) { margin-top: 1.4em; }
+.prose ul, .prose ol { padding-left: 1.4em; }
+.prose li + li { margin-top: 0.3em; }
+.prose code { padding: 0.1em 0.25em; font: 0.88em var(--mono); background: var(--blue-0); border-radius: 2px; }
+.prose pre { padding: 8px 12px; font: 12px/1.55 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--blue-3); }
+.prose pre code { padding: 0; font-size: inherit; background: none; }
+.prose table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; font-size: 13px; line-height: 1.5; }
+.prose th, .prose td { padding: 4px 8px; text-align: left; vertical-align: top; border: 1px solid var(--blue-3); }
+.prose th { font-weight: 600; }
+.prose blockquote { padding-left: 12px; border-left: 1px solid var(--blue-5); }
+.prose hr { border: 0; border-top: 1px solid var(--blue-3); }
+.unavailable-reference { text-decoration: underline dotted var(--blue-5); text-underline-offset: 3px; cursor: help; }
+.image-reference { font: 0.85em var(--mono); color: var(--blue-7); }
+
+/* Beside the explanation: its uncertainty, its sources, the Facets that interpret it. */
+.uncertainty { padding: 2px 0 2px 12px; border-left: 1px solid var(--blue-7); }
+.uncertainty > .cap { display: block; }
+.uncertainty > .words { margin-top: 2px; }
+.source-list { display: grid; border-top: 1px solid var(--blue-3); }
+.source-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px 12px; padding: 8px 0; font-size: 12px; border-bottom: 1px solid var(--blue-3); }
+.source-info { flex: 1 1 12rem; min-width: 0; line-height: 1.5; color: var(--blue-9); }
+.source-info small { display: block; font-size: 12px; color: var(--blue-7); }
+.facet-card { padding: 12px 0 16px; border-bottom: 1px solid var(--blue-3); }
+.facet-card:last-child { border-bottom: 0; }
+.facet-card > * + * { margin-top: 12px; }
+.facet-card > h4 + .minor { margin-top: 2px; }
+.facet-card .prose { font-size: 14px; }
+.facet-card .prose h1 { display: none; }
+#page-content > .facet-card { padding-top: 0; border-bottom: 0; }
+#page-content > .facet-card > h4.title { font-size: 21px; line-height: 1.25; letter-spacing: -0.01em; }
+.source-text { font: 12px/1.6 var(--mono); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Focus reading: the pane takes the sheet, with its column centered. */
+#app.reading-focus .workspace { display: none; }
+#app.reading-focus #page { width: 100%; max-width: none; border-left: 0; }
+#app.reading-focus #page-controls, #app.reading-focus #page-content { padding-inline: max(var(--gutter), calc((100% - 42rem) / 2)); }
+#app.reading-focus #page-content { padding-top: 32px; }
+#app.reading-focus .prose { font-size: 16px; }
+#app.reading-focus .section > h3::after, #app.reading-focus .expand.section > .expand-head .expand-trigger::after { margin-right: 0; }
+
+/* The dialog: one sheet laid over the page, its title strip held at the top. */
+.overlay { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; padding: 24px 12px; background: rgba(31, 58, 90, 0.26); }
+.modal { width: min(55rem, 100%); max-height: 100%; display: flex; outline: none; }
+.sheet-dialog {
+  position: relative;
+  width: 100%;
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+  color: var(--blue-9);
+  background: var(--paper);
+  border: 1px solid var(--blue-7);
+  box-shadow: 0 16px 48px rgba(31, 58, 90, 0.16);
+}
+.dialog-top { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px var(--gutter); background: var(--paper); border-bottom: 1px solid var(--blue-7); }
+.dialog-top h2 { overflow-wrap: anywhere; }
+#unsaved-warning { margin: 16px var(--gutter) 0; }
+#draft-content { padding: 16px var(--gutter) 24px; }
+#draft-content > * + * { margin-top: 12px; }
+#draft-content > .section, #draft-content > .expand.section { margin-top: 24px; }
+#draft-content .prose { max-width: 42rem; }
+.draft-entry { padding: 12px 0; border-top: 1px solid var(--blue-3); }
+.draft-entry > * + * { margin-top: 8px; }
+.draft-entry > h3.title + .minor { margin-top: 2px; }
+.draft-entry > .refs:last-child > :last-child { border-bottom: 0; }
+.draft-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.draft-grid > div > * + * { margin-top: 8px; }
+.draft-grid pre { max-height: 300px; overflow: auto; padding: 8px 12px; font: 12px/1.55 var(--mono); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--blue-3); }
+.draft-grid .candidate pre { border-color: var(--red); }
+.semantic-comparison .prose { font-size: 14px; }
+.review-results > * + * { margin-top: 8px; }
+.search-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.search-controls > .search-query { flex: 1 1 240px; }
+.search-controls > .choice { flex: 0 1 200px; }
+.search-results:empty { display: none; }
+.search-result { padding: 12px 0; border-top: 1px solid var(--blue-3); }
+.search-result:last-child { border-bottom: 1px solid var(--blue-3); }
+.search-result > * + * { margin-top: 8px; }
+.search-result > .ref { font-size: 14px; font-weight: 600; }
+.search-result > .minor { margin-top: 2px; }
+.snippet { font-size: 14px; line-height: 1.6; white-space: pre-line; }
+.citation-editor > * + * { margin-top: 12px; }
+.citation-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; min-width: 0; padding: 8px 12px 12px; border: 1px solid var(--blue-3); }
+.citation-fields legend { padding: 0 4px; }
+.citation-fields > .button { grid-column: 1 / -1; justify-self: start; }
+.custom-style > * + * { margin-top: 8px; }
+#autosave-status { padding-top: 12px; border-top: 1px solid var(--blue-3); }
+
+/* A passing message: above any dialog, and gone after a few seconds. */
+#notice {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 40;
+  display: none;
+  width: max-content;
+  max-width: min(36rem, calc(100vw - 48px));
+  padding: 8px 12px;
+  font: 12px/1.5 var(--mono);
+  color: var(--blue-9);
+  background: var(--paper);
+  border: 1px solid var(--blue-7);
+  transform: translateX(-50%);
+}
+#notice.visible { display: block; }
+#notice.attend { color: var(--red); background: var(--red-1); border-color: var(--red); }
+#notice.attend::before { content: "✗ "; content: "✗ " / ""; }
+
+@media (max-width: 950px) {
+  .toolbar { gap: 8px; }
+  #page { width: 360px; min-width: 300px; }
+}
+@container (max-width: 600px) {
+  .toolbar { flex-wrap: wrap; }
+  .tree-picker, .search-label { flex: 1 1 100%; max-width: none; }
+  .type-picker { flex: 1 1 0; }
+}
+@media (max-width: 680px) {
+  :root { --margin: 8px; --gutter: 16px; }
+  .topbar { gap: 8px 12px; }
+  .atlas-title { padding-left: 12px; }
+  .header-actions { flex: 1 0 100%; justify-content: flex-start; margin-left: 0; }
+  .toolbar { flex-wrap: wrap; }
+  .tree-picker, .search-label { flex: 1 1 100%; max-width: none; }
+  .type-picker { flex: 1 1 0; }
+  /* On a phone the pane is laid over the workspace, below the title strip; Close returns to the Tree. */
+  #app { position: relative; }
+  #page { position: absolute; inset: 0; z-index: 10; width: auto; min-width: 0; max-width: none; border-left: 0; }
+  .draft-grid, .citation-fields { grid-template-columns: minmax(0, 1fr); }
+  .overlay { padding: 8px; }
+  .sheet-dialog { max-height: calc(100dvh - 16px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}
