@@ -1,36 +1,26 @@
----
-{"id":"concise-perspectives","revision":"1"}
----
 # Concise perspectives
 
-This Style organizes a project through distinct perspectives on shared subjects.
-Each Tree develops the claims that belong to one perspective. Its Base establishes
-that perspective's scope, central understanding and important limits. Tree
-boundaries follow the questions and claims each account owns. A subject name can
-label a perspective; its scope and explanations establish that role. The primary
-explanation of a claim belongs to one account; other perspectives develop its
-consequences for their own claims.
+## Accounts
 
-Points explain the perspective's main distinctions, choices and qualifications.
-Closely related explanation stays together until it needs separate reference,
-assessment or revision. Higher Points orient readers to their detail. Branches
-label useful groups of developments. Facets explain how another perspective
-changes the understanding of a host claim; links provide further reading. The
-Facet carries the consequence while its targets retain the explanation it relies
-on.
+Each Tree is one perspective on the whole project: a set of questions it
+answers and the claims it owns. A product perspective can say what the
+project is for, an architecture perspective how it is built, a reliability
+perspective what shows that it works. The same subject appears in several
+Trees, and each explains only what belongs to its perspective. A Tree's
+scope and Base state the perspective; a subject name in its title does not
+make it a subject account.
 
-Atlas carries the central claims, essential reasoning and qualifications needed
-to understand each perspective and choose the next source. Extended arguments,
-exhaustive procedures, implementation detail and raw evidence remain in sources,
-with precise references explaining their contribution. Source reading is an
-expected part of the task. The account expands when readers repeatedly need to
-reconstruct the same important connection from the underlying material. Sources
-retain authority over the exact requirements or procedures they own.
+A claim is explained in full in the one perspective that owns it. Other
+perspectives say what it means for their own claims and link to it. A Facet
+says how another perspective changes the reading of a claim: what that
+account holds, and what follows here. A new Tree is warranted when a distinct
+perspective needs a sustained account with a top claim of its own.
 
-Changes update the concise explanation and its references together, with higher
-explanations and connected Facets reviewed for changed meaning. A new Tree is
-warranted when a distinct perspective needs a sustained account and reader entry
-point. Restructuring addresses an identified failure to find, understand or update
-the account, preserving identity and important conflicts or limits. It is complete
-when readers can explain the central meaning and limits, find the needed detail
-and maintain that path.
+## Depth
+
+The Atlas carries each claim, its essential reason and the qualifications
+that limit it, and names the place in a source that holds the extended
+argument. Reading sources is an expected part of understanding a subject in
+depth. Exact requirements, procedures, code and raw evidence stay in the
+sources, which keep authority over them. A Point grows when readers
+repeatedly have to reconstruct the same connection from the sources.

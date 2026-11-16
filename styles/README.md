@@ -1,117 +1,95 @@
 # Atlas Styles
 
-A Style settles the authoring choices that make an Atlas coherent over time:
-what belongs together, how explanations develop, what readers learn in Atlas and
-what remains in sources. Several policies can produce valid accounts of the same
-material. Adopting one gives later authors a shared basis for placement, source
-reading and maintenance.
+A Style is an Atlas's own statement of how it is written: which accounts it
+keeps and what each owns, how much of the argument it carries apart from its
+sources, and the conventions its authors follow. Several policies can produce
+valid accounts of the same material. Keeping one, in the Atlas, gives every
+later author the same basis for placing a claim and for deciding how much to
+explain.
 
-The [core specification](../spec/SPEC.md#style) defines the meanings and
-requirements every Atlas respects. Each Style is a complete policy within those
-requirements, expressed in four paragraphs covering Tree ownership, Points and
-connections, source depth, and evolution.
+The [core specification](../spec/SPEC.md#style-and-checks) defines what
+every Atlas respects, and [Working with Atlas](../spec/OPERATING.md)
+teaches the craft every account shares: titles that state claims, Points that
+read alone, one owner for each statement. A Style holds only what differs from
+one Atlas to the next.
 
 ## The catalogue
 
-The current six Styles make two independent choices: **ownership** and
-**explanatory responsibility**. Ownership determines which account develops an
-explanation. Explanatory responsibility determines how much of the argument Atlas
-carries apart from its sources.
+The six curated Styles make two independent choices. **Accounts** decides
+which Tree owns an explanation. **Depth** decides how much of the argument the
+Atlas carries.
 
-| Tree ownership | Main arguments developed in Atlas | Extended arguments remain in sources |
+| Accounts | The Atlas carries the main arguments | Extended arguments stay in sources |
 | --- | --- | --- |
-| Distinct perspectives on shared subjects | [Explanatory perspectives](explanatory-perspectives.md) | [Concise perspectives](concise-perspectives.md) |
-| Integrated subjects or capabilities | [Explanatory subjects](explanatory-subjects.md) | [Concise subjects](concise-subjects.md) |
-| A central synthesis with supporting accounts | [Explanatory synthesis](explanatory-synthesis.md) | [Concise synthesis](concise-synthesis.md) |
+| Distinct perspectives on the whole project | [Explanatory perspectives](explanatory-perspectives.md) | [Concise perspectives](concise-perspectives.md) |
+| One Tree for each durable subject | [Explanatory subjects](explanatory-subjects.md) | [Concise subjects](concise-subjects.md) |
+| A central argument with supporting accounts | [Explanatory synthesis](explanatory-synthesis.md) | [Concise synthesis](concise-synthesis.md) |
 
-The entries describe ways of writing the same knowledge. Each can explain facts,
-decisions, observations and unresolved questions. Their differences concern where
-that understanding lives and how it is developed.
+Each entry is a complete definition in two short sections. All six can explain
+facts, decisions, observations and open questions. They differ in where that
+understanding lives and how far it is developed.
 
-## Ownership
+## Accounts
 
-Perspective policies develop distinct accounts across shared subjects. In a coding
-project, Product can explain the intended experience, Architecture its mechanisms,
-and Reliability what failures and evidence establish. The same capability matters
-to all three, while each account owns different explanations. Facets develop the
-consequences between them.
+**Perspectives** divide the project by the questions an account answers. In a
+coding project, Product can say what an experience is for, Architecture how it
+is built, and Reliability what failures and evidence establish. The same
+capability matters to all three, and each owns different claims about it.
 
-Subject policies bring the relevant perspectives together within a durable subject
-or capability. An Offline work Tree can explain its intended experience, storage
-choices, failure conditions and evidence together. Its Points preserve the distinct
-claims and qualifications; Facets explain consequences involving other subjects.
-In knowledge work, an evaluation of several proposals could similarly use economic,
-environmental and operational perspectives, or one integrated Tree per proposal.
+**Subjects** keep everything about one durable subject together. An Offline
+work Tree can explain the intended experience, the storage choices, the
+failure conditions and the evidence in one account. In knowledge work, an
+evaluation of several proposals could use economic, environmental and
+operational perspectives, or one Tree for each proposal.
 
-Synthesis policies assign one central Tree responsibility for the project's
-integrated argument. Supporting Trees develop complete arguments within their
-scopes, including their own conclusions. The central account explains what follows
-from considering those arguments together: combined conclusions, tensions and
-unresolved questions. Each Tree's scope and Base make its role explicit. Facets
-explain why another account strengthens, limits or challenges a claim, preserving
-the target's scope without implying proof or endorsement.
+**Synthesis** gives one central Tree the project's integrated argument and
+lets supporting Trees each make a complete argument of their own. Choose it
+when the project needs one place that says what everything amounts to: a
+central assessment could combine mechanisms, reliability evidence and
+operating requirements to say whether a limited pilot is warranted, while the
+reliability account still owns what its tests establish.
 
-Choose this family when the project needs an integrated argument maintained in one
-place. A central assessment could combine mechanisms, reliability evidence and
-operating requirements to explain whether a limited pilot is warranted. The
-reliability account still owns what its tests establish. A directory of the
-supporting accounts would not fulfill the central role. Different responsibilities
-belong to this one policy; its depth commitment applies to every account.
+In every family a claim is explained in full by one account, and ownership
+follows an account's scope and explanations. Tree titles and the boundaries of
+source files do not decide placement.
 
-Ownership follows the account's scope and explanations. A document can contribute
-to several accounts, and a subject name can label a perspective. Summaries retain
-the context readers need; the primary explanation provides the maintained home
-for its reasoning and sources. Tree titles and source-file boundaries alone do
-not decide placement.
+## Depth
 
-## Explanatory responsibility
+**Explanatory** Styles develop the main arguments in the Atlas: reasons,
+alternatives that mattered, examples, qualifications and consequences. A
+reader can understand an argument before opening a source. Keeping that
+argument true costs a reading whenever the material changes.
 
-Explanatory policies develop the main arguments in Atlas: reasons, consequential
-alternatives, examples, qualifications and implications. Readers can understand
-those arguments before opening the underlying material. Maintaining that synthesis
-requires reviewing its meaning when the material changes.
+**Concise** Styles keep each claim, its essential reason and its
+qualifications, and send the reader to a named place in a source for the
+extended argument. Reading sources is part of understanding in depth.
 
-Concise policies retain central meaning, essential reasons and qualifications,
-then direct readers to sources for extended arguments. Source reading is an
-expected part of understanding the account in depth. Atlas expands when readers
-repeatedly need to reconstruct an important connection that belongs in its account.
+Depth sets no word count and no Tree size. Exact requirements, procedures,
+code and raw evidence keep their source authority under every Style. The
+[worked comparison](../examples/styles.md) applies all six to the same
+material and to a later finding.
 
-This choice concerns the explanation Atlas undertakes to provide. It sets no word
-count or fixed Tree size. Exact requirements, procedures, code and raw evidence
-can retain their source authority under every Style. A concise Point still explains
-its claim, and an explanatory account selects the detail needed for understanding.
-The [worked comparison](../examples/styles.md) applies all six policies to the
-same material and a subsequent finding.
+## Adopt one
 
-## Establish a policy for a project
+Choose the accounts that need to develop together, then decide what a reader
+should understand before returning to sources. Read the resulting definition
+against a few questions a real reader would ask and against material you
+expect to arrive. `atlas init` records the chosen definition as the Atlas's
+`style.md`.
 
-Choose the accounts that need to develop together, then decide what readers should
-understand before returning to sources. Read the resulting complete definition
-against representative questions and incoming material. The
-[authoring guide](../docs/organizing-knowledge.md) explains how to develop the
-selected account and review an existing Atlas before adoption.
-
-One locally captured definition governs the whole Atlas. Its Trees may differ in
-size and shape while following the same policy. Authors use that definition during
-ordinary work; revising or replacing it is a deliberate decision that considers
-existing accounts. Catalogue updates do not change adopted copies. Users can supply
-their own complete policy when the curated entries do not fit.
-
-The intended benefit is continuity: contributors have a repeatable basis for
-placing new information, readers know when sources supply the next level of
-understanding, and maintainers can trace changes through the owning explanations.
-An agent entering the project can read these choices instead of inventing them
-again. Sources and review still determine whether the resulting account is sound.
+From then on that file is the Atlas's own. Add a section for the project's
+conventions as they settle: its vocabulary, how it marks a statement no source
+states, how long a Point may grow. Catalogue updates never change it. Revising
+or replacing it is the owner's decision and a change of its own, made with the
+existing accounts in view. A project can also write a complete definition of
+its own from the start.
 
 ## Curating further Styles
 
-A Style earns a place when it provides a **coherent, repeatable way of writing an
-Atlas that the existing entries don't describe adequately**. Its contribution
-should be visible in the decisions authors make about placement, development,
-source boundaries or maintenance. A worked account and a realistic update make
-those differences inspectable.
-
-Ownership and explanatory responsibility explain the six entries here; they do
-not exhaust the possible authoring choices or restrict future Styles to these
-combinations. The catalogue offers considered starting policies. Their coherence
-and worked examples do not by themselves establish comparative reader benefit.
+A Style earns a place here when it describes a coherent, repeatable way of
+writing an Atlas that the existing entries do not. Its difference should show
+in decisions an author makes about placement or depth, and a worked account
+with a realistic update should make that difference inspectable. The two
+choices above explain the six entries; they do not exhaust what a Style can
+settle. Coherent definitions and worked examples do not by themselves
+establish that readers are better served.

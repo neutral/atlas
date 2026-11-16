@@ -1,81 +1,88 @@
 # Examples
 
-Start with a question: **When can a writer trust that an offline note is saved,
-and what does that say about other devices?** `offline-notes/` develops the answer
-through two Trees, six Points, one Branch and two Facets. The notes app, brief and
-trial are fictional. Their purpose is to show how meaning, decisions, evidence
-and uncertainty stay connected.
+Start with a question: **when can a writer trust that an offline note is saved, and
+what does that say about other devices?** `offline-notes/` answers it in two
+Trees, six Points and two Facets, with every source reference stamped. The
+notes app, its brief and its trial are fictional. They are there to show how
+meaning, decisions, evidence and uncertainty stay connected.
 
-The example adopts [Explanatory perspectives](offline-notes/style.md), captured
-locally in its `atlas/1.1` collection. Product and Architecture develop distinct
-accounts while the important reasoning and qualifications remain readable in
-Atlas. [The same material in six Styles](styles.md) compares explanatory and
-concise accounts organized by perspectives, subjects, or a central synthesis with
-complete supporting accounts. Each is a complete policy for a separate Atlas;
-the included example retains its captured definition.
+The example follows [Explanatory perspectives](offline-notes/style.md): Product
+experience and Storage and delivery each own their claims about the same notes,
+and the Atlas carries the main arguments. [The same material in six
+Styles](styles.md) compares it with the other curated Styles.
 
 ## Open the example
 
-From an Atlas source checkout with dependencies installed:
+From a source checkout, with dependencies installed:
 
 ```sh
-pnpm atlas --root examples/offline-notes serve
+pnpm atlas open examples/offline-notes
 ```
 
-For an installed package that includes this example, point the same read-only
-command at its `examples/offline-notes` folder. A project-local npm installation
-uses:
+From an installed package, open the copy inside it. Reading writes nothing, so
+the package stays as it was:
 
 ```sh
-npx atlas --root node_modules/@neutral/atlas/examples/offline-notes serve
+atlas open "$(npm root --global)/@neutral/atlas/examples/offline-notes"
 ```
 
-Open the printed URL and keep the terminal running. To edit the example, copy
-`offline-notes/` to your own project folder and run `atlas open` on that copy.
-Keep authored work outside the installed package.
+For a project-local installation, use
+`npx atlas open node_modules/@neutral/atlas/examples/offline-notes`. The Portal
+opens in your browser; keep the terminal running, and stop it with `Ctrl+C`.
 
 ## Follow the answer
 
-1. Choose **Product experience**, then **Read overview** to open **Keep writing
-   when the connection drops** (`product-purpose`). Follow its
-   **Offline work** link. The Tree shows where the detail belongs; the link takes
-   you directly to the explanation.
-2. In **Offline work stays on the current device** (`offline-work`), select
-   **Focus reading**. Read the uncertainty beside the claim, then follow
-   **evidence qualification**. This opens the exact Facet, **Editing availability
-   has limited evidence**, attached to the broader **Working without a
-   connection** Branch.
-3. Follow that Facet's **local observation** link into **Storage and delivery**.
-   **The trial reopened an offline note** (`local-persistence`) is a dated
-   observation, with the normal-restart conditions intact. Follow **trial record**
-   to read the source as prose; **Exact source text** shows the original Markdown. The
-   source supports a narrow result, not crash recovery or delivery.
-4. Close the source document, select **Search Atlas** and search for `receipt`. Open
-   **Require a receipt before reporting delivery** (`sync-policy`). Its
-   **selected** decision status records the chosen rule. Its uncertainty keeps
-   implementation and cross-device delivery questions visible.
-5. Under **Referenced by other accounts**, open **The delivery promise depends
-   on a receipt**. The incoming Facet explains Product's interpretation and
-   identifies its host, **Say saved locally until delivery is confirmed**
-   (`delivery-promise`). Follow the host to see why **Saved on this device** and
-   **Sent for sync** mean different things.
+1. On home, under **Product experience**, open the top Point, **Writers can keep
+   working on notes when the connection drops**. Its prose links to **Offline work
+   stays on the current device**; follow it.
+2. Read that Point's **Uncertainty**: only one normal restart has been observed.
+   In the margin, under **Facets seen from Storage and delivery**, open **The
+   offline promise rests on one normal restart** with its `▸`. It opens under the
+   Point as a panel, a Facet: what the other Tree means for this one.
+3. In the panel's margin, under **In Storage and delivery**, open **One trial
+   reopened an offline note after a normal restart**. It opens inside the panel.
+   It is an Observation, dated 20 September 2026, and its uncertainty keeps the
+   untested cases. Open **2 sources**: the trial's conditions and its
+   limits, each a section of `sources/trial.md`. Read that file: it supports a
+   narrow result, not crash recovery or delivery.
+4. Press `/` and search for `receipt`. Go to **Delivery is reported only after the
+   server acknowledges the same revision**. The line above the title says
+   **Decision · selected**: the rule was chosen, which does not mean it was built.
+   This Point is where the Atlas states what a receipt establishes.
+5. In its margin, under **Referred to by**, open **The delivery wording depends on
+   the receipt rule**. Its margin names the Point it is said of, **A note is
+   “Saved on this device” until a server receipt makes it “Sent for sync”**. Go
+   there to see why the two wordings mean different things.
 
-The answer requires both perspectives. A local save, a normal-restart observation
-and a server receipt each establish something different. Facets explain the
-consequences between accounts; source links let you inspect their basis. **Cited
-by** also exposes direct mentions as leads for further reading, without turning
-every mention into a dependency.
+The answer takes both Trees. A local save, a normal-restart observation and a
+server receipt each establish something different. The Facets say what one Tree
+means for the other; the sources show the basis. **Outline**, at the top of every
+page, shows both Trees whole when you want to jump, and **?** beside the search
+field explains these words and the marks.
 
-## Try a review on your own copy
+## Try a change on your own copy
 
-In the Editor, open **Review sources**, select the fictional brief and inspect it.
-Make a small change to your copy of `sources/brief.md`, then inspect the same
-source again in that browser session. The source review reports changed bytes and
-shows which explanations cite them. Read those explanations before deciding what
-needs revision; a changed file alone does not say which claim became wrong.
+Copy the example first, so the shipped one stays as it is:
 
-Edit a Point and select **Save and review** to see its surrounding explanations,
-direct citers and file changes together. Leave the draft saved if you want to
-return later. [Editing](../docs/editing.md) explains applying a reviewed change;
-[working with an agent](../docs/working-with-agents.md) covers proposals that also
-retain Absorb reasoning and unresolved questions.
+```sh
+cp -R examples/offline-notes my-notes
+atlas --root my-notes candidate
+```
+
+Edit a Point in `my-notes/.atlas-candidate/`, then validate the copy and prepare
+the change:
+
+```sh
+atlas --root my-notes validate --from .atlas-candidate
+atlas --root my-notes prepare --from .atlas-candidate --reason "Say what you changed and why."
+atlas open my-notes
+```
+
+The Portal lists the draft under **Proposed changes**. Its page shows what differs,
+what else to read, and the command that applies it. Then edit a section of
+`my-notes/sources/brief.md` and run `atlas --root my-notes stale`: the Points that
+cite that section, and the two that cite the whole brief, are listed as
+`changed`, and the Portal marks the source "changed since this was checked" on
+their pages. Points that cite other sections stay current. [Ask your agent for a
+change](../docs/how-to/ask-for-a-change.md) and [Keep an Atlas true as the
+project changes](../docs/how-to/keep-it-true.md) give the same path step by step.

@@ -4,7 +4,8 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// Results and screenshots go to the repository's ignored tmp/ unless ATLAS_BROWSER_RESULTS names a folder.
+// Results go to the repository's ignored tmp/ unless ATLAS_BROWSER_RESULTS names a folder; the spec puts its
+// screenshots beside them unless ATLAS_BROWSER_SHOTS names one.
 const results = process.env.ATLAS_BROWSER_RESULTS ?? fileURLToPath(new URL('../../tmp/portal-browser/', import.meta.url));
 
 /** Playwright's own Chromium when it is installed; otherwise the newest headless shell in its cache. */

@@ -3,508 +3,577 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import http from 'node:http';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { setTimeout as wait } from 'node:timers/promises';
+import { startPortal, reading } from '../src/server.mjs';
 import { createHash } from 'node:crypto';
-import { tempDirectory } from '../../../tests/support/temp.mjs';
-import { startPortal } from '../src/server.mjs';
-import { renderMarkdown, presentAtlas } from '../src/markdown.mjs';
+import { resolveState, stateHome } from '../../../library/src/state.mjs';
 import { openAtlas } from '../../../library/src/model.mjs';
-import { prepareChange, saveDraft } from '../../../library/src/authoring.mjs';
-import { preparePublication } from '../../../library/src/publication.mjs';
-import { prepareAbsorb } from '../../../library/src/absorb.mjs';
+import { prepareInitialization, saveDraft, applyDraft, recoverChange } from '../../../library/src/authoring.mjs';
+import { listStyles } from '../../../library/src/styles.mjs';
+import { atlas, propose, changes, reason, record, files, check } from './fixture.mjs';
 
-const repo = fileURLToPath(new URL('../../../', import.meta.url));
-const json = (value) => `${JSON.stringify(value, null, 2)}\n`;
-const markdown = (id, title, body) => `---\n${JSON.stringify({ id })}\n---\n# ${title}\n\n${body}\n`;
-const basePath = 'trees/service/points/base.md';
-const detailPath = 'trees/service/points/detail.md';
-const treePath = 'trees/service/tree.json';
-
-async function fixture(t, options = {}) {
-  const workspace = await tempDirectory('portal-test-');
-  const root = path.join(workspace, 'atlas');
-  const files = new Map([
-    ['atlas.json', json({ format: 'atlas/1', id: 'example', title: 'Example Atlas', trees: ['trees/service'] })],
-    [treePath, json({ id: 'service', title: 'Service', scope: 'Service obligations.', base: 'purpose', children: [{ point: 'detail' }] })],
-    [basePath, markdown('purpose', 'Service purpose', 'The service has a declared purpose.')],
-    [detailPath, markdown('detail', 'Detailed responsibility', 'The participant retains required material.')],
-  ]);
-  for (const [name, content] of files) { await fs.mkdir(path.dirname(path.join(root, name)), { recursive: true }); await fs.writeFile(path.join(root, name), content); }
-  const serviceOptions = { ...options, ...(options.exportDirectory === true ? { exportDirectory: path.join(workspace, 'published') } : {}) };
-  let portal = await startPortal(root, serviceOptions);
-  t.after(async () => { await portal.close(); await fs.rm(workspace, { recursive: true, force: true }); });
-  const request = async (endpoint, { method = 'GET', data, token = portal.token, headers = {} } = {}) => {
-    return new Promise((resolve, reject) => {
-      const request = http.request(new URL(endpoint, portal.url), { method, headers: { ...(token === null ? {} : { Authorization: `Bearer ${token}` }), ...(data === undefined ? {} : { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(JSON.stringify(data)) }), ...headers } }, (response) => {
-        const chunks = [];
-        response.on('data', (chunk) => chunks.push(chunk));
-        response.on('end', () => {
-          const text = Buffer.concat(chunks).toString('utf8');
-          resolve({ status: response.statusCode, headers: new Headers(response.headers), value: response.headers['content-type']?.includes('application/json') ? JSON.parse(text) : text });
-        });
-        response.on('error', reject);
-      });
-      request.on('error', reject);
-      request.end(data === undefined ? undefined : JSON.stringify(data));
+/** One request to a running Portal, with any header set as given (the Host included). */
+function ask(portal, address, { method = 'GET', headers = {} } = {}) {
+  const { hostname, port } = new URL(portal.url);
+  return new Promise((resolve, reject) => {
+    const request = http.request({ hostname, port, path: address, method, headers }, response => {
+      const chunks = [];
+      response.on('data', chunk => chunks.push(chunk));
+      response.on('end', () => resolve({ status: response.statusCode, headers: response.headers, text: Buffer.concat(chunks).toString('utf8') }));
+      response.on('error', reject);
     });
-  };
-  const restart = async () => { const old = portal; await old.close(); portal = await startPortal(root, serviceOptions); return old.token; };
-  return { root, workspace, files, request, restart };
+    request.on('error', reject);
+    request.end();
+  });
 }
 
-test('HTTP API enforces bearer, same-origin, host and read-only boundaries', async (t) => {
-  const { request } = await fixture(t);
-  const page = await request('/', { token: null });
+async function served(t, change, options = {}) {
+  const fixture = await atlas(t, change);
+  const portal = await startPortal(fixture.root, { timeZone: 'UTC', ...options });
+  t.after(() => portal.close());
+  return { ...fixture, portal, get: (address, request) => ask(portal, address, request) };
+}
+
+test('each address answers with its page or its asset, and nothing else is served', async t => {
+  const { portal, get } = await served(t);
+  assert.match(portal.url, /^http:\/\/127\.0\.0\.1:\d+\/$/);
+  const home = await get('/');
+  assert.equal(home.status, 200);
+  assert.equal(home.headers['content-type'], 'text/html; charset=utf-8');
+  assert.match(home.text, /<h1>Harbour ferry<\/h1>/);
+  const page = await get('/service-fog/');
   assert.equal(page.status, 200);
-  assert.match(page.value, /Tree canvas/);
-  assert.equal(page.headers.get('cache-control'), 'no-store');
-  assert.match(page.headers.get('content-security-policy'), /frame-ancestors 'none'/);
-  assert.match(page.headers.get('content-security-policy'), /img-src 'none'/);
-  for (const token of [null, 'wrong', '']) {
-    const result = await request('/api/view', { token });
-    assert.equal(result.status, 403);
-    assert.equal(result.value.error.code, 'UNAUTHORIZED');
+  assert.match(page.text, /<h1>Sailings stop in fog below 200 metres<\/h1>/);
+  const facet = await get('/_/facet/service/fog-radar/');
+  assert.equal(facet.status, 200);
+  assert.match(facet.text, /<h1>The fog limit is the radar&#39;s reach<\/h1>/);
+  assert.match(facet.text, /<link rel="stylesheet" href="\.\.\/\.\.\/\.\.\/\.\.\/_\/sheet\.css">/);
+  for (const [address, type, words] of [['/_/sheet.css', 'text/css', '--paper: #ffffff'], ['/_/reader.js', 'text/javascript', 'data-outline'], ['/_/search.js', 'text/javascript', 'export function searchPoints'], ['/_/search.json', 'application/json', '"service-fog"']]) {
+    const asset = await get(address);
+    assert.equal(asset.status, 200, address);
+    assert.equal(asset.headers['content-type'], `${type}; charset=utf-8`);
+    assert.ok(asset.text.includes(words), address);
   }
-  for (const headers of [{ Origin: 'https://untrusted.example' }, { Host: 'untrusted.example' }]) {
-    const result = await request('/api/view', { headers });
-    assert.equal(result.status, 403);
-    assert.equal(result.value.error.code, 'FORBIDDEN');
+  assert.equal((await get('/_/search.js')).text, await fs.readFile(new URL('../../../library/src/search.mjs', import.meta.url), 'utf8'), 'the search module is the Library\'s own, as written');
+  assert.deepEqual(Object.keys(JSON.parse((await get('/_/search.json')).text)), ['accounts', 'records']);
+
+  const absent = await get('/no-such-point/');
+  assert.equal(absent.status, 404);
+  assert.match(absent.text, /<p class="says">No Point has the address no-such-point\.<\/p>/);
+  assert.match(absent.text, /<link rel="stylesheet" href="\.\.\/_\/sheet\.css">/, 'a page that names nothing still finds its sheet');
+  const unsaid = await get('/_/facet/service/no-such-facet/');
+  assert.equal(unsaid.status, 404);
+  assert.match(unsaid.text, /<p class="says">Nothing has this address\.<\/p>/);
+  // The Style is how maintainers write the Atlas: a reader has no page of it, and home does not name it.
+  assert.doesNotMatch(home.text, /Written as|_\/style|Plain accounts/);
+  for (const address of ['/_/style/', '/_/style', '/style.md', '/atlas.json', '/trees/service/points/fog.md', '/%2e%2e/atlas.json', '/../atlas.json', '/_/', '/_/reader.mjs', '/_/draft/', '/_/facet/', '/_/facet/service/', '/_/facet/vessel/fog-radar/', '/sources/log.md', '/service-fog/extra/', '/SERVICE-FOG/', '//service-fog/']) {
+    assert.equal((await get(address)).status, 404, address);
   }
-  const view = await request('/api/view');
-  assert.equal(view.status, 200);
-  assert.equal(view.value.editable, false);
-  assert.equal(view.value.status, 'ready');
-  for (const endpoint of ['/api/files', '/api/drafts', '/api/transactions', '/api/connection', '/api/publication', '/api/state']) assert.equal((await request(endpoint)).value.error.code, 'READ_ONLY');
-  assert.equal((await request('/api/apply', { method: 'POST', data: { id: 'anything' } })).value.error.code, 'READ_ONLY');
-  assert.equal((await request('/atlas.json')).status, 404);
-  assert.equal((await request('/%2e%2e/atlas.json')).status, 404);
+  const deep = await get('/a/b/c');
+  assert.equal(deep.status, 404);
+  assert.match(deep.text, /href="\.\.\/\.\.\/_\/sheet\.css"/);
+
+  const slash = await get('/service-fog');
+  assert.equal(slash.status, 301);
+  assert.equal(slash.headers.location, '/service-fog/');
+  assert.equal((await get('/_/facet/service/fog-radar')).headers.location, '/_/facet/service/fog-radar/');
+  assert.equal((await get('/_/help')).headers.location, '/_/help/');
+  const help = await get('/_/help/');
+  assert.equal(help.status, 200);
+  assert.match(help.text, /<title>Help · Harbour ferry<\/title>[^]*<h1>Help<\/h1>\n<div data-help>/, 'Help has a page of its own, which the strip of every other page links to');
+  assert.equal((await get('/service-fog/?x=1')).status, 200, 'a query changes nothing');
 });
 
-test('source retrieval cannot expand launch grants and never fetches URLs', async (t) => {
-  const { root, workspace, request } = await fixture(t);
-  await fs.writeFile(path.join(workspace, 'outside.md'), 'PRIVATE OUTSIDE BYTES');
-  await fs.mkdir(path.join(root, 'sources'));
-  await fs.writeFile(path.join(root, 'sources/inside.md'), 'Allowed source bytes');
-  await fs.symlink('../../outside.md', path.join(root, 'sources/escape.md'));
-  const source = async (uri, extra = {}) => request('/api/source', { method: 'POST', data: { source: { uri }, ...extra } });
-  assert.equal((await source('sources/inside.md')).value.content, 'Allowed source bytes');
-  for (const uri of ['../outside.md', 'sources/escape.md']) {
-    const result = await source(uri);
-    assert.equal(result.value.status, 'denied');
-    assert.equal(result.value.content, undefined);
-    assert.ok(!JSON.stringify(result.value).includes('PRIVATE OUTSIDE BYTES'));
+test('the service only reads: any method but GET and HEAD is refused', async t => {
+  const { get, root } = await served(t);
+  for (const method of ['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']) {
+    for (const address of ['/', '/service-fog/', '/_/search.json', '/api/apply']) {
+      const refused = await get(address, { method });
+      assert.equal(refused.status, 405, `${method} ${address}`);
+      assert.equal(refused.headers.allow, 'GET, HEAD');
+    }
   }
-  assert.equal((await source('https://127.0.0.1:1/no-fetch')).value.status, 'reference');
-  assert.equal((await source('sources/inside.md', { allowedRoots: [workspace] })).value.error.code, 'INVALID_REQUEST');
-  assert.equal((await source('sources/inside.md', { root: workspace })).value.error.code, 'INVALID_REQUEST');
-  assert.equal((await source('file:///etc/passwd')).value.status, 'invalid');
+  const head = await get('/service-fog/', { method: 'HEAD' });
+  assert.equal(head.status, 200);
+  assert.equal(head.text, '');
+  assert.equal(Number(head.headers['content-length']), Buffer.byteLength((await get('/service-fog/')).text));
+  assert.deepEqual((await fs.readdir(root)).sort(), ['atlas.json', 'sources', 'style.md', 'trees'], 'serving writes nothing into the Atlas');
 });
 
-test('invalid drafts persist, expose diagnostics and cannot alter authored records', async (t) => {
-  const { root, files, request, restart } = await fixture(t, { editable: true });
-  const baseline = (await request('/api/files')).value.identity;
-  const saved = await request('/api/drafts', { method: 'POST', data: { baseline, changes: [{ path: detailPath, content: 'Malformed record retained for repair' }], reason: 'Repair this record' } });
-  assert.equal(saved.status, 200);
-  assert.equal(saved.value.plan.status, 'invalid');
-  assert.ok(saved.value.plan.validation.diagnostics.length);
-  const id = saved.value.id;
-  await restart();
-  assert.equal((await request(`/api/drafts/${id}`)).value.plan.changes[0].after, 'Malformed record retained for repair');
-  const rejected = await request('/api/apply', { method: 'POST', data: { id, expectedRevision: saved.value.revision } });
-  assert.equal(rejected.status, 400);
-  assert.equal(rejected.value.error.code, 'INVALID_CANDIDATE');
-  assert.equal(await fs.readFile(path.join(root, detailPath), 'utf8'), files.get(detailPath));
-  assert.deepEqual((await request('/api/transactions')).value, []);
-});
-
-test('continued draft editing retains prior additions, deletions and original baseline across restart', async (t) => {
-  const { root, files, request, restart } = await fixture(t, { editable: true });
-  const baseline = (await request('/api/files')).value.identity;
-  const newPath = 'trees/service/points/replacement.md';
-  const tree = JSON.parse(files.get(treePath)); tree.children = [{ point: 'replacement' }];
-  const initial = [
-    { path: treePath, content: json(tree) },
-    { path: detailPath, content: null },
-    { path: newPath, content: markdown('replacement', 'Replacement detail', 'Initial draft explanation.') },
-  ];
-  const saved = (await request('/api/drafts', { method: 'POST', data: { baseline, changes: initial, reason: 'Replace a detail' } })).value;
-  assert.equal(saved.plan.status, 'ready');
-  const oldToken = await restart();
-  assert.equal((await request('/api/view', { token: oldToken })).status, 403);
-  const retained = (await request(`/api/drafts/${saved.id}`)).value;
-  const changes = retained.plan.changes.map((change) => ({ path: change.path, content: change.path === newPath ? markdown('replacement', 'Replacement detail', 'Continued draft explanation.') : change.after }));
-  const revised = (await request('/api/drafts', { method: 'POST', data: { id: saved.id, expectedRevision: saved.revision, changes, reason: 'Continue the original draft' } })).value;
-  assert.equal(revised.plan.baseline.identity, baseline);
-  assert.equal(revised.plan.changes.length, 3);
-  assert.equal(revised.plan.changes.find((change) => change.path === detailPath).before, files.get(detailPath));
-  assert.equal(revised.plan.changes.find((change) => change.path === newPath).before, null);
-  assert.equal(await fs.readFile(path.join(root, detailPath), 'utf8'), files.get(detailPath));
-  const applied = await request('/api/apply', { method: 'POST', data: { id: saved.id, expectedRevision: revised.revision } });
-  assert.equal(applied.value.status, 'complete');
-  assert.match(await fs.readFile(path.join(root, newPath), 'utf8'), /Continued draft explanation/);
-  await assert.rejects(fs.readFile(path.join(root, detailPath)), { code: 'ENOENT' });
-  assert.equal((await request('/api/view')).value.status, 'ready');
-});
-
-test('restarted draft preparation does not silently rebase or overwrite foreign changes', async (t) => {
-  const { root, files, request, restart } = await fixture(t, { editable: true });
-  const baseline = (await request('/api/files')).value.identity;
-  const change = { path: detailPath, content: markdown('detail', 'Detailed responsibility', 'Proposed revision.') };
-  const saved = (await request('/api/drafts', { method: 'POST', data: { baseline, changes: [change], reason: 'Revise a detail' } })).value;
-  await restart();
-  const foreign = files.get(basePath).replace('declared purpose', 'externally revised purpose');
-  await fs.writeFile(path.join(root, basePath), foreign);
-  const updated = (await request('/api/drafts', { method: 'POST', data: { id: saved.id, expectedRevision: saved.revision, changes: [{ ...change, content: change.content.replace('Proposed', 'Continued') }], reason: 'Continue from the saved baseline' } })).value;
-  assert.equal(updated.plan.baseline.identity, baseline);
-  const apply = await request('/api/apply', { method: 'POST', data: { id: saved.id, expectedRevision: updated.revision } });
-  assert.equal(apply.status, 409);
-  assert.equal(apply.value.error.code, 'STALE');
-  assert.equal(await fs.readFile(path.join(root, basePath), 'utf8'), foreign);
-  assert.equal(await fs.readFile(path.join(root, detailPath), 'utf8'), files.get(detailPath));
-});
-
-test('continued drafts preserve evidence preconditions prepared by another shared-library adapter', async (t) => {
-  const { root, files, request } = await fixture(t, { editable: true });
-  await fs.mkdir(path.join(root, 'sources'));
-  const evidencePath = path.join(root, 'sources/evidence.md');
-  await fs.writeFile(evidencePath, 'Observed evidence bytes');
-  const sourcePreconditions = [{ uri: 'sources/evidence.md', sha256: createHash('sha256').update('Observed evidence bytes').digest('hex') }];
-  const change = { path: detailPath, content: files.get(detailPath).replace('required material', 'additional required material') };
-  const plan = prepareChange(await openAtlas(root), { changes: [change], reason: 'Source-backed change', sourcePreconditions });
-  const draft = await saveDraft(root, { plan });
-  const continued = (await request('/api/drafts', { method: 'POST', data: { id: draft.id, expectedRevision: draft.revision, changes: [change], reason: 'Continue the source-backed change' } })).value;
-  assert.deepEqual(continued.plan.sourcePreconditions, sourcePreconditions);
-  await fs.writeFile(evidencePath, 'Changed evidence bytes');
-  const applied = await request('/api/apply', { method: 'POST', data: { id: draft.id, expectedRevision: continued.revision } });
-  assert.notEqual(applied.status, 200);
-  assert.equal(applied.value.error.code, 'STALE_SOURCE');
-  assert.equal(await fs.readFile(path.join(root, detailPath), 'utf8'), files.get(detailPath));
-});
-
-test('repair uses captured malformed record bytes and restores a valid Atlas', async (t) => {
-  const { root, files, request } = await fixture(t, { editable: true });
-  await fs.writeFile(path.join(root, detailPath), 'Broken frontmatter');
-  const view = await request('/api/view');
-  assert.equal(view.value.status, 'invalid');
-  assert.equal(view.value.atlas, null);
-  const captured = (await request('/api/files')).value;
-  assert.equal(captured.files.find((file) => file.path === detailPath).content, 'Broken frontmatter');
-  const saved = (await request('/api/drafts', { method: 'POST', data: { baseline: captured.identity, changes: [{ path: detailPath, content: files.get(detailPath) }], reason: 'Repair malformed Point' } })).value;
-  assert.equal(saved.plan.status, 'ready');
-  assert.equal((await request('/api/apply', { method: 'POST', data: { id: saved.id, expectedRevision: saved.revision } })).value.status, 'complete');
-  assert.equal((await request('/api/view')).value.status, 'ready');
-});
-
-test('manifest repair discovers existing records and preserves them through draft continuation', async (t) => {
-  const { root, files, request, restart } = await fixture(t, { editable: true });
-  await fs.writeFile(path.join(root, 'atlas.json'), '{ malformed manifest');
-  const captured = (await request('/api/files')).value;
-  assert.deepEqual(captured.files.map((file) => file.path), ['atlas.json']);
-  const saved = await request('/api/drafts', { method: 'POST', data: { baseline: captured.identity, changes: [{ path: 'atlas.json', content: files.get('atlas.json') }], reason: 'Repair the manifest' } });
-  assert.equal(saved.status, 200);
-  assert.equal(saved.value.plan.status, 'ready');
-  assert.equal(saved.value.plan.baseline.identity, captured.identity);
-  assert.deepEqual(saved.value.plan.observedFiles.map((file) => file.path).sort(), [treePath, basePath, detailPath].sort());
-  await restart();
-  const retained = (await request(`/api/drafts/${saved.value.id}`)).value;
-  const changes = retained.plan.changes.map((change) => ({ path: change.path, content: change.after }));
-  changes.push({ path: detailPath, content: files.get(detailPath).replace('required material', 'the declared material') });
-  const continued = (await request('/api/drafts', { method: 'POST', data: { id: saved.value.id, expectedRevision: saved.value.revision, changes, reason: 'Refine the repaired account' } })).value;
-  assert.equal(continued.plan.baseline.identity, captured.identity);
-  assert.equal(continued.plan.changes.find((change) => change.path === detailPath).before, files.get(detailPath));
-  assert.deepEqual(continued.plan.observedFiles, retained.plan.observedFiles);
-  const applied = await request('/api/apply', { method: 'POST', data: { id: saved.value.id, expectedRevision: continued.revision } });
-  assert.equal(applied.value.status, 'complete', JSON.stringify(applied.value));
-  assert.equal(await fs.readFile(path.join(root, basePath), 'utf8'), files.get(basePath));
-  assert.equal(await fs.readFile(path.join(root, treePath), 'utf8'), files.get(treePath));
-  assert.match(await fs.readFile(path.join(root, detailPath), 'utf8'), /the declared material/);
-  assert.equal((await request('/api/view')).value.status, 'ready');
-});
-
-test('manifest repair checks discovered records before any authored write', async (t) => {
-  const { root, files, request } = await fixture(t, { editable: true });
-  const malformed = '{ malformed manifest';
-  await fs.writeFile(path.join(root, 'atlas.json'), malformed);
-  const baseline = (await request('/api/files')).value.identity;
-  const draft = (await request('/api/drafts', { method: 'POST', data: { baseline, changes: [{ path: 'atlas.json', content: files.get('atlas.json') }], reason: 'Repair the manifest' } })).value;
-  assert.equal(draft.plan.status, 'ready');
-  const foreign = files.get(detailPath).replace('required material', 'material revised by another author');
-  await fs.writeFile(path.join(root, detailPath), foreign);
-  const applied = await request('/api/apply', { method: 'POST', data: { id: draft.id, expectedRevision: draft.revision } });
-  assert.equal(applied.status, 409);
-  assert.equal(applied.value.error.code, 'STALE');
-  assert.equal(await fs.readFile(path.join(root, 'atlas.json'), 'utf8'), malformed);
-  assert.equal(await fs.readFile(path.join(root, detailPath), 'utf8'), foreign);
-  assert.deepEqual((await request('/api/transactions')).value, []);
-});
-
-test('continuing an invalid manifest draft discovers records when the manifest becomes valid', async (t) => {
-  const { root, files, request, restart } = await fixture(t, { editable: true });
-  await fs.writeFile(path.join(root, 'atlas.json'), '{ broken manifest');
-  const baseline = (await request('/api/files')).value.identity;
-  const invalid = (await request('/api/drafts', { method: 'POST', data: { baseline, changes: [{ path: 'atlas.json', content: '{}' }], reason: 'Manifest repair in progress' } })).value;
-  assert.equal(invalid.plan.status, 'invalid');
-  await restart();
-  const corrected = await request('/api/drafts', { method: 'POST', data: { id: invalid.id, expectedRevision: invalid.revision, changes: [{ path: 'atlas.json', content: files.get('atlas.json') }], reason: 'Complete the manifest repair' } });
-  assert.equal(corrected.status, 200);
-  assert.equal(corrected.value.plan.status, 'ready', JSON.stringify(corrected.value.plan.validation));
-  assert.equal(corrected.value.plan.baseline.identity, baseline);
-  assert.equal(corrected.value.plan.observedFiles.length, 3);
-  assert.equal((await request('/api/apply', { method: 'POST', data: { id: invalid.id, expectedRevision: corrected.value.revision } })).value.status, 'complete');
-  assert.equal(await fs.readFile(path.join(root, detailPath), 'utf8'), files.get(detailPath));
-});
-
-test('unfamiliar paths, request scope changes and replaced record symlinks fail closed', async (t) => {
-  const { root, workspace, files, request } = await fixture(t, { editable: true });
-  const baseline = (await request('/api/files')).value.identity;
-  for (const target of ['../outside.md', 'private.md', '.atlas-state/override.json']) {
-    const response = await request('/api/prepare', { method: 'POST', data: { baseline, changes: [{ path: target, content: 'Unauthorized bytes' }], reason: 'Invalid target' } });
-    assert.equal(response.status, 400);
-    assert.equal(response.value.error.code, 'UNSAFE_PATH');
+test('a request must name the Portal by a loopback name and its port', async t => {
+  const { portal, get } = await served(t);
+  const port = new URL(portal.url).port;
+  for (const host of [`127.0.0.1:${port}`, `localhost:${port}`, `LOCALHOST:${port}`, `[::1]:${port}`]) assert.equal((await get('/', { headers: { Host: host } })).status, 200, host);
+  for (const host of ['example.org', `example.org:${port}`, '127.0.0.1', `127.0.0.1:${Number(port) + 1}`, `127.0.0.1.example.org:${port}`, `localhost.example.org:${port}`, `0.0.0.0:${port}`]) {
+    const refused = await get('/', { headers: { Host: host } });
+    assert.equal(refused.status, 403, host);
+    assert.doesNotMatch(refused.text, /Harbour ferry/);
   }
-  const scope = await request('/api/prepare', { method: 'POST', data: { baseline, changes: [], reason: 'Scope injection', root: workspace } });
-  assert.equal(scope.value.error.code, 'INVALID_REQUEST');
-  const saved = (await request('/api/drafts', { method: 'POST', data: { baseline, changes: [{ path: detailPath, content: files.get(detailPath).replace('required material', 'additional required material') }], reason: 'Change a detail' } })).value;
-  await fs.writeFile(path.join(workspace, 'outside.md'), 'Foreign bytes');
-  await fs.unlink(path.join(root, detailPath));
-  await fs.symlink('../../../../outside.md', path.join(root, detailPath));
-  const applied = await request('/api/apply', { method: 'POST', data: { id: saved.id, expectedRevision: saved.revision } });
-  assert.notEqual(applied.status, 200);
-  assert.equal(await fs.readFile(path.join(workspace, 'outside.md'), 'utf8'), 'Foreign bytes');
-  assert.equal(await fs.readFile(path.join(root, basePath), 'utf8'), files.get(basePath));
+  for (const address of ['/_/search.json', '/_/reader.js', '/service-fog/']) assert.equal((await get(address, { headers: { Host: 'example.org' } })).status, 403, address);
+  assert.equal((await get('/', { headers: { Origin: 'https://example.org' } })).status, 403, 'another site\'s page asking');
+  assert.equal((await get('/', { headers: { Origin: `http://127.0.0.1:${port}` } })).status, 200);
 });
 
-test('Markdown keeps HTML, executable links, images and unknown local references inert', () => {
-  const text = '<script>alert(1)</script>\n\n[script](javascript:alert(1)) [external](https://example.test/path) [credential](https://user:password@example.test) [local](private.md) ![sample](https://example.test/image.png)';
-  const rendered = renderMarkdown(text);
-  assert.ok(!rendered.includes('<script>'));
-  assert.ok(!rendered.includes('<img'));
-  assert.ok(!rendered.includes('href="javascript:'));
-  assert.ok(!rendered.includes('href="private.md"'));
-  assert.ok(!rendered.includes('href="https://user:password'));
-  assert.match(rendered, /href="https:\/\/example.test\/path" target="_blank" rel="noopener noreferrer"/);
-  assert.match(rendered, /Image: sample/);
-  assert.match(rendered, /&lt;script&gt;/);
-  assert.equal((rendered.match(/<a /g) ?? []).length, (rendered.match(/<\/a>/g) ?? []).length);
-  assert.equal((rendered.match(/<span /g) ?? []).length, (rendered.match(/<\/span>/g) ?? []).length);
-});
-
-test('normalized Point titles remain separate from body HTML and known links resolve deliberately', async (t) => {
-  const { root } = await fixture(t);
-  const view = await openAtlas(root);
-  const point = view.atlas.points.find((item) => item.id === 'detail');
-  assert.ok(!point.body.startsWith('# '));
-  const presentation = presentAtlas(view);
-  const rendered = presentation.atlas.points.find((item) => item.id === 'detail');
-  assert.equal(rendered.title, 'Detailed responsibility');
-  assert.ok(!rendered.html.includes('<h1>'));
-  assert.match(rendered.html, /participant retains required material/);
-  const internal = renderMarkdown('[Detail](trees/service/points/detail.md)', { resolveLink: (href) => href === detailPath ? '?tree=service&point=detail' : null });
-  assert.match(internal, /href="\?tree=service&amp;point=detail"/);
-  assert.ok(!internal.includes('target="_blank"'));
-});
-
-test('publication rendering resolves included Point links without restoring excluded paths or prose', async (t) => {
-  const { root } = await fixture(t);
-  await fs.writeFile(path.join(root, detailPath), markdown('detail', 'Detailed responsibility', `[Same Point](detail.md) and [Excluded Base](${basePath}).`));
-  const view = await openAtlas(root);
-  const detail = view.atlas.points.find((point) => point.id === 'detail');
-  const publication = preparePublication(view, { trees: ['service'], points: ['detail'] });
-  const data = presentAtlas({ ...view, atlas: publication.atlas }, { pointPaths: [detail] });
-  const point = data.atlas.points.find((record) => record.id === 'detail');
-  assert.match(point.html, /href="\?tree=service&amp;point=detail"/);
-  assert.ok(!point.html.includes('point=purpose'));
-  assert.match(point.html, /Reference not included/);
-  const placeholder = data.atlas.points.find((record) => record.id === 'purpose');
-  assert.equal(placeholder.title, undefined);
-  assert.equal(placeholder.body, undefined);
-  assert.equal(placeholder.html, '');
-  assert.equal(point.path, undefined);
-});
-
-test('saved draft updates, application and deletion require the exact revision reviewed', async t => {
-  const { root, files, request } = await fixture(t, { editable: true });
-  const baseline = (await request('/api/files')).value.identity;
-  const change = { path: detailPath, content: files.get(detailPath).replace('required material', 'first proposed material') };
-  const first = (await request('/api/drafts', { method: 'POST', data: { baseline, changes: [change], reason: 'First review' } })).value;
-  const newer = (await request('/api/drafts', { method: 'POST', data: { id: first.id, expectedRevision: first.revision, changes: [{ ...change, content: change.content.replace('first proposed', 'newer proposed') }], reason: 'A later review' } })).value;
-  assert.notEqual(first.revision, newer.revision);
-  for (const [endpoint, method, data] of [
-    ['/api/apply', 'POST', { id: first.id, expectedRevision: first.revision }],
-    ['/api/drafts', 'DELETE', { id: first.id, expectedRevision: first.revision }],
-    ['/api/drafts', 'POST', { id: first.id, expectedRevision: first.revision, changes: [change], reason: 'An old editor' }],
-  ]) {
-    const result = await request(endpoint, { method, data });
-    assert.equal(result.status, 409, JSON.stringify(result)); assert.equal(result.value.error.code, 'STALE_DRAFT');
+test('every answer carries the policy and the other headers', async t => {
+  const { get } = await served(t);
+  for (const [address, request] of [['/', {}], ['/service-fog/', {}], ['/_/reader.js', {}], ['/_/search.json', {}], ['/no-such-point/', {}], ['/', { method: 'POST' }], ['/', { headers: { Host: 'example.org' } }], ['/service-fog', {}]]) {
+    const { headers } = await get(address, request);
+    assert.equal(headers['content-security-policy'], "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'", address);
+    assert.equal(headers['x-content-type-options'], 'nosniff');
+    assert.equal(headers['referrer-policy'], 'no-referrer');
+    assert.equal(headers['cross-origin-resource-policy'], 'same-origin');
+    assert.equal(headers['cache-control'], 'no-store');
+    assert.equal(headers['access-control-allow-origin'], undefined);
   }
-  assert.equal(await fs.readFile(path.join(root, detailPath), 'utf8'), files.get(detailPath));
-  assert.equal((await request('/api/apply', { method: 'POST', data: { id: first.id } })).value.error.code, 'INVALID_REQUEST');
-  assert.equal((await request('/api/apply', { method: 'POST', data: { id: newer.id, expectedRevision: newer.revision } })).value.status, 'complete');
-  assert.match(await fs.readFile(path.join(root, detailPath), 'utf8'), /newer proposed material/);
 });
 
-test('empty-project creation previews a durable draft before applying its reviewed revision', async t => {
-  const { root, request } = await fixture(t, { editable: true });
-  await fs.rm(path.join(root, 'trees'), { recursive: true }); await fs.unlink(path.join(root, 'atlas.json'));
-  const view = (await request('/api/view')).value;
-  assert.equal(view.canInitialize, true);
-  const prepared = (await request('/api/initialize', { method: 'POST', data: { baseline: view.identity, id: 'new-atlas', title: 'A new Atlas' } })).value;
-  assert.equal(prepared.plan.status, 'ready'); assert.deepEqual(await fs.readdir(root), []);
-  const applied = await request('/api/apply', { method: 'POST', data: { id: prepared.id, expectedRevision: prepared.revision } });
-  assert.equal(applied.value.status, 'complete');
-  const created = (await request('/api/view')).value;
-  assert.equal(created.canInitialize, false); assert.equal(created.atlas.id, 'new-atlas');
+test('a cited source has a page of its own: the file as it is now, its sections named as the Library names them, and the claims that cite it', async t => {
+  // One more claim cites a record, a table, and files that cannot be shown; nothing cites the chart's neighbour.
+  const cites = ['trees/service/points/fog.md', 'sources/table.csv', 'sources/blob.md', 'sources/large.md', 'sources/linked.md'].map(uri => ({ uri, role: 'background' }));
+  const { root, workspace, write, get } = await served(t, records => records.set('trees/service/points/crew.md', record({ id: 'service-crew', sources: cites }, 'Two crew sail every crossing', 'A master and a deckhand are aboard on every crossing.')));
+  // A cited fragment leads to the file's page, and lands on the section it cites.
+  assert.ok((await get('/service-count/')).text.includes('<li><a href="../_/source/?uri=sources%2Flog.md%23week-45#week-45">sources/log.md#week-45</a></li>'));
+  const page = await get('/_/source/?uri=sources%2Flog.md%23week-45');
+  assert.equal(page.status, 200);
+  assert.equal(page.headers['content-type'], 'text/html; charset=utf-8');
+  assert.ok(page.text.includes('<title>sources/log.md · Harbour ferry</title>'));
+  assert.ok(page.text.includes('<header class="strip" data-strip><a class="title" href="../../">Harbour ferry</a><div class="tools"><a class="control" href="../../" data-outline>Outline</a><a class="control help" href="../../_/help/" aria-label="Help">?</a></div></header>'), 'the strip, as on every page');
+  assert.ok(page.text.includes('<article class="point source">\n<div class="kind"><span class="cap">Source, as it is now</span></div>\n<h1>sources/log.md</h1>\n<div class="body"><h2 id="crossing-log">Crossing log</h2>\n<h3 id="week-45">Week 45</h3>\n<p>Forty crossings, none late.</p>\n</div>\n</article>'),
+    'its path is the title, and each heading carries the name the Library gives it, one level down');
+  assert.ok(page.text.includes('<nav class="margin" aria-label="What cites it">\n<section class="map cited"><h2 class="cap">Cited by</h2><ul><li class="acct"><span class="acct-name">Service</span><ul><li><a href="../../service-base/">The ferry sails on the hour while the harbour is open</a></li><li><a href="../../service-count/">Forty crossings were counted in the first week of November</a></li></ul></li><li class="acct"><span class="acct-name">Vessel</span><ul><li><a href="../../vessel-engine/">The engine holds &lt; 5 knots at idle</a></li></ul></li></ul></section>\n</nav>'),
+    'the claims that cite the file, by any of its sections, each a link to its page');
+  assert.doesNotMatch(page.text, /class="opens"|data-open=/, 'nothing in its margin opens here');
+  assert.equal((await get('/_/source/?uri=sources%2Flog.md')).text, page.text, 'one page for the file, whichever section is cited');
+
+  // A record is shown without its JSON header; authored HTML is shown, never run; any other text is shown as it is.
+  const held = await get('/_/source/?uri=trees%2Fservice%2Fpoints%2Ffog.md');
+  assert.equal(held.status, 200);
+  assert.match(held.text, /<div class="body"><h2 id="sailings-stop-in-fog-below-200-metres">Sailings stop in fog below 200 metres<\/h2>\n<p>The master stops sailing/);
+  assert.doesNotMatch(held.text, /<hr>|&quot;status&quot;/);
+  assert.ok(held.text.includes('<p>&lt;script&gt;alert(\'authored\')&lt;/script&gt;</p>'));
+  assert.ok(held.text.includes('<section class="map cited"><h2 class="cap">Cited by</h2><ul><li class="acct"><span class="acct-name">Service</span><ul><li><a href="../../service-crew/">Two crew sail every crossing</a></li></ul></li></ul></section>'));
+  await write('sources/table.csv', 'crossing,late\n<b>1</b>,0\n');
+  assert.ok((await get('/_/source/?uri=sources%2Ftable.csv')).text.includes('<h1>sources/table.csv</h1>\n<div class="body"><pre><code>crossing,late\n&lt;b&gt;1&lt;/b&gt;,0\n</code></pre></div>'));
+
+  // What cannot be shown is said in a sentence.
+  await write('sources/blob.md', Buffer.from([0xff, 0xfe, 0x00]));
+  await write('sources/large.md', 'x'.repeat(2 * 1024 * 1024 + 1));
+  await fs.symlink(path.join(root, 'sources/notice.md'), path.join(root, 'sources/linked.md'));
+  for (const [file, words] of [['sources%2Fgone.md', 'This file is not there.'], ['sources%2Fblob.md', 'This file is not text, so it is not shown here.'], ['sources%2Flarge.md', 'This file is too large to show here.'], ['sources%2Flinked.md', 'This file could not be read here.']]) {
+    const said = await get(`/_/source/?uri=${file}`);
+    assert.equal(said.status, 200, file);
+    assert.ok(said.text.includes(`<p class="says">${words}</p>`), file);
+  }
+  assert.ok((await get('/_/source/?uri=sources%2Fgone.md')).text.includes('<a href="../../service-base/">'), 'a cited file that is not there still names what cites it');
+
+  // Nothing outside the grants, in Atlas's own state, or not a local path has a page; the service still only reads.
+  await fs.mkdir(path.join(root, '.atlas-candidate'));
+  await fs.writeFile(path.join(root, '.atlas-candidate/atlas.json'), '{}');
+  await write('sources/uncited.md', '# Uncited\n\nNo claim cites this.\n');
+  for (const address of ['/_/source/?uri=..%2Foutside%2Fpolicy.md', '/_/source/?uri=sources%2Funcited.md', '/_/source/?uri=trees%2Fservice%2Fpoints%2Fcrew.md', '/_/source/?uri=atlas.json', '/_/source/?uri=..%2F..%2F..%2F..%2Fetc%2Fhosts', `/_/source/?uri=${encodeURIComponent(path.join(workspace, 'outside/policy.md'))}`, '/_/source/?uri=.atlas-candidate%2Fatlas.json',
+    '/_/source/?uri=https%3A%2F%2Fexample.org%2Fharbour-rules', '/_/source/?uri=', '/_/source/', '/_/source/?url=sources%2Flog.md', '/_/source/sources/log.md', '/_/source?uri=sources%2Flog.md']) {
+    const refused = await get(address);
+    assert.equal(refused.status, 404, address);
+    assert.doesNotMatch(refused.text, /Refunds are paid|<pre>|Forty crossings|No claim cites this|A master and a deckhand/, address);
+  }
+  assert.doesNotMatch((await get('/service-base/')).text, /uri=\.\.%2Foutside/, 'a source outside the grants is not a link');
+  // Under a proposed change, a source only the change cites has no page yet, so its line is not a link.
+  await write('sources/new.md', '# New\n\nA new log.\n');
+  const draft = await propose(root, [{ path: 'trees/service/points/crew.md', content: record({ id: 'service-crew', sources: [...cites, { uri: 'sources/new.md', role: 'evidence' }] }, 'Two crew sail every crossing', 'A master and a deckhand are aboard on every crossing.') }], 'Cite the new log');
+  const proposed = (await get(`/_/draft/${draft.id}/service-crew/`)).text;
+  assert.ok(proposed.includes('<li><span>sources/new.md</span><span class="red">new</span></li>'), 'only the change cites it');
+  assert.ok(proposed.includes('<a href="../../../../_/source/?uri=sources%2Ftable.csv">sources/table.csv</a>'), 'what the Atlas as it is cites keeps its link, to the page of the Atlas as it is');
+  assert.equal((await get('/_/source/?uri=sources%2Fnew.md')).status, 404);
+  assert.equal((await get('/_/source/?uri=sources%2Flog.md', { method: 'POST' })).status, 405);
+  assert.equal((await get('/_/source/?uri=sources%2Flog.md', { headers: { Host: 'example.org' } })).status, 403);
+  const granted = await startPortal(root, { allowedRoots: [path.join(workspace, 'outside')] });
+  t.after(() => granted.close());
+  const outside = await ask(granted, '/_/source/?uri=..%2Foutside%2Fpolicy.md');
+  assert.equal(outside.status, 200, 'granted, it has a page');
+  assert.ok(outside.text.includes('<h1>outside/policy.md</h1>\n<div class="body"><h2 id="company-policy">Company policy</h2>\n<p>Refunds are paid the same day.</p>'));
 });
 
-test('publication preview and agent connection keep destinations and launch scope fixed', async t => {
-  const configuration = { mcpServers: { atlas: { command: 'trusted-launcher', args: ['mcp', '--root', '/fixed-root'] } } };
-  const { workspace, request } = await fixture(t, { editable: true, exportDirectory: true, agentConfiguration: configuration });
-  assert.deepEqual((await request('/api/connection')).value, configuration);
-  const available = (await request('/api/publication')).value;
-  assert.equal(available.output, path.join(workspace, 'published'));
-  const selected = { baseline: available.identity, trees: ['service'], points: ['detail'], sources: [] };
-  assert.equal((await request('/api/publication/prepare', { method: 'POST', data: { ...selected, output: path.join(workspace, 'untrusted') } })).value.error.code, 'INVALID_REQUEST');
-  const preview = (await request('/api/publication/prepare', { method: 'POST', data: selected })).value;
-  assert.equal(preview.status, 'ready'); assert.equal(preview.counts.points, 1);
-  await assert.rejects(fs.stat(available.output), { code: 'ENOENT' });
-  const exported = (await request('/api/publication/apply', { method: 'POST', data: { id: preview.id } })).value;
-  assert.equal(exported.status, 'complete'); assert.equal(exported.output, available.output);
-  assert.equal((await request('/api/publication/apply', { method: 'POST', data: { id: preview.id } })).value.error.code, 'EXPORT_EXPIRED');
-  await fs.stat(path.join(available.output, 'index.html'));
+test('a page reflects the files on disk at the time of the request', async t => {
+  const { get, write, remove } = await served(t);
+  assert.match((await get('/service-crew/')).text, /<h1>Two crew sail every crossing<\/h1>/);
+  await write('trees/service/points/crew.md', record({ id: 'service-crew' }, 'Three crew sail every crossing', 'A master and two deckhands.'));
+  assert.match((await get('/service-crew/')).text, /<h1>Three crew sail every crossing<\/h1>/);
+  assert.match((await get('/')).text, /Three crew sail every crossing/);
+  assert.match((await get('/_/search.json')).text, /Three crew sail every crossing/);
+  // A cited source is read when its page is asked for.
+  assert.match((await get('/service-base/')).text, /<a href="\.\.\/_\/source\/\?uri=sources%2Flog\.md">Crossing log<\/a><span class="loc"> · Week 45<\/span><span class="file">sources\/log\.md<\/span><\/li>/);
+  await write('sources/log.md', '# Crossing log\n\nRewritten.\n');
+  assert.match((await get('/service-base/')).text, /sources\/log\.md<\/span><span class="red flag"><span aria-hidden="true">△ <\/span>changed since this was checked<\/span><\/li>/);
+  await remove('sources/log.md');
+  assert.match((await get('/service-base/')).text, /sources\/log\.md<\/span><span class="red flag"><span aria-hidden="true">✗ <\/span>missing<\/span><\/li>/);
 });
 
-test('private-state inspection leaves authored files untouched and reports ownership errors', async t => {
-  const { root, request } = await fixture(t, { editable: true });
-  const files = await fs.readdir(root);
-  assert.equal((await request('/api/view')).value.stateIssue, null);
-  const state = (await request('/api/state')).value;
-  assert.equal(state.status, 'ready');
-  assert.ok(!state.directory.startsWith(root + path.sep));
-  await assert.rejects(fs.stat(state.directory), { code: 'ENOENT' });
-  assert.deepEqual(await fs.readdir(root), files);
-  await fs.mkdir(state.directory, { recursive: true });
-  await fs.writeFile(path.join(state.directory, 'owner.json'), json({ format: 'atlas.state/1', root: '/another-atlas' }));
-  assert.equal((await request('/api/view')).value.stateIssue.code, 'STATE_OWNER');
-  assert.equal((await request('/api/state')).value.error.code, 'STATE_OWNER');
-  assert.deepEqual(await fs.readdir(root), files);
+test('a source outside the Atlas is read only when its folder is granted', async t => {
+  const { root, workspace, get } = await served(t);
+  const marked = /<a href="\.\.\/_\/source\/\?uri=\.\.%2Foutside%2Fpolicy\.md">Company policy<\/a><span class="file">outside\/policy\.md<\/span><span class="red flag">/;
+  await fs.rm(path.join(workspace, 'outside/policy.md'));
+  assert.doesNotMatch((await get('/service-base/')).text, marked, 'not granted: nothing is said of it');
+  const granted = await startPortal(root, { allowedRoots: [path.join(workspace, 'outside')] });
+  t.after(() => granted.close());
+  assert.match((await ask(granted, '/service-base/')).text, marked);
+  await assert.rejects(startPortal(root, { allowedRoots: ['relative/folder'] }), { code: 'INVALID_REQUEST' });
+  await assert.rejects(startPortal(root, { port: 70000 }), { code: 'INVALID_REQUEST' });
+  await assert.rejects(startPortal(root, { timeZone: 'Nowhere/Never' }), { code: 'INVALID_REQUEST' });
+  await assert.rejects(startPortal(root, { editable: true }), { code: 'INVALID_REQUEST', message: 'The Portal has no option editable.' }, 'an option of the earlier service is refused, not ignored');
+  await assert.rejects(startPortal(root, { port: 0, exportDirectory: workspace, agentConfiguration: {} }), { code: 'INVALID_REQUEST' });
+  await assert.rejects(startPortal(path.join(root, 'atlas.json')), { code: 'INVALID_ROOT' });
 });
 
-test('Markdown preserves stable heading fragments and routes them only to included Points', async t => {
-  const rendered = renderMarkdown('## **Café** `scope`\n\n[Here](#café-scope)\n\n## Scope\n\n## Scope\n\n## Scope-1', { headingPrefix: 'point-example-', title: 'Scope' });
-  for (const slug of ['scope', 'café-scope', 'scope-1', 'scope-2', 'scope-1-1']) assert.ok(rendered.includes(`id="point-example-${slug}"`));
-  assert.match(rendered, /href="#point-example-caf%C3%A9-scope"/);
-  const { root } = await fixture(t);
-  await fs.writeFile(path.join(root, basePath), markdown('purpose', 'Service purpose', '[Detail](detail.md#scope)'));
-  const view = await openAtlas(root);
-  const full = presentAtlas(view).atlas.points.find(point => point.id === 'purpose').html;
-  assert.match(full, /href="\?tree=service&amp;point=detail#point-detail-scope"/);
-  const publication = preparePublication(view, { trees: ['service'], points: ['purpose'] });
-  const subset = presentAtlas({ ...view, atlas: publication.atlas }, { pointPaths: view.atlas.points.filter(point => point.id === 'purpose') });
-  assert.ok(!subset.atlas.points.find(point => point.id === 'purpose').html.includes('point-detail-scope'));
+test('a reading is kept only while the files are as they were', async t => {
+  const { root, write } = await atlas(t);
+  const fresh = reading(root);
+  assert.notEqual(await fresh(), await fresh(), 'files written a moment ago are read again each time');
+  await wait(30);
+  const current = reading(root, { settle: 0 });
+  const first = await current();
+  assert.equal(await current(), first, 'untouched files: the same reading');
+  await write('trees/service/points/crew.md', record({ id: 'service-crew' }, 'Three crew sail every crossing', 'A master and two deckhands.'));
+  const second = await current();
+  assert.notEqual(second, first);
+  assert.equal(second.atlas.points.get('service-crew').title, 'Three crew sail every crossing');
+  await wait(30);
+  const third = await current();
+  assert.equal(await current(), third);
+  await write('trees/service/points/crew.md', 'not a record');
+  assert.equal((await current()).status, 'invalid');
+  assert.notEqual(await current(), await current(), 'an Atlas that does not validate is read again each time');
 });
 
-test('raw-byte repairs retain exact originals through saved draft continuation and restart', async t => {
-  const { root, request, restart } = await fixture(t, { editable: true });
-  const original = Buffer.from([0x23, 0x20, 0xff, 0xfe, 0x0a]);
-  await fs.writeFile(path.join(root, detailPath), original);
-  const captured = (await request('/api/files')).value;
-  const raw = captured.files.find(file => file.path === detailPath);
-  assert.equal(raw.content, null); assert.equal(raw.rawBase64, original.toString('base64'));
-  const first = (await request('/api/drafts', { method: 'POST', data: { baseline: captured.identity, changes: [{ path: detailPath, content: markdown('detail', 'Repaired detail', 'First proposed repair.') }], reason: 'Explicit UTF-8 repair' } })).value;
-  assert.equal(first.plan.status, 'ready');
-  assert.equal(first.plan.changes[0].beforeBase64, original.toString('base64'));
-  await restart();
-  const nextText = markdown('detail', 'Repaired detail', 'Reviewed repair after restart.');
-  const continued = await request('/api/drafts', { method: 'POST', data: { id: first.id, expectedRevision: first.revision, changes: [{ path: detailPath, content: nextText }], reason: 'Continue exact original repair' } });
-  assert.equal(continued.status, 200, JSON.stringify(continued.value));
-  assert.equal(continued.value.plan.baseline.identity, captured.identity);
-  assert.equal(continued.value.plan.changes[0].beforeBase64, original.toString('base64'));
-  assert.deepEqual(await fs.readFile(path.join(root, detailPath)), original);
-  const applied = await request('/api/apply', { method: 'POST', data: { id: first.id, expectedRevision: continued.value.revision } });
-  assert.equal(applied.value.status, 'complete', JSON.stringify(applied.value));
-  assert.equal(await fs.readFile(path.join(root, detailPath), 'utf8'), nextText);
+test('an Atlas that does not validate shows its diagnostics instead of pages', async t => {
+  const { get, write } = await served(t);
+  await write('trees/service/points/fog.md', files().get('trees/service/points/fog.md').replace('"status":"selected"', '"status":"perhaps"'));
+  const home = await get('/');
+  assert.equal(home.status, 200);
+  assert.match(home.text, /<h1>This Atlas does not validate<\/h1>/);
+  assert.match(home.text, /<ul class="diagnostics"><li><span class="red"><span aria-hidden="true">✗ <\/span>DECISION_STATUS<\/span><p>A decision requires a supported status\.<span class="file">trees\/service\/points\/fog\.md<\/span><\/p><\/li><\/ul>/);
+  assert.doesNotMatch(home.text, /data-strip|data-outline|class="accounts"/);
+  const page = await get('/service-crew/');
+  assert.equal(page.status, 404, 'no Point has a page');
+  assert.match(page.text, /DECISION_STATUS/);
+  assert.match(page.text, /href="\.\.\/_\/sheet\.css"/);
+  assert.equal((await get('/_/search.json')).status, 404);
+  assert.equal((await get('/_/sheet.css')).status, 200);
+  assert.match((await get('/_/help/')).text, /<header class="strip"><a class="title" href="\.\.\/\.\.\/">Atlas<\/a><\/header>[^]*<h1>Help<\/h1>/, 'Help answers where there are no pages, since its marks are on this one');
+  await write('trees/service/points/fog.md', files().get('trees/service/points/fog.md'));
+  assert.match((await get('/')).text, /<h1>Harbour ferry<\/h1>/, 'repaired on disk, it reads again');
 });
 
-test('read-only reference and source-review endpoints retain citation scope and launch grants', async t => {
-  const { root, workspace, request } = await fixture(t);
-  const sources = [{ uri: 'sources/support.md', role: 'evidence' }, { uri: '../outside.md' }, { uri: 'https://example.invalid/report' }];
-  await fs.mkdir(path.join(root, 'sources'));
-  await fs.writeFile(path.join(root, 'sources/support.md'), '# Support\n\n| Claim | Scope |\n| --- | --- |\n| Works | Trial |\n\n<script>alert(1)</script>\n\n![image](https://invalid.test/pixel) [private](../hidden.md)');
-  await fs.writeFile(path.join(workspace, 'outside.md'), 'PRIVATE OUTSIDE');
-  const base = markdown('purpose', 'Purpose', '[Detail](detail.md) and [support](../../../sources/support.md)').replace('"id":"purpose"', `"id":"purpose","sources":${JSON.stringify(sources)}`);
-  await fs.writeFile(path.join(root, basePath), base);
-  const refs = (await request('/api/references', { method: 'POST', data: { point: 'detail', limit: 1 } })).value;
-  assert.equal(refs.format, 'atlas.citers/1');
-  assert.deepEqual(refs.citers.map(entry => entry.record.id), ['purpose']);
-  const citations = (await request('/api/references', { method: 'POST', data: { uri: 'sources/support.md' } })).value;
-  assert.equal(citations.citations[0].source.role, 'evidence');
-  const source = (await request('/api/source', { method: 'POST', data: { source: sources[0] } })).value;
-  assert.match(source.html, /<table>/); assert.match(source.html, /&lt;script&gt;/);
-  assert.ok(!source.html.includes('<script>')); assert.ok(!source.html.includes('<img')); assert.ok(!source.html.includes('href="../hidden.md"'));
-  const first = (await request('/api/sources/review', { method: 'POST', data: {} })).value;
-  assert.deepEqual(first.results.map(entry => entry.status), ['current', 'denied', 'uninspected']);
-  assert.ok(!JSON.stringify(first).includes('PRIVATE OUTSIDE')); assert.equal(first.results[0].content, undefined);
-  await fs.writeFile(path.join(root, 'sources/support.md'), 'Revised evidence.');
-  const next = (await request('/api/sources/review', { method: 'POST', data: { uris: ['sources/support.md'], previous: [{ uri: 'sources/support.md', sha256: first.results[0].sha256 }] } })).value;
-  assert.equal(next.results[0].status, 'changed'); assert.equal(next.identity, first.identity);
-  const expanded = await request('/api/sources/review', { method: 'POST', data: { allowedRoots: [workspace] } });
-  assert.equal(expanded.value.error.code, 'INVALID_REQUEST');
-  const search = await request('/api/search', { method: 'POST', data: { query: 'participant', limit: 1 } });
-  assert.equal(search.value.results[0].id, 'detail'); assert.equal(search.value.results[0].summary, true); assert.equal(search.value.results[0].body, undefined);
-  assert.match((await request('/search.js', { token: null })).value, /export function searchPoints/);
+test('a folder with no Atlas shows the command that prepares one, and the Atlas it prepares reads as a proposed change', async t => {
+  const { workspace } = await atlas(t);
+  const empty = path.join(workspace, 'outside');
+  const portal = await startPortal(empty);
+  t.after(() => portal.close());
+  const home = await ask(portal, '/');
+  assert.equal(home.status, 200);
+  assert.match(home.text, /<h1>No Atlas here<\/h1>/);
+  // The tests keep drafts in a state home of their own, so the commands name it: the draft they prepare is the one read here.
+  assert.ok(home.text.includes(`<pre class="command">atlas --root ${empty} --state-home ${stateHome()} init --id ID --title TITLE --style STYLE</pre>`));
+  assert.doesNotMatch(home.text, /Proposed changes/);
+  assert.equal((await ask(portal, '/service-fog/')).status, 404);
+  assert.deepEqual(await fs.readdir(empty), ['policy.md'], 'nothing is created by looking');
+
+  // What the command prepares is a proposed change: it is listed here, and its Style reads as proposed.
+  const [style] = listStyles();
+  const draft = await saveDraft(empty, { plan: prepareInitialization(await openAtlas(empty), { id: 'yard', title: 'Boat yard', styleId: style.id }) });
+  const listed = await ask(portal, '/');
+  assert.ok(listed.text.includes(`<h1>No Atlas here</h1>\n<section class="proposals"><h2 class="cap">Proposed changes</h2><ul><li><a class="claim" href="_/draft/${draft.id}/">Initialize Atlas with its selected Style</a><p class="says">a new Atlas · prepared `), 'it creates the Atlas, so it says so in place of a count of Points');
+  const page = await ask(portal, `/_/draft/${draft.id}/`);
+  assert.equal(page.status, 200);
+  assert.match(page.text, /<a class="title" href="\.\/">Boat yard<\/a>/);
+  assert.match(page.text, /Ready to apply/);
+  assert.ok(page.text.includes(`<li><h3 class="tree">How this Atlas is written</h3><div><ul class="claims"><li><span class="red">new</span><a href="_/style/">${style.title}</a></li></ul></div></li>`));
+  assert.ok(page.text.includes(`atlas --root ${empty} --state-home ${stateHome()} apply ${draft.id} --revision ${draft.revision}`));
+  const proposed = await ask(portal, `/_/draft/${draft.id}/_/style/`);
+  assert.equal(proposed.status, 200);
+  assert.ok(proposed.text.includes(`<div class="kind"><span class="red">new</span><span class="cap">How this Atlas is written</span></div>\n<h1>${style.title}</h1>`));
+  assert.match(proposed.text, /<a href="\.\.\/\.\.\/\.\.\/\.\.\/\.\.\/">The Atlas as it is<\/a>/, 'there is no Atlas yet: the way back is home');
+  assert.deepEqual(await fs.readdir(empty), ['policy.md'], 'nothing is written by reading it');
 });
 
-test('reviewed move is a saved draft, repairs references and preserves authored bytes until apply', async t => {
-  const { root, request } = await fixture(t, { editable: true });
-  const original = markdown('purpose', 'Purpose', '[Detail](detail.md)');
-  await fs.writeFile(path.join(root, basePath), original);
-  const baseline = (await request('/api/files')).value.identity;
-  const moved = await request('/api/move', { method: 'POST', data: { baseline, point: 'detail', path: 'trees/service/points/nested/detail.md', reason: 'Organize this explanation.' } });
-  assert.equal(moved.status, 200); assert.equal(moved.value.plan.status, 'ready'); assert.equal(moved.value.impact.status, 'ready');
-  assert.equal(moved.value.plan.candidate.atlas.points.find(point => point.id === 'detail').path, 'trees/service/points/nested/detail.md');
-  assert.equal(await fs.readFile(path.join(root, basePath), 'utf8'), original);
-  await fs.stat(path.join(root, detailPath));
-  const applied = await request('/api/apply', { method: 'POST', data: { id: moved.value.id, expectedRevision: moved.value.revision } });
-  assert.equal(applied.value.status, 'complete');
-  assert.match(await fs.readFile(path.join(root, basePath), 'utf8'), /\[Detail\]\(nested\/detail.md\)/);
-  await assert.rejects(fs.stat(path.join(root, detailPath)), { code: 'ENOENT' });
+test('proposed changes are listed on home and read under their own addresses', async t => {
+  const { root, get, write } = await served(t);
+  assert.doesNotMatch((await get('/')).text, /Proposed changes/);
+  const draft = await propose(root, changes(), reason);
+  const home = await get('/');
+  assert.ok(home.text.includes(`<h2 class="cap">Proposed changes</h2><ul><li><a class="claim" href="_/draft/${draft.id}/">${reason}</a><p class="says">4 Points differ · prepared `));
+  const page = await get(`/_/draft/${draft.id}/`);
+  assert.equal(page.status, 200);
+  assert.match(page.text, /Ready to apply/);
+  assert.match(page.text, /<link rel="stylesheet" href="\.\.\/\.\.\/\.\.\/_\/sheet\.css">/);
+  const proposed = await get(`/_/draft/${draft.id}/service-fog/`);
+  assert.equal(proposed.status, 200);
+  assert.match(proposed.text, /<h1>Sailings stop in fog below 300 metres<\/h1>/);
+  assert.match(proposed.text, /<link rel="stylesheet" href="\.\.\/\.\.\/\.\.\/\.\.\/_\/sheet\.css">/);
+  assert.match((await get('/service-fog/')).text, /<h1>Sailings stop in fog below 200 metres<\/h1>/, 'the Atlas as it is stays as it is');
+  assert.equal((await get(`/_/draft/${draft.id}/service-claim/`)).status, 200, 'a removed Point reads as removed');
+  assert.equal((await get(`/_/draft/${draft.id}/vessel-radar/`)).status, 200, 'a Point that does not differ reads as proposed too');
+  const said = await get(`/_/draft/${draft.id}/_/facet/service/fog-radar/`);
+  assert.equal(said.status, 200, 'and so do its Facets');
+  assert.match(said.text, /the harbour authority now asks for 300 metres/);
+  assert.match(said.text, /<link rel="stylesheet" href="\.\.\/\.\.\/\.\.\/\.\.\/\.\.\/\.\.\/\.\.\/_\/sheet\.css">/);
+  assert.doesNotMatch((await get('/_/facet/service/fog-radar/')).text, /300 metres/);
+  const unsaid = await get(`/_/draft/${draft.id}/_/facet/service/no-such-facet/`);
+  assert.equal(unsaid.status, 404);
+  assert.match(unsaid.text, /This proposed change has nothing at this address\./);
+  assert.equal((await get(`/_/draft/${draft.id}/_/facet/service/fog-radar`)).headers.location, `/_/draft/${draft.id}/_/facet/service/fog-radar/`);
+  const none = await get(`/_/draft/${draft.id}/no-such-point/`);
+  assert.equal(none.status, 404);
+  assert.match(none.text, /This proposed change has no Point with the address no-such-point\./);
+  const style = await get(`/_/draft/${draft.id}/_/style/`);
+  assert.equal(style.status, 200, 'and so does the Style');
+  assert.match(style.text, /<h1>Plain accounts<\/h1>/);
+  assert.match(style.text, /<link rel="stylesheet" href="\.\.\/\.\.\/\.\.\/\.\.\/\.\.\/_\/sheet\.css">/);
+  assert.match(style.text, /<a href="\.\.\/\.\.\/\.\.\/\.\.\/\.\.\/">The Atlas as it is<\/a>/, 'the Style has no page in the Atlas as it is: the way back is home');
+  assert.equal((await get(`/_/draft/${draft.id}/_/style`)).headers.location, `/_/draft/${draft.id}/_/style/`);
+  assert.equal((await get(`/_/draft/${draft.id}/_/`)).status, 404);
+  const unknown = await get('/_/draft/no-such-draft/');
+  assert.equal(unknown.status, 404);
+  assert.match(unknown.text, /No proposed change has the address no-such-draft\./);
+  assert.equal((await get(`/_/draft/${draft.id}`)).headers.location, `/_/draft/${draft.id}/`);
+  assert.equal((await get(`/_/draft/${draft.id}/service-fog`)).headers.location, `/_/draft/${draft.id}/service-fog/`);
+  assert.equal((await get(`/_/draft/${draft.id}/`, { method: 'POST' })).status, 405);
+
+  // The Atlas changes: the proposed change is stale. The Atlas breaks: home shows the diagnostics, and the proposed change is still listed and read.
+  await write('trees/vessel/points/base.md', record({ id: 'vessel-base' }, 'One hull carries sixty-two passengers', 'Licensed for sixty-two.'));
+  assert.match((await get(`/_/draft/${draft.id}/`)).text, /Stale: the Atlas has changed since this was prepared/);
+  assert.ok((await get('/')).text.includes(`<a class="claim" href="_/draft/${draft.id}/">${reason}</a><p class="says"><span class="red">Stale</span> · 4 Points differ · prepared `), 'home says so too, in red, before what it does');
+  await write('trees/vessel/points/base.md', 'not a record');
+  const broken = await get('/');
+  assert.match(broken.text, /<h1>This Atlas does not validate<\/h1>\n<section class="proposals">/);
+  assert.ok(broken.text.includes(`<a class="claim" href="_/draft/${draft.id}/">${reason}</a><p class="says"><span class="red">Stale</span> · 4 Points differ · prepared `), 'and so does the page of an Atlas that does not validate');
+  assert.equal((await get(`/_/draft/${draft.id}/service-fog/`)).status, 200);
 });
 
-test('candidate Check evidence binds exact candidate and definitions and clears after editing', async t => {
-  const { root, request, restart } = await fixture(t, { editable: true });
-  await fs.mkdir(path.join(root, '.checks'));
-  await fs.writeFile(path.join(root, '.checks/scope.md'), '---\n{"id":"scope","status":"active","level":"required"}\n---\n# Scope\n\n## Requirement\nState the scope.\n\n## Verification\nRead the scope.\n\n## Failure\nExplain the omission.\n');
-  const baseline = (await request('/api/files')).value.identity;
-  const draft = (await request('/api/drafts', { method: 'POST', data: { baseline, reason: 'State the scope.', changes: [{ path: detailPath, content: markdown('detail', 'Detail', 'The scope is this trial only.') }] } })).value;
-  const candidate = draft.plan.candidate;
-  const check = candidate.atlas.checks[0];
-  const manual = { id: check.id, revision: check.revision, baseline: candidate.identity, outcome: 'pass', reason: 'Trial boundary remains explicit.', evidence: [{ text: 'Read the proposed trial-only statement.' }] };
-  const reviewed = await request('/api/draft-checks', { method: 'POST', data: { id: draft.id, expectedRevision: draft.revision, actor: 'reviewer', manual: [manual] } });
-  assert.equal(reviewed.status, 200); assert.equal(reviewed.value.checkRuns[0].requiredSatisfied, true);
-  assert.equal(reviewed.value.checkRuns[0].baseline, candidate.identity);
-  const stale = await request('/api/draft-checks', { method: 'POST', data: { id: draft.id, expectedRevision: draft.revision, actor: 'reviewer', manual: [manual] } });
-  assert.equal(stale.value.error.code, 'STALE_DRAFT');
-  const wrongBaseline = await request('/api/draft-checks', { method: 'POST', data: { id: draft.id, expectedRevision: reviewed.value.revision, actor: 'reviewer', manual: [{ ...manual, baseline }] } });
-  assert.equal(wrongBaseline.value.checkRuns[1].results[0].outcome, 'unable');
-  await restart();
-  const saved = (await request(`/api/drafts/${draft.id}`)).value;
-  assert.equal(saved.checkRuns.length, 2); assert.equal(saved.impact.status, 'ready');
-  const changed = await request('/api/drafts', { method: 'POST', data: { id: draft.id, expectedRevision: saved.revision, reason: 'Change the claim.', changes: [{ path: detailPath, content: markdown('detail', 'Detail', 'A different trial has a different scope.') }] } });
-  assert.equal(changed.status, 200); assert.equal(changed.value.checkRuns, undefined);
+test('an applied change is no longer listed: applying it removed it', async t => {
+  const { root, get } = await served(t);
+  const draft = await propose(root, changes(), reason);
+  assert.match((await get('/')).text, /Proposed changes/);
+  assert.equal((await applyDraft(root, draft.id, { expectedRevision: draft.revision })).draft, 'removed');
+  const home = await get('/');
+  assert.doesNotMatch(home.text, /Proposed changes|Stale/);
+  assert.match((await get('/service-fog/')).text, /<h1>Sailings stop in fog below 300 metres<\/h1>/);
+  assert.equal((await get(`/_/draft/${draft.id}/`)).status, 404);
 });
 
-test('saved Absorb rationale and preservation account reach the Editor and clear on manual revision', async t => {
-  const { root, request, restart } = await fixture(t, { editable: true });
-  const view = await openAtlas(root), source = { uri: 'https://example.invalid/report', role: 'evidence' };
-  const proposal = prepareAbsorb(view, { source, contributions: [{ disposition: 'update', point: 'detail', rationale: 'Retain the known limit while adding scope.' }], rationale: 'Keep the qualification explicit.', unresolved: ['Does the next trial support this?'],
-    changes: [{ path: detailPath, content: markdown('detail', 'Detail', 'The participant retains required material during this trial.') }],
-    preservation: { scope: 'The trial qualification in the report.', sources: [source], units: [{ id: 'scope', source, locator: 'Trial scope', disposition: 'retained', rationale: 'The bounded scope remains visible.', destinations: [{ point: 'detail' }] }] } });
-  assert.equal(proposal.status, 'ready');
-  const draft = await saveDraft(root, { plan: proposal.plan, review: proposal.review });
-  await restart();
-  const shown = (await request(`/api/drafts/${draft.id}`)).value;
-  assert.deepEqual(shown.review, proposal.review); assert.equal(shown.impact.status, 'ready');
-  assert.equal(shown.review.preservation.units[0].disposition, 'retained');
-  const changed = await request('/api/drafts', { method: 'POST', data: { id: draft.id, expectedRevision: shown.revision, reason: 'Change the proposed explanation.', changes: [{ path: detailPath, content: markdown('detail', 'Detail', 'Another explanation for explicit review.') }] } });
-  assert.equal(changed.status, 200); assert.equal(changed.value.review, undefined);
+test('while an interrupted apply awaits recovery no proposed change can be applied: each says it is blocked, and its page names the command that lists what to recover', async t => {
+  const { root, get, write } = await served(t);
+  const records = files();
+  const early = await propose(root, changes(), reason);
+  await write('trees/vessel/points/base.md', record({ id: 'vessel-base' }, 'One hull carries sixty-two passengers', 'Licensed for sixty-two.'));
+  const crew = await propose(root, [{ path: 'trees/service/points/crew.md', content: record({ id: 'service-crew' }, 'Three crew sail every crossing', 'A master and two deckhands.') }], 'Sail with three');
+  const broken = await propose(root, [{ path: 'trees/service/points/fog.md', content: records.get('trees/service/points/fog.md').replace('"status":"selected"', '"status":"perhaps"') }], 'Leave the decision open');
+  const line = async (draft, words) => assert.ok((await get('/')).text.includes(`<a class="claim" href="_/draft/${draft.id}/">${words} · prepared `), words);
+  await line(early, `${reason}</a><p class="says"><span class="red">Stale</span> · 4 Points differ`);
+  await line(crew, 'Sail with three</a><p class="says">1 Point differs');
+
+  // An apply interrupted before it writes leaves the Atlas as it was and its journal unfinished.
+  const stopped = await applyDraft(root, crew.id, { expectedRevision: crew.revision, onProgress(progress) { if (progress.phase === 'prepared') throw Object.assign(new Error('Injected failure before writing'), { code: 'EIO' }); } });
+  assert.equal(stopped.status, 'interrupted');
+  await assert.rejects(applyDraft(root, crew.id, { expectedRevision: crew.revision }), { code: 'LOCKED' }, 'the Library applies nothing until it is recovered');
+  await line(crew, 'Sail with three</a><p class="says"><span class="red">Blocked</span> · 1 Point differs');
+  await line(early, `${reason}</a><p class="says"><span class="red">Blocked</span> · 4 Points differ`);
+  await line(broken, 'Leave the decision open</a><p class="says"><span class="red">Invalid</span> · 1 Point differs');
+  const page = (await get(`/_/draft/${crew.id}/`)).text;
+  assert.match(page, /<p class="red">Blocked: an interrupted apply needs recovery first · prepared /);
+  assert.ok(page.includes(`<section><h2 class="cap">To recover</h2><pre class="command">atlas --root ${root} --state-home ${stateHome()} recover</pre></section>`), 'in place of the command that applies it, the one that lists what to recover');
+  assert.doesNotMatch(page, /To apply|Ready to apply|--revision/);
+  assert.doesNotMatch((await get(`/_/draft/${broken.id}/`)).text, /Blocked|To recover/, 'one that is invalid says why, as before');
+
+  // Recovered, each stands as it did: the ready one can be applied again, and the earlier one is stale.
+  assert.equal((await recoverChange(root, stopped.transaction)).status, 'rolled-back');
+  await line(crew, 'Sail with three</a><p class="says">1 Point differs');
+  await line(early, `${reason}</a><p class="says"><span class="red">Stale</span> · 4 Points differ`);
+  const ready = (await get(`/_/draft/${crew.id}/`)).text;
+  assert.match(ready, /<p class="says">Ready to apply · prepared /);
+  assert.ok(ready.includes(`apply ${crew.id} --revision ${crew.revision}</pre>`));
+  assert.doesNotMatch(ready, /To recover/);
+
+  // A journal that cannot be read is not known to have finished, so it blocks too; a file no transaction ID names is no
+  // journal, and stops nothing. The Portal says what the Library's apply gate decides.
+  const journals = path.join((await resolveState(root)).directory, 'transactions');
+  await fs.mkdir(journals, { recursive: true });
+  await fs.writeFile(path.join(journals, 'unread-journal.json'), 'not a journal\n');
+  await line(crew, 'Sail with three</a><p class="says"><span class="red">Blocked</span> · 1 Point differs');
+  const unread = (await get(`/_/draft/${crew.id}/`)).text;
+  assert.match(unread, /<p class="red">Blocked: Transaction journal unread-journal cannot be read: Saved state is malformed\. · prepared /, 'its page says why in the Library\'s words');
+  assert.doesNotMatch(unread, /To recover|To apply/, 'and names no command: recovery cannot take a journal it cannot read');
+  await assert.rejects(applyDraft(root, crew.id, { expectedRevision: crew.revision }), { code: 'INVALID_STATE' }, 'and the Library applies nothing');
+  await fs.rm(path.join(journals, 'unread-journal.json'));
+  await fs.writeFile(path.join(journals, 'Not a journal.json'), 'not a journal\n');
+  await line(crew, 'Sail with three</a><p class="says">1 Point differs');
+  assert.match((await get(`/_/draft/${crew.id}/`)).text, /<p class="says">Ready to apply · prepared /);
+  assert.equal((await applyDraft(root, crew.id, { expectedRevision: crew.revision })).status, 'complete', 'and the Library applies it');
 });
+
+test('a proposed change is blocked, and names no command, while the Atlas does not read whole or its journals cannot be listed', async t => {
+  const { root, get } = await served(t);
+  const draft = await propose(root, changes(), reason);
+  const blocked = async (words, why) => {
+    assert.ok((await get('/')).text.includes(`<a class="claim" href="_/draft/${draft.id}/">${reason}</a><p class="says">${words} · prepared `), `home: ${why}`);
+    const page = (await get(`/_/draft/${draft.id}/`)).text;
+    assert.doesNotMatch(page, /To recover|To apply|Ready to apply/, `no command: ${why}`);
+    return page;
+  };
+
+  // A folder deeper than the Library reads: the Atlas does not read whole, and no draft can be applied against it.
+  const made = await fs.mkdir(path.join(root, '.checks', ...Array(65).fill('d')), { recursive: true });
+  assert.match(await blocked('<span class="red">Blocked</span> · 4 Points differ', 'incomplete'), /<p class="red">Blocked: the Atlas does not read whole · prepared /);
+  await assert.rejects(applyDraft(root, draft.id, { expectedRevision: draft.revision }), { code: 'INCOMPLETE' });
+  await fs.rm(made, { recursive: true });
+  assert.match((await get(`/_/draft/${draft.id}/`)).text, /<p class="says">Ready to apply · prepared /);
+
+  // A file where the journals' folder belongs: no interrupted apply, so nothing to recover; the page says the Library's words.
+  const journals = path.join((await resolveState(root)).directory, 'transactions');
+  await fs.writeFile(journals, 'not a folder\n');
+  assert.match(await blocked('<span class="red">Blocked</span> · 4 Points differ', 'a file in place of the journals'), /<p class="red">Blocked: ENOTDIR: not a directory, scandir &#39;[^<]*transactions&#39; · prepared /);
+  await assert.rejects(applyDraft(root, draft.id, { expectedRevision: draft.revision }), { code: 'ENOTDIR' });
+});
+
+test('a proposed change that cannot be read is said on home, and the others are still listed', async t => {
+  const { root, get } = await served(t);
+  const good = await propose(root, changes(), reason);
+  const bad = await propose(root, [{ path: 'trees/service/points/crew.md', content: record({ id: 'service-crew' }, 'Three crew sail every crossing', 'A master and two deckhands.') }], 'Sail with three');
+  const file = path.join((await resolveState(root)).directory, 'drafts', `${bad.id}.json`);
+  const saved = JSON.parse(await fs.readFile(file, 'utf8'));
+
+  // A draft carries a model of what it proposes beside the bytes. Only the bytes are read.
+  const resave = async content => fs.writeFile(file, `${JSON.stringify({ ...content, revision: createHash('sha256').update(JSON.stringify(content)).digest('hex') }, null, 2)}\n`);
+  const { revision, ...content } = structuredClone(saved);
+  content.plan.candidate.atlas.points.find(item => item.id === 'service-crew').title = 'Forged in the stored model';
+  await resave(content);
+  const forged = await get(`/_/draft/${bad.id}/service-crew/`);
+  assert.equal(forged.status, 200);
+  assert.match(forged.text, /<h1>Three crew sail every crossing<\/h1>/);
+  assert.doesNotMatch(forged.text, /Forged/);
+
+  // The draft's candidate no longer holds the bytes the plan was made for; its own record is otherwise sound.
+  content.plan.candidate.files.find(item => item.path === 'trees/service/points/crew.md').content += 'and a cat.\n';
+  await resave(content);
+  const home = await get('/');
+  assert.equal(home.status, 200);
+  assert.ok(home.text.includes(`<section class="proposals"><h2 class="cap">Proposed changes</h2><ul><li><a class="claim" href="_/draft/${good.id}/">${reason}</a>`), 'the one that can be read is listed');
+  assert.ok(home.text.includes(`</li></ul><p class="red"><span aria-hidden="true">✗ </span>A proposed change could not be read: ${bad.id}.json: `), 'under the list, home says which, by its file and in the Library\'s words');
+  assert.ok(!home.text.includes('Sail with three'));
+  const unread = await get(`/_/draft/${bad.id}/`);
+  assert.equal(unread.status, 500);
+  assert.match(unread.text, new RegExp(`<p class="says">The proposed change ${bad.id} could not be read: `));
+  assert.equal((await get(`/_/draft/${good.id}/`)).status, 200);
+
+  // The file itself is damaged, and another file in the store of drafts is no draft at all: each is named on a line of its own, and neither hides the one that reads.
+  await fs.writeFile(file, JSON.stringify(saved).replace('Sail with three', 'Sail with four'));
+  await fs.writeFile(path.join(path.dirname(file), 'notes.json'), '{}\n');
+  const damaged = await get('/');
+  assert.equal(damaged.status, 200);
+  const cannot = words => `<p class="red"><span aria-hidden="true">✗ </span>A proposed change could not be read: ${words}</p>`;
+  assert.ok(damaged.text.includes(`<section class="proposals"><h2 class="cap">Proposed changes</h2><ul><li><a class="claim" href="_/draft/${good.id}/">${reason}</a>`));
+  assert.ok(damaged.text.includes(`</li></ul>${cannot(`${bad.id}.json: Saved draft integrity failed.`)}${cannot('notes.json: Invalid draft.')}</section><ol class="accounts"`), 'one line for each, by its file and in the Library\'s words');
+  assert.equal((await get(`/_/draft/${good.id}/`)).status, 200, 'one draft that cannot be read hides no other');
+  const damagedPage = await get(`/_/draft/${bad.id}/`);
+  assert.equal(damagedPage.status, 500);
+  assert.ok(damagedPage.text.includes(`<p class="says">The proposed change ${bad.id} could not be read: Saved draft integrity failed.</p>`));
+  assert.equal((await get('/_/draft/notes/')).status, 500);
+
+  // The store of drafts as a whole cannot be read: home says so once, in the Library's words, and the Atlas reads on.
+  await fs.writeFile(path.join(path.dirname(path.dirname(file)), 'owner.json'), 'not metadata\n');
+  const refused = await get('/');
+  assert.equal(refused.status, 200);
+  assert.ok(refused.text.includes(`<h2 class="cap">Proposed changes</h2>${cannot('Private state has invalid ownership metadata.')}</section><ol class="accounts"`));
+  assert.equal((await get(`/_/draft/${good.id}/`)).status, 500);
+  assert.equal((await get('/service-fog/')).status, 200, 'the Atlas as it is reads on');
+});
+
+test('without the script every page is complete, and the two patterns hold on each: a name goes to a page, and only a margin item opens', async t => {
+  const { root, portal, get } = await served(t, records => records.set('.checks/tone.md', check('tone', 'Every claim is a plain sentence')));
+  const draft = await propose(root, changes(), reason);
+  // One that alters the Atlas itself and what it is held to.
+  const manifest = JSON.parse(files().get('atlas.json'));
+  const held = await propose(root, [{ path: 'atlas.json', content: `${JSON.stringify({ ...manifest, title: 'The harbour ferry', trees: ['trees/vessel', 'trees/service', 'trees/harbour'] }, null, 2)}\n` },
+    { path: '.checks/tone.md', content: check('tone', 'Every claim is one plain sentence', { requirement: 'Each claim is one sentence.' }) }, { path: '.checks/dates.md', content: check('dates', 'Every observation carries its date') }], 'Lead with the vessel, and hold claims to one sentence');
+  const dated = { path: 'style.md', content: '# Plain accounts, dated\n\nEach account states one claim and develops it.\n\nEvery observation carries its date.\n' };
+  const restyle = await propose(root, [dated], 'Date every observation');
+  // Two that cannot be applied: one alters the Style together with an account, one proposes an Atlas that does not validate.
+  const mixed = await propose(root, [dated, { path: 'trees/vessel/tree.json', content: files().get('trees/vessel/tree.json').replace('"title": "Vessel"', '"title": "The vessel"') }], 'Date every observation, and rename an account');
+  const broken = await propose(root, [{ path: 'trees/service/points/fog.md', content: files().get('trees/service/points/fog.md').replace('"status":"selected"', '"status":"perhaps"') }], 'Leave the decision open');
+  const text = html => html.replace(/<[^>]*>/g, '');
+
+  // Every address the pages name, from home on: each answers, and each page keeps to the two patterns.
+  const pages = new Map(), waiting = ['/'];
+  while (waiting.length) {
+    const address = waiting.pop();
+    if (pages.has(address)) continue;
+    const answer = await get(address);
+    assert.equal(answer.status, 200, `${address} answers`);
+    pages.set(address, answer.text);
+    if (!answer.headers['content-type'].startsWith('text/html')) continue;
+    const html = answer.text, cut = html.indexOf('<nav class="margin"'), margin = cut < 0 ? '' : html.slice(cut, html.indexOf('</nav>', cut)), rest = html.replace(margin, '');
+    for (const [, value] of html.matchAll(/\b(?:href|src)="([^"]*)"/g)) if (!/^https?:\/\//.test(value)) {
+      const to = new URL(value.replaceAll('&amp;', '&'), new URL(address, portal.url));
+      waiting.push(to.pathname + to.search);
+    }
+    assert.equal((html.match(/<a(?![^>]*\shref="[^"]+")[\s>]/g) ?? []).length, 0, `${address}: every name is a link that leads somewhere`);
+    // A source's page lists what cites it; there every item goes to its page, as a name in a list does.
+    const item = address.startsWith('/_/source/?') ? /^<a href="(?:\.\.\/)+(?:[a-z0-9-]+|_\/facet\/[a-z0-9-]+\/[a-z0-9-]+)\/">$/ : /^<a class="opens(?: gone)?" href="[^"]+" data-open="[^"]+">$/;
+    assert.deepEqual((margin.match(/<a [^>]*>/g) ?? []).filter(link => !item.test(link)), [], `${address}: every item in the margin is a name that opens, and a link to its page; on a source's page, a link to the page of what cites it`);
+    assert.doesNotMatch(margin, /<details|<summary|<button|<input/, `${address}: nothing opens inside the margin`);
+    assert.doesNotMatch(rest, /class="opens|data-open=/, `${address}: outside a margin a name goes to its page`);
+    assert.deepEqual(rest.match(/<[a-z]+ class="(?:control|close)"[^>]*>[^<]*/g) ?? [], /data-strip/.test(html) && address !== '/' ? [`<a class="control" href="${'../'.repeat(address.split('/').length - 2)}" data-outline>Outline`] : [], `${address}: besides Help, the one bordered control a page is served with is Outline, a link to home until the script makes it a button`);
+    assert.doesNotMatch(html, /<button|<input|<select|<textarea|<form|role="button"|tabindex=/, `${address}: nothing else is made to be pressed`);
+    assert.deepEqual((html.match(/<details[^>]*>(?!<summary>)/g) ?? []), [], `${address}: what opens in place is a native disclosure with its line`);
+    assert.deepEqual([...new Set(html.match(/<details[^>]*>/g) ?? [])].filter(tag => !['<details class="rests">', '<details class="rests" open>', '<details class="outline map">', '<details class="before">'].includes(tag)), []);
+  }
+  const addresses = [...pages.keys()];
+  assert.equal(addresses.filter(address => /^\/[a-z0-9-]+\/$/.test(address)).length, 12, 'every Point is reached from home');
+  assert.equal(addresses.filter(address => /^\/_\/facet\//.test(address)).length, 4, 'and every Facet');
+  assert.deepEqual(addresses.filter(address => address.startsWith('/_/source/')).sort(), ['/_/source/?uri=sources%2Fchart.md', '/_/source/?uri=sources%2Fgone.md', '/_/source/?uri=sources%2Flog.md', '/_/source/?uri=sources%2Flog.md%23week-45', '/_/source/?uri=sources%2Flog.md%23week-46', '/_/source/?uri=sources%2Fnotice.md', '/_/source/?uri=sources%2Ftrials.md'],
+    'and every cited source the grants reach, by the URI as cited');
+  assert.equal(addresses.filter(address => address.startsWith(`/_/draft/${draft.id}/`)).length, 1 + 13 + 4, 'and under a proposed change its page, every Point it holds or removes, and every Facet');
+  assert.ok(pages.has(`/_/draft/${restyle.id}/_/style/`), 'a proposed change to the Style reads on its own page');
+  assert.ok(!addresses.some(address => address.startsWith('/_/style')), 'and no page links to a page of the Style as it is, which a reader does not have');
+  for (const [refused, code] of [[mixed, 'STYLE_CHANGE_ALONE'], [broken, 'DECISION_STATUS']]) {
+    const page = pages.get(`/_/draft/${refused.id}/`);
+    assert.match(page, /<p class="red">Invalid: it cannot be applied as it stands · prepared /);
+    assert.ok(page.includes(`<span class="red"><span aria-hidden="true">✗ </span>${code}</span>`));
+    assert.doesNotMatch(page, /To apply|atlas --root/);
+  }
+  assert.ok(pages.has(`/_/draft/${mixed.id}/_/style/`), 'a change that is refused for itself proposes an Atlas that validates, and it reads as proposed');
+  assert.equal((await get(`/_/draft/${mixed.id}/vessel-base/`)).status, 200);
+  assert.match(pages.get(`/_/draft/${broken.id}/`), /What differs<\/h2><ol class="accounts"><li><h3 class="tree">Files<\/h3>[^]*<span>Sailings stop in fog below 200 metres<span class="file">trees\/service\/points\/fog\.md<\/span><\/span>/, 'what it writes is named by its file');
+  const altered = pages.get(`/_/draft/${held.id}/`);
+  for (const words of ['<h3 class="tree">This Atlas<span class="red">changed</span></h3>', 'its title, the order of its Trees', '<ol class="order"><li>Vessel</li><li>Service</li><li>Harbour</li></ol>', 'What this Atlas is held to', 'Each claim is one sentence.', '<p class="cap">Advisory · active</p>']) assert.ok(altered.includes(words), `a change to the Atlas itself: ${words}`);
+  assert.equal((await get(`/_/draft/${broken.id}/service-fog/`)).status, 404, 'an Atlas that does not validate has no pages, proposed or not');
+
+  // Every margin item is a working link: it leads to the page of what it names.
+  let items = 0;
+  for (const [address, html] of pages) for (const [, href, name] of html.matchAll(/<a class="opens(?: gone)?" href="([^"]+)" data-open="[^"]+">([^<]*)/g)) {
+    const target = pages.get(new URL(href, new URL(address, portal.url)).pathname);
+    assert.equal(/<h1[^>]*>([^<]*)<\/h1>/.exec(target)[1], name, `${address}: ${name}`);
+    items++;
+  }
+  assert.ok(items > 100, `${items} margin items were followed`);
+
+  // What a reader needs is in the page as served: the prose, the map, the uncertainty, the sources and the links.
+  const point = pages.get('/service-base/');
+  for (const words of ['A passenger can plan on a sailing every hour.', '<a href="../service-timetable/">The timetable</a>', 'Whether the hourly sailing holds in winter is not recorded.', '6 sources', 'Crossing log', 'sources/notice.md', 'changed since this was checked', 'outside/policy.md', 'href="https://example.org/harbour-rules"',
+    '<span aria-current="page">The ferry sails on the hour while the harbour is open</span>', 'data-open="service-timetable">The timetable holds in daylight</a>', 'data-open="service-count"', '<span class="cap">Next</span><a href="../service-timetable/">']) assert.ok(point.includes(words), `a Point: ${words}`);
+  const facet = pages.get('/_/facet/service/fog-radar/');
+  for (const words of ['Service · Facet, seen from Vessel', 'The service stops where <a href="../../../../vessel-radar/">the radar</a> stops seeing.', 'The radar was last checked in 2025.', 'Said of, in Service', 'data-open="service-fog">Sailings stop in fog below 200 metres</a>', 'In Vessel', 'data-open="vessel-radar">']) assert.ok(facet.includes(words), `a Facet: ${words}`);
+  const home = pages.get('/');
+  for (const words of ['Proposed changes', reason, '4 Points differ', 'Date every observation', 'no Point differs', 'What a passenger can rely on, and where that stops.', '6 Points', '<a href="service-claim/" data-id="service-claim">A refund is claimed at the quay office</a>', 'Decision · selected', 'Observation · 3 November 2026']) assert.ok(home.includes(words), `home: ${words}`);
+  // A change that cannot be applied says so on home, in red, with the word its page uses, before what it does; one that can says only what it does.
+  for (const [item, line] of [[draft, `${reason}</a><p class="says">4 Points differ`], [restyle, 'Date every observation</a><p class="says">no Point differs'],
+    [mixed, 'Date every observation, and rename an account</a><p class="says"><span class="red">Invalid</span> · no Point differs'], [broken, 'Leave the decision open</a><p class="says"><span class="red">Invalid</span> · 1 Point differs']]) {
+    assert.ok(home.includes(`<a class="claim" href="_/draft/${item.id}/">${line} · prepared `), `home: ${line}`);
+  }
+  assert.doesNotMatch(home, /Written as/, 'home does not name the Style');
+  const proposal = pages.get(`/_/draft/${draft.id}/`);
+  for (const words of [reason, 'Ready to apply', 'What differs', 'its outline', 'its scope', '<a href="service-fog/">Sailings stop in fog below 300 metres</a>', '<a href="service-claim/"><span class="gone">A refund is claimed at the quay office</span></a>', 'Facet, seen from Vessel', 'What else to read', 'Points above what differs', 'Other Trees&#39; Facets that draw on what differs', '<a href="_/facet/vessel/radar-duty/">', 'To apply', `apply ${draft.id} --revision ${draft.revision}`]) assert.ok(proposal.includes(words), `a proposed change: ${words}`);
+  const proposed = pages.get(`/_/draft/${draft.id}/service-fog/`);
+  for (const words of ['Proposed change', 'The Atlas as it is', 'Decision · proposed', '<summary>Before</summary>', 'The mate may also stop a sailing when the master is ashore.', 'fog &lt; 200 m: stop', 'data-open="service-refund"', 'data-open="service:fog-radar"']) assert.ok(proposed.includes(words), `a Point as proposed: ${words}`);
+  assert.match(text(pages.get(`/_/draft/${restyle.id}/_/style/`)), /changedHow this Atlas is written\s+Plain accounts, datedBeforePlain accounts\s+Each account states one claim and develops it\.[^]*newEvery observation carries its date\./);
+});
+

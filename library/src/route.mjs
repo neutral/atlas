@@ -1,4 +1,4 @@
-import { searchAtlas } from './model.mjs';
+import { searchAtlasPage } from './model.mjs';
 import { createHash } from 'node:crypto';
 import { pointSummary, facetSummary } from './search.mjs';
 
@@ -46,12 +46,12 @@ function requestIdentity(request) {
   })).digest('hex');
 }
 
-function compactReference(record, kind) {
+function compactReference(point) {
   const result = {};
   for (const key of ['id', 'tree', 'title', 'path', 'type', 'status', 'observedAt', 'uncertainty']) {
-    if (record[key] !== undefined) result[key] = copy(record[key]);
+    if (point[key] !== undefined) result[key] = copy(point[key]);
   }
-  return { ...result, reference: true, ...(kind === 'point' ? { selector: { point: record.id } } : {}) };
+  return { ...result, reference: true, selector: { point: point.id } };
 }
 
 function treeInfo(tree) {
@@ -60,35 +60,26 @@ function treeInfo(tree) {
 
 function facetContext(atlas, reading) {
   const { facet } = reading;
-  const host = facet.on.point ? atlas.points.find(point => point.id === facet.on.point) : atlas.branches.find(branch => branch.id === facet.on.branch && branch.tree === facet.tree);
-  const targetRecord = pointer => pointer.point ? atlas.points.find(point => point.id === pointer.point) : pointer.branch ? atlas.branches.find(branch => branch.id === pointer.branch && branch.tree === facet.via) : atlas.trees.find(tree => tree.id === pointer.tree);
+  const reference = id => compactReference(atlas.points.find(point => point.id === id));
   return { ...reading, owner: treeInfo(atlas.trees.find(tree => tree.id === facet.tree)), viaTree: treeInfo(atlas.trees.find(tree => tree.id === facet.via)),
-    host: { ...compactReference(host, facet.on.point ? 'point' : 'branch'), kind: facet.on.point ? 'point' : 'branch' },
-    targets: facet.targets.map(pointer => {
-      const record = targetRecord(pointer), kind = pointer.point ? 'point' : pointer.branch ? 'branch' : 'tree';
-      return kind === 'tree' ? { ...treeInfo(record), kind, reference: true, selector: { tree: record.id } } : { ...compactReference(record, kind), kind };
-    }),
-  };
+    host: reference(facet.on), targets: facet.targets.map(reference) };
 }
 
 function orientation(atlas, selected, representation) {
-  const recordFor = (record, kind) => representation === 'compact' ? compactReference(record, kind) : copy(record);
+  const recordFor = point => representation === 'compact' ? compactReference(point) : copy(point);
   const trees = new Map();
   for (const { point } of selected) {
     const tree = atlas.trees.find((item) => item.id === point.tree);
     if (!trees.has(tree.id)) trees.set(tree.id, {
-      tree: treeInfo(tree), base: recordFor(atlas.points.find((item) => item.id === tree.base), 'point'),
+      tree: treeInfo(tree), base: recordFor(atlas.points.find((item) => item.id === tree.base)),
       ancestors: [], forPoints: [],
     });
     const entry = trees.get(tree.id);
     entry.forPoints.push(point.id);
     for (const ancestor of point.ancestors ?? []) {
-      if (ancestor.kind === 'point' && ancestor.id === tree.base) continue;
-      if (entry.ancestors.some((item) => item.kind === ancestor.kind && item.id === ancestor.id)) continue;
-      const record = ancestor.kind === 'point'
-        ? atlas.points.find((item) => item.id === ancestor.id)
-        : atlas.branches.find((item) => item.id === ancestor.id && item.tree === point.tree);
-      if (record) entry.ancestors.push({ ...copy(ancestor), record: recordFor(record, ancestor.kind) });
+      if (ancestor.id === tree.base || entry.ancestors.some((item) => item.id === ancestor.id)) continue;
+      const record = atlas.points.find((item) => item.id === ancestor.id);
+      if (record) entry.ancestors.push({ ...copy(ancestor), record: recordFor(record) });
     }
   }
   return [...trees.values()];
@@ -111,9 +102,9 @@ function supporting(atlas, selected, request) {
     for (const { point: parent } of selected) {
       if (parent.tree !== point.tree) continue;
       const ancestors = point.ancestors ?? [];
-      const index = ancestors.findIndex((item) => item.kind === 'point' && item.id === parent.id);
+      const index = ancestors.findIndex((item) => item.id === parent.id);
       if (index < 0) continue;
-      const pointDepth = ancestors.slice(index + 1).filter((item) => item.kind === 'point').length + 1;
+      const pointDepth = ancestors.length - index;
       if (request.detail === 'standard' && pointDepth > 1) continue;
       reasons.push({ kind: 'authored-descendant', point: parent.id, pointDepth });
     }
@@ -121,31 +112,19 @@ function supporting(atlas, selected, request) {
   }).sort((left, right) => order.get(left.point.id) - order.get(right.point.id));
 }
 
-function relatedFacets(atlas, readings, request) {
+function relatedFacets(atlas, readings) {
   const points = new Set(readings.map(({ point }) => point.id));
-  const ancestors = new Set(readings.flatMap(({ point }) => (point.ancestors ?? [])
-    .filter((item) => item.kind === 'point').map((item) => item.id)));
-  const branches = new Set(readings.flatMap(({ point }) => (point.ancestors ?? [])
-    .filter((item) => item.kind === 'branch').map((item) => `${point.tree}/${item.id}`)));
+  const ancestors = new Set(readings.flatMap(({ point }) => (point.ancestors ?? []).map((item) => item.id)));
   return atlas.facets.flatMap((facet) => {
     const reasons = [];
-    if (facet.on.point && points.has(facet.on.point)) reasons.push({ kind: 'attached-point', point: facet.on.point });
-    else if (facet.on.point && ancestors.has(facet.on.point)) reasons.push({
-      kind: 'attached-ancestor-point', point: facet.on.point,
+    if (points.has(facet.on)) reasons.push({ kind: 'attached-point', point: facet.on });
+    else if (ancestors.has(facet.on)) reasons.push({
+      kind: 'attached-ancestor-point', point: facet.on,
       limit: 'The interpretation belongs to the higher explanation. Applying it to a descendant requires separate judgment.',
     });
-    if (facet.on.branch && branches.has(`${facet.tree}/${facet.on.branch}`)) reasons.push({
-      kind: 'attached-ancestor-branch', tree: facet.tree, branch: facet.on.branch,
-      limit: 'The interpretation addresses its host Branch. Applying it to a descendant requires separate judgment.',
-    });
     for (const target of facet.targets) {
-      if (target.point && points.has(target.point)) reasons.push({ kind: 'incoming-point-reference', point: target.point });
-      else if (target.point && ancestors.has(target.point)) reasons.push({ kind: 'incoming-ancestor-point-reference', point: target.point });
-      if (target.branch && branches.has(`${facet.via}/${target.branch}`)) reasons.push({
-        kind: 'incoming-ancestor-branch-reference', tree: facet.via, branch: target.branch,
-        limit: 'The reference addresses the Branch as a whole. Its implications for descendants require review.',
-      });
-      if (target.tree && request.tree === target.tree) reasons.push({ kind: 'incoming-tree-reference', tree: target.tree });
+      if (points.has(target)) reasons.push({ kind: 'incoming-point-reference', point: target });
+      else if (ancestors.has(target)) reasons.push({ kind: 'incoming-ancestor-point-reference', point: target });
     }
     return reasons.length ? [{ facet: copy(facet), reasons }] : [];
   });
@@ -168,7 +147,7 @@ export function route(view, input) {
   };
   if (view?.format !== 'atlas.view/1' || view.status !== 'ready' || !view.atlas) return { ...result, diagnostics: copy(view?.diagnostics ?? []), reason: 'A valid normalized Atlas is required.' };
   const atlas = view.atlas;
-  let matches, facetMatches = [];
+  let matches, facetMatches = [], matched = 0;
   if (request.facet) {
     const facet = atlas.facets.find(item => item.id === request.facet && item.tree === request.tree);
     facetMatches = facet && !request.type ? [{ facet: copy(facet), reasons: [{ kind: 'exact-facet', tree: facet.tree, facet: facet.id }] }] : [];
@@ -183,7 +162,9 @@ export function route(view, input) {
       (request.type ? pointType(point) === request.type : point.id === tree.base))
       .map((point) => ({ point: copy(point), reasons: [{ kind: request.type ? 'exact-tree-type-filter' : 'tree-base', tree: tree.id }] })) : [];
   } else {
-    const found = searchAtlas(view, { query: request.query, type: request.type, limit: 100, kinds: request.kinds ?? (request.mode === 'discover' ? ['point', 'facet'] : ['point']) });
+    const page = searchAtlasPage(view, { query: request.query, type: request.type, limit: 100, kinds: request.kinds ?? (request.mode === 'discover' ? ['point', 'facet'] : ['point']) });
+    const found = page.results;
+    matched = page.available;
     facetMatches = found.filter(item => item.kind === 'facet').map(item => ({ facet: copy(atlas.facets.find(facet => facet.id === item.id && facet.tree === item.tree)), reasons: [{ kind: 'lexical-facet-candidate', matches: copy(item.matches), score: item.score, explanation: item.reason }] }));
     matches = found.filter(item => item.kind !== 'facet').map((item) => ({
       point: copy(atlas.points.find((point) => point.id === item.id)),
@@ -194,7 +175,7 @@ export function route(view, input) {
   const details = request.mode === 'discover' ? [] : supporting(atlas, initialSelection, request);
   // Facets form one stable section across all supporting pages. Their reasons
   // identify an attachment even when that supporting Point is on another page.
-  const related = request.mode === 'discover' ? [] : relatedFacets(atlas, [...initialSelection, ...details], request);
+  const related = request.mode === 'discover' ? [] : relatedFacets(atlas, [...initialSelection, ...details]);
   const facets = [...facetMatches, ...related.filter(item => !facetMatches.some(match => match.facet.tree === item.facet.tree && match.facet.id === item.facet.id))];
   const sections = { selected: matches, supporting: details, facets };
   if (request.cursor) argument(request.cursor.offset <= sections[request.cursor.section].length, 'cursor offset exceeds the selected section.');
@@ -214,14 +195,15 @@ export function route(view, input) {
     point: pointSummary(point, reasons.flatMap(reason => reason.matches ?? [])), reasons,
   })) : pages.selected;
   const facetHost = request.facet && facetMatches[0]?.facet;
-  const orientationSelection = facetHost ? [{ point: atlas.points.find(point => point.id === (facetHost.on.point ?? atlas.trees.find(tree => tree.id === facetHost.tree).base)) }] : initialSelection;
+  const orientationSelection = facetHost ? [{ point: atlas.points.find(point => point.id === facetHost.on) }] : initialSelection;
   return {
     ...result, status: !matches.length && !facetMatches.length ? 'missing' : request.query && matches.length + facetMatches.length > 1 ? 'ambiguous' : 'ready',
     reason: !matches.length && !facetMatches.length ? 'No record satisfies the supplied selector and filters.' : undefined,
     orientation: request.cursor ? [] : orientation(atlas, orientationSelection, request.orientation),
     selected, supporting: pages.supporting, facets: request.mode === 'discover' ? pages.facets.map(({ facet, reasons }) => ({ facet: facetSummary(facet, reasons.flatMap(reason => reason.matches ?? [])), reasons })) : pages.facets.map(reading => facetContext(atlas, reading)), bounds, next,
     ...(request.cursor ? { page: { section: request.cursor.section, offset: request.cursor.offset } } : {}),
-    ...(request.query ? { search: { window: 100, exhaustive: matches.length + facetMatches.length < 100,
+    // How many records matched in all: past the window of 100, candidates were left out.
+    ...(request.query ? { search: { window: 100, available: matched, exhaustive: matched <= 100,
       limit: 'The search window bounds lexical candidates, not semantic relevance or a complete answer.' } } : {}),
   };
 }

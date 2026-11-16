@@ -9,7 +9,7 @@ new destination. Updates and removal verify the existing installation and refuse
 modified or extra files. Staging checks the copied bundle before replacing an
 installation. Project content and private drafts belong outside that directory.
 
-See [Installation](../../docs/install.md#runtime-bundle) for the installed commands.
+See [Install Atlas](../../docs/how-to/install.md#from-a-runtime-bundle) for the installed commands.
 From the source repository root, run the component tests with:
 
 ```sh

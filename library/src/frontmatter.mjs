@@ -149,12 +149,13 @@ function visibleText(tokens) {
   }).join('');
 }
 
+// An explanation has a letter or digit in the text of a block that is not a heading.
 function hasExplanation(tokens) {
   let heading = false;
   return tokens.some(token => {
     if (token.type === 'heading_open') { heading = true; return false; }
     if (token.type === 'heading_close') { heading = false; return false; }
-    return !heading && Boolean(visibleText([token]).trim());
+    return !heading && /[\p{L}\p{N}]/u.test(visibleText([token]));
   });
 }
 
@@ -172,20 +173,15 @@ export function markdownSections(body) {
   return sections.map(({ title, tokens }) => ({ title, hasExplanation: hasExplanation(tokens) }));
 }
 
-/** Extract a JSON header, one Markdown H1 title, and nonblank remaining text. */
-export function parseMarkdown(text) {
+function markdownLines(text) {
   if (typeof text !== "string") fail("MARKDOWN_HEADER", "Markdown input must be text.");
   if (text.length > MAX_TEXT_LENGTH) fail("JSON_LIMIT", "Markdown input exceeds the text limit.");
   checkUnicode(text);
-  const lines = text.replace(/\r\n/g, "\n").split("\n");
-  if (lines[0] !== "---") fail("MARKDOWN_HEADER", "Markdown must begin with an exact --- delimiter line.");
-  const end = lines.indexOf("---", 1);
-  if (end < 0) fail("MARKDOWN_HEADER", "Markdown JSON header has no closing --- delimiter line.");
-  const header = parseStrictJson(lines.slice(1, end).join("\n"));
-  if (header === null || typeof header !== "object" || Array.isArray(header)) {
-    fail("MARKDOWN_HEADER", "Markdown JSON header must be an object.");
-  }
-  const content = lines.slice(end + 1);
+  if (/\r(?!\n)/.test(text)) fail("MARKDOWN_LINE_ENDING", "Markdown lines end with LF or CRLF; a CR not followed by LF is not allowed.");
+  return text.replace(/\r\n/g, "\n").split("\n");
+}
+
+function titleAndBody(content) {
   const tokens = markdown.parse(content.join('\n'), {});
   const headings = tokens.flatMap((token, index) => token.type === 'heading_open' && token.level === 0
     ? [{ level: Number(token.tag.slice(1)), title: visibleText([tokens[index + 1]]).trim(), start: token.map[0], end: token.map[1] - 1 }] : []);
@@ -197,6 +193,70 @@ export function parseMarkdown(text) {
   }
   const first = headings[0];
   const body = [...content.slice(0, first.start), ...content.slice(first.end + 1)].join("\n").trim();
-  if (!body || !hasExplanation(markdown.parse(body, {}))) fail("MARKDOWN_BODY", "Markdown must contain an explanation beyond headings and empty markup.");
-  return { header, title: first.title, body };
+  if (!body || !hasExplanation(markdown.parse(body, {}))) fail("MARKDOWN_BODY", "Markdown must contain an explanation: a letter or digit outside headings, comments and markup.");
+  return { title: first.title, body };
+}
+
+/** Extract a JSON header, one Markdown H1 title, and nonblank remaining text. */
+export function parseMarkdown(text) {
+  const lines = markdownLines(text);
+  if (lines[0] !== "---") fail("MARKDOWN_HEADER", "Markdown must begin with an exact --- delimiter line.");
+  const end = lines.indexOf("---", 1);
+  if (end < 0) fail("MARKDOWN_HEADER", "Markdown JSON header has no closing --- delimiter line.");
+  const header = parseStrictJson(lines.slice(1, end).join("\n"));
+  if (header === null || typeof header !== "object" || Array.isArray(header)) {
+    fail("MARKDOWN_HEADER", "Markdown JSON header must be an object.");
+  }
+  return { header, ...titleAndBody(lines.slice(end + 1)) };
+}
+
+/** Extract one Markdown H1 title and nonblank remaining text from a record that has no header. */
+export function parsePlainMarkdown(text) {
+  const lines = markdownLines(text);
+  if (lines[0] === "---") fail("MARKDOWN_HEADER", "Markdown without a header must not begin with a --- delimiter line.");
+  return titleAndBody(lines);
+}
+
+/**
+ * A record's JSON header is not part of its Markdown: in a text that begins with one, as `parseMarkdown` reads it (a
+ * `---` line, a JSON object, a closing `---` line), its lines are blanked, so that no line after it moves.
+ */
+export function withoutHeader(content) {
+  const lines = content.split(/\r\n|\n|\r/);
+  if (lines[0] !== '---') return content;
+  const end = lines.indexOf('---', 1);
+  if (end < 0) return content;
+  try {
+    const header = parseStrictJson(lines.slice(1, end).join('\n'));
+    if (header === null || typeof header !== 'object' || Array.isArray(header)) return content;
+  } catch { return content; }
+  return [...lines.slice(0, end + 1).fill(''), ...lines.slice(end + 1)].join('\n');
+}
+
+/**
+ * Headings in document order: identity, level, first source line, and whether a quote or list holds them. A record's
+ * header is not a heading: a text that begins with one is read from the line after it. A heading is read as CommonMark
+ * reads it, raw HTML included, and its name comes from its text content as a title's does, trimmed.
+ */
+export function markdownHeadings(content, { title } = {}) {
+  const used = new Set();
+  const identity = value => {
+    const stem = value.toLowerCase().replace(/[^\p{L}\p{N}\p{M}\s_-]/gu, '').replace(/\s/g, '-');
+    let slug = stem, suffix = 0;
+    while (used.has(slug)) slug = `${stem}-${++suffix}`;
+    used.add(slug);
+    return slug;
+  };
+  const headings = title === undefined ? [] : [{ id: identity(title), level: 1, line: null, nested: false }];
+  const tokens = markdown.parse(withoutHeader(content), {});
+  for (let index = 0; index < tokens.length; index++) {
+    const token = tokens[index];
+    if (token.type === 'heading_open') headings.push({ id: identity(visibleText([tokens[index + 1]]).trim()), level: Number(token.tag.slice(1)), line: token.map[0], nested: token.level > 0 });
+  }
+  return headings;
+}
+
+/** Identical heading identity rules to the Portal's Markdown renderer. */
+export function markdownHeadingIds(content, options) {
+  return markdownHeadings(content, options).map(heading => heading.id);
 }

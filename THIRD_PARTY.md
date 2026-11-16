@@ -10,14 +10,12 @@ version, declared license metadata and conventional notice files at its package
 root. The content manifest hashes those retained bytes. Missing metadata remains
 explicit; the inventory is not a rights-clearance or license-compatibility claim.
 
-The Portal's browser script, `apps/portal/public/app.js`, and the prerenderer an
-export runs, `apps/portal/public/prerender.mjs`, are built from development
-dependencies and bundle third-party code: React, react-dom and scheduler (MIT);
-React Aria Components, react-aria, react-stately and `@internationalized/date`,
-`number` and `string` (Apache-2.0); and clsx, use-sync-external-store and
-client-only (MIT). The build writes each bundled package's name, version, declared
-license and license text to `apps/portal/public/licenses.txt`, which ships beside
-the script and is copied into every exported site.
+The one runtime dependency is markdown-it 15.0.3 (MIT), with the packages it
+depends on: argparse 3.0.4 (declared PSF-2.0), entities 8.1.0 (BSD-2-Clause),
+linkify-it 6.1.0, mdurl 2.1.0, punycode.js 2.3.1 and uc.micro 3.0.0 (MIT).
+The Portal bundles no third-party code: its sheet and reader script in
+`apps/portal/assets/` are Atlas's own and are served and exported as written,
+and the search an export carries is the Library's own `library/src/search.mjs`.
 
 Runtime bundles also retain Node's notices in `runtime/LICENSE`. Other development
 dependencies, host system libraries and external Atlas source material are outside

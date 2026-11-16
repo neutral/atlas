@@ -2,15 +2,17 @@ import { createHash } from 'node:crypto';
 import { constants } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
-import { parseStrictJson, parseMarkdown, markdownSections } from './frontmatter.mjs';
+import { parseStrictJson, parseMarkdown, parsePlainMarkdown, markdownSections, markdownHeadings } from './frontmatter.mjs';
 import { isPrivateStatePath } from './state.mjs';
-import { searchPoints, searchRecords } from './search.mjs';
+import { searchPage, searchable } from './search.mjs';
 
 const DEFAULT_BYTES = 2 * 1024 * 1024;
 const DEFAULT_FILES = 10000;
 const MAX_ENTRIES = 10000;
 const MAX_DEPTH = 64;
 const MAX_TOTAL_BYTES = 64 * 1024 * 1024;
+const FORMAT = 'atlas/1.2';
+const STYLE = 'style.md';
 const ID = /^[a-z0-9][a-z0-9-]{0,99}$/;
 const HASH = /^[a-f0-9]{64}$/;
 const own = (value, key) => Object.hasOwn(value, key);
@@ -31,9 +33,14 @@ function freeze(value) {
 
 function relativeRecordPath(value) {
   return typeof value === 'string' && value.length > 0 && value.length <= 4096 &&
-    value.normalize('NFC') === value &&
+    value.isWellFormed() && value.normalize('NFC') === value &&
     !/[\\\x00-\x1f\x7f:#?]/.test(value) && !path.posix.isAbsolute(value) &&
     value.split('/').every(part => part !== '' && part !== '.' && part !== '..' && !pathKey(part).startsWith('.atlas-'));
+}
+
+function reservedTreePath(directory) {
+  const key = pathKey(directory);
+  return ['atlas.json', STYLE, '.checks'].some(reserved => key === reserved || key.startsWith(`${reserved}/`));
 }
 
 function optionsBounds(options = {}) {
@@ -65,7 +72,7 @@ function finishView(root, files, diagnostics, atlas, incomplete = false) {
   });
 }
 
-function inspectSource(source) {
+function sourceIssue(source) {
   if (!object(source)) return 'A source must be an object.';
   const fields = ['uri', 'title', 'role', 'revision', 'locator', 'sha256'];
   if (Object.keys(source).some(key => !fields.includes(key))) return 'A source has an unknown field.';
@@ -94,7 +101,7 @@ function inspectSource(source) {
 }
 
 export function validateSource(source) {
-  const issue = inspectSource(source);
+  const issue = sourceIssue(source);
   return { valid: !issue, diagnostics: issue ? [diagnostic('SOURCE_INVALID', '', issue)] : [] };
 }
 
@@ -112,8 +119,89 @@ function validDate(value) {
   return true;
 }
 
+/**
+ * The folders a reader walks for records, in the order it walks them, by the manifest text it is given: each Tree
+ * folder's points/ and facets/, then .checks.
+ */
+function recordFolders(manifestText) {
+  let trees;
+  try { trees = typeof manifestText === 'string' ? parseStrictJson(manifestText)?.trees : null; } catch { trees = null; }
+  const folders = [], seen = new Set();
+  if (Array.isArray(trees) && trees.length <= MAX_ENTRIES) {
+    for (const folder of trees) {
+      if (!relativeRecordPath(folder) || reservedTreePath(folder) || seen.has(folder)) continue;
+      seen.add(folder);
+      folders.push(`${folder}/points`, `${folder}/facets`);
+    }
+  }
+  return [...folders, '.checks'];
+}
+
+/**
+ * What a reader walking a folder that holds exactly these paths reads in its record folders, as openAtlas walks them: it
+ * lists each directory in name order, 64 levels below a record folder at most, and four times the file bound of entries
+ * in all. `reached` holds the paths it reads as files, `within` every path in a record folder, and `limits` the
+ * READ_LIMIT diagnostics it gives. The work is bounded as the reader's is: no path is taken apart deeper than one level
+ * past the depth bound, and no directory is listed once the entry bound is passed.
+ */
+function walkFolders(paths, folders, maxFiles) {
+  const lengths = new Set(folders.map(folder => folder.length)), longest = Math.max(...lengths);
+  const below = new Map(folders.map(folder => [folder, []])), within = new Set();
+  for (const file of paths) {
+    for (let at = file.indexOf('/'); at > 0 && at <= longest; at = file.indexOf('/', at + 1)) {
+      const items = lengths.has(at) ? below.get(file.slice(0, at)) : undefined;
+      if (!items) continue;
+      within.add(file);
+      // A path more than 65 components below the folder runs through a directory the reader does not list.
+      items.push({ file, parts: file.slice(at + 1).split('/', MAX_DEPTH + 2) });
+    }
+  }
+  const order = (a, b) => {
+    for (let index = 0; index < Math.min(a.parts.length, b.parts.length); index++) {
+      const order = compare(a.parts[index], b.parts[index]);
+      if (order) return order;
+    }
+    return a.parts.length - b.parts.length;
+  };
+  const reached = new Set(), limits = [], bound = maxFiles * 4;
+  let traversed = 0;
+  // items[start, end) are the paths below `relative`, a directory `depth` levels below its folder, in the reader's order.
+  const walk = (relative, items, start, end, depth) => {
+    if (depth > MAX_DEPTH) { limits.push(diagnostic('READ_LIMIT', relative, `Directory depth exceeds ${MAX_DEPTH}.`)); return; }
+    const listed = [];
+    for (let index = start; index < end;) {
+      if (++traversed > bound) { limits.push(diagnostic('READ_LIMIT', relative, 'Authored directory traversal exceeds its entry bound.')); break; }
+      let next = index + 1;
+      while (next < end && items[next].parts[depth] === items[index].parts[depth]) next++;
+      listed.push([index, next]);
+      index = next;
+    }
+    for (const [from, to] of listed) {
+      const file = `${relative}/${items[from].parts[depth]}`;
+      if (!relativeRecordPath(file)) continue;
+      // The paths that end here name a file; those that go on run through a directory of this name.
+      let next = from;
+      for (; next < to && items[next].parts.length === depth + 1; next++) reached.add(items[next].file);
+      if (next < to) walk(file, items, next, to, depth + 1);
+    }
+  };
+  for (const [folder, items] of below) if (items.length) walk(folder, items.sort(order), 0, items.length, 0);
+  return { reached, within, limits };
+}
+
 /** Validate only supplied authored bytes. No file or source access occurs. */
 export function validateFiles(input, options = {}) {
+  const read = readAuthored(input, options);
+  return finishView(read.root, read.files, read.diagnostics, read.atlas, read.incomplete);
+}
+
+/**
+ * Read supplied authored bytes into records as far as they allow, with the diagnostics that say where they do not.
+ * `atlas` is null when there is no manifest object to read the rest from. With `lenient`, the Points in a Tree folder
+ * whose tree.json cannot be read are read too, with `tree` null; a Facet there is not, since its identity needs its Tree.
+ * A Point keeps `ancestors` null until the outline places it.
+ */
+function readAuthored(input, options = {}, lenient = false) {
   const root = path.resolve(options.root ?? '.');
   const { maxFileBytes, maxFiles } = optionsBounds(options);
   const diagnostics = [];
@@ -122,16 +210,21 @@ export function validateFiles(input, options = {}) {
   const map = new Map();
   const pathAliases = new Map();
   let incomplete = false;
-  const entries = input instanceof Map ? input.entries() : Array.isArray(input) ? input.map(file => [file.path, file.rawBase64 === undefined ? file.content : { rawBase64: file.rawBase64 }]) : object(input) ? Object.entries(input) : null;
+  const done = atlas => ({ root, files, diagnostics, atlas, incomplete });
+  const entries = input instanceof Map ? [...input.entries()] : Array.isArray(input) ? input.map(file => [file.path, file.rawBase64 === undefined ? file.content : { rawBase64: file.rawBase64 }]) : object(input) ? Object.entries(input) : null;
   if (!entries) {
     add('FILES_INPUT', '', 'Files must be a Map, captured file array, or path-to-content object.');
-    return finishView(root, files, diagnostics, null);
+    return done(null);
   }
+  // A reader that walks a folder holding these paths reads no file past its bounds on depth and directory entries.
+  const walked = walkFolders(entries.map(([file]) => file).filter(file => typeof file === 'string'), recordFolders(entries.find(([file]) => file === 'atlas.json')?.[1]), maxFiles);
+  if (walked.limits.length) { diagnostics.push(...walked.limits); incomplete = true; }
   let count = 0, totalBytes = 0;
   for (const [file, supplied] of entries) {
     let content = supplied, raw = null;
     if (++count > maxFiles) { add('READ_LIMIT', '', `Authored file count exceeds ${maxFiles}.`); incomplete = true; break; }
     if (typeof file !== 'string') { add('PATH_UNSAFE', String(file), 'Authored paths must be text.'); continue; }
+    if (walked.within.has(file) && !walked.reached.has(file) && relativeRecordPath(file)) continue;
     const parts = file.split('/');
     let aliasFound = false;
     for (let length = 1; length <= parts.length; length++) {
@@ -188,7 +281,7 @@ export function validateFiles(input, options = {}) {
     if (!own(header, 'sources')) return;
     if (!array(header.sources, file, 'sources')) return;
     for (const source of header.sources) {
-      const issue = inspectSource(source);
+      const issue = sourceIssue(source);
       if (issue) add('SOURCE_INVALID', file, issue);
     }
   }
@@ -196,49 +289,44 @@ export function validateFiles(input, options = {}) {
   const manifest = parse('atlas.json');
   if (!object(manifest)) {
     if (!diagnostics.length) add('RECORD_OBJECT', 'atlas.json', 'The manifest must be a JSON object.');
-    return finishView(root, files, diagnostics, null, incomplete);
+    return done(null);
   }
-  if (!fields(manifest, ['format', 'id', 'title', 'trees', ...(manifest.format === 'atlas/1.1' ? ['style'] : [])], ['format', 'id', 'title', 'trees', ...(manifest.format === 'atlas/1.1' ? ['style'] : [])], 'atlas.json')) return finishView(root, files, diagnostics, null, incomplete);
-  if (!['atlas/1', 'atlas/1.1'].includes(manifest.format)) add('FORMAT_UNSUPPORTED', 'atlas.json', 'Supported formats are atlas/1 and atlas/1.1.');
+  if (!fields(manifest, ['format', 'id', 'title', 'trees'], ['format', 'id', 'title', 'trees'], 'atlas.json')) return done(null);
+  if (manifest.format !== FORMAT) add('FORMAT_UNSUPPORTED', 'atlas.json', `The supported format is ${FORMAT}.`);
   id(manifest.id, 'atlas.json'); textField(manifest.title, 'atlas.json', 'title');
-  if (!array(manifest.trees, 'atlas.json', 'trees')) return finishView(root, files, diagnostics, null, incomplete);
-  const atlas = { format: manifest.format, id: manifest.id, title: manifest.title, trees: [], points: [], branches: [], facets: [], checks: [] };
+  if (!array(manifest.trees, 'atlas.json', 'trees')) return done(null);
+  let style;
+  if (!map.has(STYLE) || map.get(STYLE) !== null && !map.get(STYLE).trim()) add('STYLE_REQUIRED', STYLE, 'An Atlas keeps its Style in style.md: one H1 title and its complete policy.');
+  else if (map.get(STYLE) !== null) {
+    try { style = { ...parsePlainMarkdown(map.get(STYLE)), path: STYLE }; }
+    catch (error) { add(error.code ?? 'PARSE_ERROR', STYLE, error.message); }
+  }
+  const atlas = { format: manifest.format, id: manifest.id, title: manifest.title, style, trees: [], points: [], facets: [], checks: [] };
   const directories = [];
   for (const directory of manifest.trees) {
-    if (!relativeRecordPath(directory) || pathKey(directory) === '.checks' || pathKey(directory).startsWith('.checks/') || pathKey(directory) === 'atlas.json') { add('TREE_PATH', 'atlas.json', 'Tree folders must be normalized relative directories outside .checks and reserved .atlas-* paths.'); continue; }
+    if (!relativeRecordPath(directory) || reservedTreePath(directory)) { add('TREE_PATH', 'atlas.json', 'Tree folders must be normalized relative directories outside atlas.json, style.md, .checks and reserved .atlas-* paths.'); continue; }
     const key = pathKey(directory);
     if (directories.some(existing => key === pathKey(existing) || key.startsWith(pathKey(existing) + '/') || pathKey(existing).startsWith(key + '/'))) { add('TREE_OVERLAP', 'atlas.json', `Tree directories overlap or alias: ${directory}.`); continue; }
     directories.push(directory);
   }
-  const recognized = new Set(['atlas.json']);
-  if (manifest.format === 'atlas/1.1') {
-    const file = manifest.style, key = typeof file === 'string' ? pathKey(file) : '';
-    if (!relativeRecordPath(file) || !file.endsWith('.md') || key === '.checks' || key.startsWith('.checks/') || key === 'trees' || key.startsWith('trees/') || directories.some(directory => key === pathKey(directory) || key.startsWith(pathKey(directory) + '/') || pathKey(directory).startsWith(key + '/'))) {
-      add('STYLE_PATH', 'atlas.json', 'style must name one normalized local .md record outside Tree directories, trees/ and .checks/.');
-    } else {
-      recognized.add(file);
-      const parsed = parse(file, true);
-      if (parsed && fields(parsed.header, ['id', 'revision', 'derivedFrom'], ['id', 'revision'], file)) {
-        id(parsed.header.id, file); textField(parsed.header.revision, file, 'revision');
-        if (own(parsed.header, 'derivedFrom')) textField(parsed.header.derivedFrom, file, 'derivedFrom');
-        atlas.style = { ...parsed.header, title: parsed.title, body: parsed.body, path: file };
-      }
-    }
-  }
-  const treeById = new Map(), pointById = new Map(), branchByKey = new Map();
+  const recognized = new Set(['atlas.json', STYLE]);
+  const treeById = new Map(), pointById = new Map();
   for (const directory of directories) {
     const file = `${directory}/tree.json`;
     recognized.add(file);
     const tree = parse(file);
-    if (!fields(tree, ['id', 'title', 'scope', 'base', 'children'], ['id', 'title', 'scope', 'base', 'children'], file)) continue;
-    id(tree.id, file); id(tree.base, file, 'base'); textField(tree.title, file, 'title'); textField(tree.scope, file, 'scope');
-    array(tree.children, file, 'children');
-    const record = { ...tree, path: file };
-    if (treeById.has(tree.id)) add('TREE_DUPLICATE', file, `Duplicate Tree ID: ${tree.id}.`);
-    else treeById.set(tree.id, record);
-    atlas.trees.push(record);
+    const known = fields(tree, ['id', 'title', 'scope', 'base', 'children'], ['id', 'title', 'scope', 'base', 'children'], file);
+    if (!known && !lenient) continue;
+    if (known) {
+      id(tree.id, file); id(tree.base, file, 'base'); textField(tree.title, file, 'title'); textField(tree.scope, file, 'scope');
+      array(tree.children, file, 'children');
+      const record = { ...tree, path: file };
+      if (treeById.has(tree.id)) add('TREE_DUPLICATE', file, `Duplicate Tree ID: ${tree.id}.`);
+      else treeById.set(tree.id, record);
+      atlas.trees.push(record);
+    }
     for (const sourcePath of [...map.keys()].sort(compare)) {
-      const kind = sourcePath.startsWith(`${directory}/points/`) ? 'point' : sourcePath.startsWith(`${directory}/facets/`) ? 'facet' : null;
+      const kind = sourcePath.startsWith(`${directory}/points/`) ? 'point' : sourcePath.startsWith(`${directory}/facets/`) && known ? 'facet' : null;
       if (!kind) continue;
       recognized.add(sourcePath);
       if (!sourcePath.endsWith('.md')) { add('RECORD_EXTENSION', sourcePath, 'Point and Facet records use .md files.'); continue; }
@@ -248,9 +336,9 @@ export function validateFiles(input, options = {}) {
       const allowed = kind === 'point' ? ['id', 'type', 'status', 'observedAt', 'sources', 'uncertainty'] : ['id', 'on', 'via', 'targets', 'sources', 'uncertainty'];
       if (!fields(header, allowed, kind === 'point' ? ['id'] : ['id', 'on', 'via', 'targets'], sourcePath)) continue;
       id(header.id, sourcePath); sources(header, sourcePath);
-      const result = { ...header, tree: tree.id, path: sourcePath, title, body };
+      const result = { ...header, tree: known ? tree.id : null, path: sourcePath, title, body };
       if (kind === 'point') {
-        result.ancestors = [];
+        result.ancestors = null;
         if (own(header, 'type') && !['decision', 'observation'].includes(header.type)) add('TYPE_UNSUPPORTED', sourcePath, 'Supported Point Types are decision and observation.');
         if (header.type === 'decision') {
           if (!['open', 'proposed', 'selected', 'rejected', 'superseded'].includes(header.status)) add('DECISION_STATUS', sourcePath, 'A decision requires a supported status.');
@@ -281,36 +369,20 @@ export function validateFiles(input, options = {}) {
     if (depth > MAX_DEPTH) { add('OUTLINE_LIMIT', tree.path, `Outline depth exceeds ${MAX_DEPTH}.`); return; }
     for (const node of nodes) {
       if (++nodeCount > MAX_ENTRIES) { if (nodeCount === MAX_ENTRIES + 1) add('OUTLINE_LIMIT', tree.path, `Atlas outline exceeds ${MAX_ENTRIES} placements.`); return; }
-      if (!object(node) || own(node, 'point') === own(node, 'branch')) { add('PLACEMENT_KIND', tree.path, 'Each placement contains exactly one point or branch.'); continue; }
-      if (own(node, 'point')) {
-        fields(node, ['point', 'children'], ['point'], tree.path);
+      if (!fields(node, ['point', 'children'], ['point'], tree.path)) continue;
+      const placed = own(node, 'point');
+      if (placed) {
         id(node.point, tree.path, 'point');
         placePoint(node.point, tree, ancestors);
-        if (own(node, 'children') && array(node.children, tree.path, 'children')) walk(node.children, tree, [...ancestors, { kind: 'point', id: node.point, tree: tree.id }], depth + 1);
-      } else {
-        fields(node, ['branch', 'title', 'children'], ['branch', 'title', 'children'], tree.path);
-        id(node.branch, tree.path, 'branch'); textField(node.title, tree.path, 'title');
-        const key = `${tree.id}/${node.branch}`;
-        if (branchByKey.has(key)) add('BRANCH_DUPLICATE', tree.path, `Duplicate Branch ID: ${node.branch}.`);
-        else {
-          const branch = { id: node.branch, tree: tree.id, title: node.title, ancestors, children: node.children };
-          branchByKey.set(key, branch); atlas.branches.push(branch);
-        }
-        if (array(node.children, tree.path, 'children', true)) walk(node.children, tree, [...ancestors, { kind: 'branch', id: node.branch, tree: tree.id }], depth + 1);
       }
+      if (own(node, 'children') && array(node.children, tree.path, 'children')) walk(node.children, tree, placed ? [...ancestors, { id: node.point, tree: tree.id }] : ancestors, depth + 1);
     }
   }
   for (const tree of atlas.trees) {
     placePoint(tree.base, tree, []);
-    walk(tree.children, tree, [{ kind: 'point', id: tree.base, tree: tree.id }], 0);
+    walk(tree.children, tree, [{ id: tree.base, tree: tree.id }], 0);
   }
   for (const point of atlas.points) if (!placements.has(point.id)) add('POINT_UNPLACED', point.path, `Point ${point.id} has no structural home in its owning Tree.`);
-  function pointer(value, kinds, file, field) {
-    if (!object(value) || Object.keys(value).length !== 1 || !kinds.includes(Object.keys(value)[0])) { add('POINTER_INVALID', file, `${field} must contain exactly one ${kinds.join(' or ')} ID.`); return null; }
-    const kind = Object.keys(value)[0];
-    if (!id(value[kind], file, field)) return null;
-    return { kind, id: value[kind] };
-  }
   const facetIds = new Set();
   for (const facet of atlas.facets) {
     const key = `${facet.tree}/${facet.id}`;
@@ -319,14 +391,14 @@ export function validateFiles(input, options = {}) {
     id(facet.via, facet.path, 'via');
     if (!treeById.has(facet.via)) add('FACET_TREE', facet.path, `Facet Tree does not exist: ${facet.via}.`);
     if (facet.via === facet.tree) add('FACET_SELF', facet.path, 'A Facet interprets through a different Tree.');
-    const host = pointer(facet.on, ['point', 'branch'], facet.path, 'on');
-    if (host && (host.kind === 'point' ? pointById.get(host.id)?.tree !== facet.tree : !branchByKey.has(`${facet.tree}/${host.id}`))) add('FACET_HOST', facet.path, 'Facet host must exist in its owning Tree.');
+    if (id(facet.on, facet.path, 'on') && pointById.get(facet.on)?.tree !== facet.tree) add('FACET_HOST', facet.path, 'A Facet attaches to a Point of its owning Tree.');
     if (array(facet.targets, facet.path, 'targets', true)) {
-      for (const value of facet.targets) {
-        const target = pointer(value, ['point', 'branch', 'tree'], facet.path, 'target');
-        if (!target) continue;
-        const valid = target.kind === 'tree' ? target.id === facet.via && treeById.has(target.id) : target.kind === 'point' ? pointById.get(target.id)?.tree === facet.via : branchByKey.has(`${facet.via}/${target.id}`);
-        if (!valid) add('FACET_TARGET', facet.path, 'Every Facet target must exist in its via Tree.');
+      const targets = new Set();
+      for (const target of facet.targets) {
+        if (!id(target, facet.path, 'target')) continue;
+        if (targets.has(target)) add('TARGET_DUPLICATE', facet.path, `Duplicate Facet target: ${target}.`);
+        targets.add(target);
+        if (pointById.get(target)?.tree !== facet.via) add('FACET_TARGET', facet.path, 'Every Facet target is a Point of its via Tree.');
       }
     }
   }
@@ -352,7 +424,39 @@ export function validateFiles(input, options = {}) {
     atlas.checks.push({ ...header, path: file, title, body, revision: sha(map.get(file)) });
   }
   for (const file of map.keys()) if (!recognized.has(file)) add('RECORD_UNEXPECTED', file, 'This file is outside the authored record inventory declared by atlas.json.');
-  return finishView(root, files, diagnostics, atlas, incomplete);
+  return done(atlas);
+}
+
+/**
+ * The records a complete view's files hold. A valid view gives its Atlas; a view that does not validate gives what
+ * its files hold as far as they can be read: `{ id, title, style, trees, points, facets, checks }`, with `id`,
+ * `title` and `style` null and the lists empty where there is no manifest to read them from. A Point the outline
+ * does not place has `ancestors` null, and one in a Tree folder whose tree.json cannot be read has `tree` null too.
+ * Of records that share an identity the first is kept. `unread` lists the files that hold no record read here.
+ * Not part of the package's interface.
+ */
+export function readRecords(view) {
+  if (view.status === 'ready' && view.atlas) return { atlas: view.atlas, unread: [] };
+  const read = readAuthored(view.files, { root: view.root, maxFileBytes: 64 * 1024 * 1024, maxFiles: 100000 }, true).atlas;
+  const first = (list, key, usable = () => true) => {
+    const seen = new Set();
+    return (list ?? []).filter(record => {
+      const identity = key(record);
+      if (typeof record.id !== 'string' || !usable(record) || seen.has(identity)) return false;
+      seen.add(identity);
+      return true;
+    });
+  };
+  const atlas = {
+    id: read?.id ?? null, title: read?.title ?? null, style: read?.style ?? null,
+    trees: first(read?.trees, tree => tree.id),
+    points: first(read?.points, point => point.id),
+    facets: first(read?.facets, facet => `${facet.tree}/${facet.id}`, facet => Array.isArray(facet.targets)),
+    checks: first(read?.checks, check => check.id),
+  };
+  const held = new Set([...(read ? ['atlas.json'] : []), ...(atlas.style ? [atlas.style.path] : []),
+    ...[atlas.trees, atlas.points, atlas.facets, atlas.checks].flat().map(record => record.path)]);
+  return { atlas, unread: view.files.map(file => file.path).filter(file => !held.has(file)) };
 }
 
 function signature(stat) {
@@ -413,7 +517,7 @@ export async function openAtlas(root, options = {}) {
   const captured = new Map(), observed = new Map(), diagnostics = [];
   let incomplete = false, traversed = 0, capturedBytes = 0;
   const add = (code, file, message) => { diagnostics.push(diagnostic(code, file, message)); if (!['PATH_SYMLINK', 'PATH_UNSAFE', 'PATH_ALIAS', 'FILE_UTF8', 'FILE_KIND', 'FILE_MISSING', 'OVERRIDES_INVALID'].includes(code)) incomplete = true; };
-  async function take(file) {
+  async function take(file, optional = false) {
     if (captured.has(file)) return;
     if (captured.size >= maxFiles) { add('READ_LIMIT', file, `Authored file count exceeds ${maxFiles}.`); return; }
     try {
@@ -421,7 +525,10 @@ export async function openAtlas(root, options = {}) {
       const result = await captureFile(path.join(root, file), root, Math.min(maxFileBytes, MAX_TOTAL_BYTES - capturedBytes));
       capturedBytes += result.bytes;
       captured.set(file, result.rawBase64 === undefined ? result.content : { rawBase64: result.rawBase64 }); observed.set(file, result.signature);
-    } catch (error) { add(error.code === 'ENOENT' ? 'FILE_MISSING' : error.code === 'EACCES' || error.code === 'EPERM' ? 'READ_DENIED' : error.code ?? 'READ_ERROR', file, error.message); }
+    } catch (error) {
+      if (optional && error.code === 'ENOENT') return;
+      add(error.code === 'ENOENT' ? 'FILE_MISSING' : error.code === 'EACCES' || error.code === 'EPERM' ? 'READ_DENIED' : error.code ?? 'READ_ERROR', file, error.message);
+    }
   }
   async function directory(relative, optional = false, depth = 0) {
     if (depth > MAX_DEPTH) { add('READ_LIMIT', relative, `Directory depth exceeds ${MAX_DEPTH}.`); return; }
@@ -451,17 +558,16 @@ export async function openAtlas(root, options = {}) {
     }
   }
   await take('atlas.json');
+  const manifestText = options.overrides instanceof Map && options.overrides.has('atlas.json')
+    ? options.overrides.get('atlas.json') : captured.get('atlas.json');
   let manifest;
-  try {
-    const manifestText = options.overrides instanceof Map && options.overrides.has('atlas.json')
-      ? options.overrides.get('atlas.json') : captured.get('atlas.json');
-    manifest = typeof manifestText === 'string' ? parseStrictJson(manifestText) : null;
-  } catch { /* Validation reports syntax. */ }
-  if (manifest?.format === 'atlas/1.1' && relativeRecordPath(manifest.style) && !options.overrides?.has?.(manifest.style)) await take(manifest.style);
+  try { manifest = typeof manifestText === 'string' ? parseStrictJson(manifestText) : null; } catch { /* Validation reports syntax. */ }
+  // The Style belongs to an Atlas: without a manifest, a style.md here is someone else's file. Validation reports its absence.
+  if (typeof manifestText === 'string' && !options.overrides?.has?.(STYLE)) await take(STYLE, true);
   if (Array.isArray(manifest?.trees) && manifest.trees.length <= MAX_ENTRIES) {
     const seen = new Set();
     for (const folder of manifest.trees) {
-      if (!relativeRecordPath(folder) || pathKey(folder) === '.checks' || pathKey(folder).startsWith('.checks/') || seen.has(folder)) continue;
+      if (!relativeRecordPath(folder) || reservedTreePath(folder) || seen.has(folder)) continue;
       seen.add(folder);
       await take(`${folder}/tree.json`);
       await directory(`${folder}/points`, true);
@@ -484,20 +590,20 @@ export async function openAtlas(root, options = {}) {
     }
   }
   const view = validateFiles(captured, { root, maxFileBytes, maxFiles });
-  return finishView(root, view.files, [...diagnostics, ...view.diagnostics], view.atlas, incomplete || view.status === 'incomplete');
+  // Validation names each required file that is missing; capture's report of the same absence would say it twice.
+  const missing = new Set(view.diagnostics.filter(item => item.code === 'FILE_MISSING').map(item => item.path));
+  const read = diagnostics.filter(item => item.code !== 'FILE_MISSING' || !missing.has(item.path));
+  return finishView(root, view.files, [...read, ...view.diagnostics], view.atlas, incomplete || view.status === 'incomplete');
 }
 
 function accepted(view) { return view?.format === 'atlas.view/1' && view.status === 'ready' && view.atlas; }
-function targetMatches(facet, kind, id, tree) {
-  return facet.via === tree && facet.targets.some(target => target[kind] === id);
-}
 
 export function getPoint(view, id) {
   const atlas = accepted(view);
   if (!atlas) return null;
   const point = atlas.points.find(item => item.id === id);
   if (!point) return null;
-  return { ...point, owner: atlas.trees.find(tree => tree.id === point.tree), facets: atlas.facets.filter(facet => facet.tree === point.tree && facet.on.point === point.id), incomingFacets: atlas.facets.filter(facet => targetMatches(facet, 'point', id, point.tree)), sources: point.sources ?? [] };
+  return { ...point, owner: atlas.trees.find(tree => tree.id === point.tree), facets: atlas.facets.filter(facet => facet.tree === point.tree && facet.on === point.id), incomingFacets: atlas.facets.filter(facet => facet.via === point.tree && facet.targets.includes(id)), sources: point.sources ?? [] };
 }
 
 export function getTree(view, id) {
@@ -505,7 +611,7 @@ export function getTree(view, id) {
   if (!atlas) return null;
   const tree = atlas.trees.find(item => item.id === id);
   if (!tree) return null;
-  return { ...tree, points: atlas.points.filter(point => point.tree === id), branches: atlas.branches.filter(branch => branch.tree === id), facets: atlas.facets.filter(facet => facet.tree === id), incomingFacets: atlas.facets.filter(facet => facet.via === id) };
+  return { ...tree, points: atlas.points.filter(point => point.tree === id), facets: atlas.facets.filter(facet => facet.tree === id), incomingFacets: atlas.facets.filter(facet => facet.via === id) };
 }
 
 export function getFacet(view, target) {
@@ -513,12 +619,17 @@ export function getFacet(view, target) {
   if (!atlas || !target) return null;
   const facet = atlas.facets.find(item => item.id === target.id && item.tree === target.tree);
   if (!facet) return null;
-  const resolve = (pointer, tree) => pointer.point ? atlas.points.find(point => point.id === pointer.point && point.tree === tree) : pointer.branch ? atlas.branches.find(branch => branch.id === pointer.branch && branch.tree === tree) : atlas.trees.find(item => item.id === pointer.tree);
-  return { ...facet, owner: atlas.trees.find(tree => tree.id === facet.tree), host: resolve(facet.on, facet.tree), viaTree: atlas.trees.find(tree => tree.id === facet.via), resolvedTargets: facet.targets.map(target => resolve(target, facet.via)), sources: facet.sources ?? [] };
+  const point = id => atlas.points.find(item => item.id === id);
+  return { ...facet, owner: atlas.trees.find(tree => tree.id === facet.tree), host: point(facet.on), viaTree: atlas.trees.find(tree => tree.id === facet.via), resolvedTargets: facet.targets.map(point), sources: facet.sources ?? [] };
 }
 
 export function searchAtlas(view, options = {}) {
-  return accepted(view) ? options.kinds === undefined ? searchPoints(view.atlas.points, options) : searchRecords(view.atlas, options) : [];
+  return searchAtlasPage(view, options).results;
+}
+
+/** As `searchAtlas`, with how many records matched in all: `{ results, available }`. */
+export function searchAtlasPage(view, options = {}) {
+  return accepted(view) ? searchPage(options.kinds === undefined ? view.atlas.points : searchable(view.atlas, options), options) : { results: [], available: 0 };
 }
 
 export function compareViews(before, after) {
@@ -533,9 +644,41 @@ export function compareViews(before, after) {
   };
 }
 
-/** Source reads are separate, permission-bounded observations; URLs are never fetched. */
-export async function readSource(view, source, { allowedRoots, maxBytes = DEFAULT_BYTES } = {}) {
-  const issue = inspectSource(source);
+/**
+ * The material a source reference cites and its stamp. A fragment into a local Markdown file
+ * names a heading and cites that section: from the heading's line up to the next heading of the
+ * same or a higher level that no quote or list holds, or the end of the file. A fragment that
+ * names no heading there cites nothing, and the result is null. Every other reference cites the
+ * whole file.
+ */
+export function citedMaterial(uri, material) {
+  const bytes = typeof material === 'string' ? Buffer.from(material, 'utf8') : Buffer.from(material);
+  const file = { scope: 'file', start: 0, end: bytes.length, bytes: bytes.length, sha256: sha(bytes) };
+  const mark = typeof uri === 'string' ? uri.indexOf('#') : -1;
+  if (mark < 0 || /^https?:\/\//i.test(uri)) return file;
+  let location;
+  try { location = decodeURIComponent(uri.slice(0, mark)); } catch { return file; }
+  if (!/\.md$/i.test(location)) return file;
+  let name, text;
+  try {
+    name = decodeURIComponent(uri.slice(mark + 1));
+    text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
+  } catch { return null; }
+  const headings = markdownHeadings(text);
+  const index = name ? headings.findIndex(heading => heading.id === name) : -1;
+  if (index < 0) return null;
+  const lines = [0];
+  for (const ending of text.matchAll(/\r\n?|\n/g)) lines.push(ending.index + ending[0].length);
+  const offset = line => Buffer.byteLength(text.slice(0, lines[line]));
+  const heading = headings[index];
+  const next = headings.slice(index + 1).find(item => !item.nested && item.level <= heading.level);
+  const start = offset(heading.line), end = next ? offset(next.line) : bytes.length;
+  const section = bytes.subarray(start, end);
+  return { scope: 'section', heading: heading.id, start, end, bytes: section.length, sha256: sha(section) };
+}
+
+async function captureSource(view, source, { allowedRoots, maxBytes = DEFAULT_BYTES } = {}) {
+  const issue = sourceIssue(source);
   if (issue) return { status: 'invalid', source, code: 'SOURCE_INVALID', message: issue };
   source = structuredClone(source);
   if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > 64 * 1024 * 1024) return { status: 'invalid', source, code: 'READ_LIMIT', message: 'maxBytes must be 1..67108864.' };
@@ -545,6 +688,7 @@ export async function readSource(view, source, { allowedRoots, maxBytes = DEFAUL
   if (!Array.isArray(roots) || roots.length > 100 || roots.some(root => typeof root !== 'string' || !path.isAbsolute(root))) return { status: 'invalid', source, code: 'ROOTS_INVALID', message: 'Source grants must be an array of absolute directory paths.' };
   const capturedRoots = [...roots];
   const capturedRoot = view.root;
+  let granted = false;
   try {
     const actualRoot = await fs.realpath(capturedRoot);
     const local = decodeURIComponent(source.uri.split('#')[0]);
@@ -560,13 +704,38 @@ export async function readSource(view, source, { allowedRoots, maxBytes = DEFAUL
     }
     const permitted = canonicalRoots.filter(root => inside(root, absolute)).sort((a, b) => b.length - a.length);
     if (!permitted.length) return { status: 'denied', source, code: 'SOURCE_DENIED', message: 'Source path is outside the caller-supplied roots.' };
+    granted = true;
     const result = await captureFile(absolute, permitted[0], maxBytes);
-    if (result.content === null) return { status: 'invalid', source, code: 'FILE_UTF8', message: 'Source is not valid UTF-8 text.' };
-    const actual = sha(result.content);
-    if (source.sha256 && source.sha256 !== actual) return { status: 'invalid', source, path: absolute, code: 'SOURCE_HASH', message: 'Source bytes do not match the declared SHA-256.' };
-    return { status: 'ready', source, path: absolute, content: result.content, bytes: Buffer.byteLength(result.content), sha256: actual, message: 'A separate local reading observation; source content is not part of the authored view identity.' };
+    return { status: 'ready', source, path: absolute, content: result.content, material: result.content === null ? Buffer.from(result.rawBase64, 'base64') : Buffer.from(result.content, 'utf8') };
   } catch (error) {
-    const status = error.code === 'ENOENT' ? 'missing' : ['PATH_UNSAFE', 'PATH_SYMLINK', 'EACCES', 'EPERM'].includes(error.code) ? 'denied' : error.code === 'READ_LIMIT' || error.code === 'READ_CHANGED' ? 'incomplete' : 'invalid';
+    // Within the grants, a path that runs through a regular file names a file that is not there, like one that is absent.
+    const status = error.code === 'ENOENT' || granted && error.code === 'ENOTDIR' ? 'missing' : ['PATH_UNSAFE', 'PATH_SYMLINK', 'EACCES', 'EPERM'].includes(error.code) ? 'denied' : error.code === 'READ_LIMIT' || error.code === 'READ_CHANGED' ? 'incomplete' : 'invalid';
     return { status, source, code: error.code ?? 'READ_ERROR', message: error.message };
   }
+}
+
+const HEADING_MISSING = { code: 'SOURCE_HEADING_MISSING', message: 'The fragment names no heading in the cited file, so the reference cites nothing.' };
+
+/**
+ * Source reads are separate, permission-bounded observations; URLs are never fetched. A read says
+ * whether the cited material still matches the reference's stamp. A changed source is still read:
+ * the change is a reason to read the explanation again, not an error. So is a file whose
+ * fragment names no heading in it: the file is returned, and the read says it cites nothing.
+ */
+export async function readSource(view, source, options) {
+  const { content, material, ...captured } = await captureSource(view, source, options);
+  if (captured.status !== 'ready') return captured;
+  if (content === null) return { status: 'invalid', source: captured.source, code: 'FILE_UTF8', message: 'Source is not valid UTF-8 text.' };
+  const cited = citedMaterial(captured.source.uri, material);
+  const stamp = !cited ? 'missing' : !captured.source.sha256 ? 'unstamped' : captured.source.sha256 === cited.sha256 ? 'current' : 'changed';
+  return { ...captured, content, bytes: material.length, sha256: sha(material), cited, stamp, ...(cited ? {} : { code: HEADING_MISSING.code }),
+    message: `${!cited ? `${HEADING_MISSING.message} ` : stamp === 'changed' ? 'The cited material changed after this reference was stamped. ' : ''}A separate local reading observation; source content is not part of the authored view identity.` };
+}
+
+/** What a source reference cites now: its scope and stamp, without its content and without comparing a declared stamp. */
+export async function observeSource(view, source, options) {
+  const { content, material, ...captured } = await captureSource(view, source, options);
+  if (captured.status !== 'ready') return captured;
+  const cited = citedMaterial(captured.source.uri, material);
+  return cited ? { ...captured, cited, message: 'A separate local observation of the cited bytes; they are not part of the authored view identity.' } : { ...captured, cited, ...HEADING_MISSING };
 }

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0
+
+- Rebuild the Portal as reading pages: one per Point and Facet, a margin map, Outline and Help.
+- Prepare changes whole from a candidate copy and review them in the Portal before apply.
+- Add source stamps and a stale report.
+- Settle one format, `atlas/1.2`, with a complete contract.
+- Rebuild the documentation as how-to guides, explanation and reference.
+
 ## 1.1.1
 
 - Portal rebuild.

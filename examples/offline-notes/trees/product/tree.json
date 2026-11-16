@@ -5,9 +5,12 @@
   "base": "product-purpose",
   "children": [
     {
-      "branch": "editing",
-      "title": "Working without a connection",
-      "children": [{"point": "offline-work", "children": [{"point": "delivery-promise"}]}]
+      "point": "offline-work",
+      "children": [
+        {
+          "point": "delivery-promise"
+        }
+      ]
     }
   ]
 }

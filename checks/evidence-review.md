@@ -1,25 +1,31 @@
 ---
 {"id":"evidence-review","status":"active","level":"required"}
 ---
-# Review claims against their support
-
-Review evidence directly before accepting changed claims about observed behavior.
+# Changed statements agree with their sources
 
 ## Requirement
 
-Changed claims must remain within the inspected evidence. Distinguish decision
-status, observations and inspected implementation. Interpret dated claims in their
-stated context. Preserve uncertainty and contrary evidence that affect use. Keep
-affected higher explanations and Facets consistent with corrected claims.
+Every statement a change adds or alters stays within the material it cites.
+A decision's standing, an observation and an inspected implementation remain
+distinct. A dated claim is read in its stated context. Uncertainty and
+contrary evidence that affect use are kept. A statement that rests on the
+account's own reading says so. The Points above a corrected Point and the
+Facets that bear on it agree with the correction.
 
 ## Verification
 
-Compare each changed claim with its source or observed result. Record the evidence
-boundary, relevant revision or observation date, and inaccessible material. Inspect
-affected higher Points and Facets for inconsistent claims. Use direct evidence
-for claims about implementation or usefulness.
+The audit is done by a reader who did not write the change; where agents do
+the work, a different model from the author's finds more. The auditor receives
+the changed Points and Facets and their cited sources, reads each changed
+statement against the cited material, and lists every statement the material
+does not support or contradicts, with the place in the source. Each finding is
+checked against the files before it is acted on. After the fixes, the changed
+lines are audited once more. The record names the sources read, their revision
+or stamp, the sources that could not be read, and the findings left open.
 
 ## Failure
 
-Fail when wording exceeds support or an affected explanation retains a conflicting
-claim. Report unable when required evidence cannot be inspected.
+Report `fail` when a statement exceeds or contradicts its cited material, when
+an inference reads as a citation, or when a Point above or a Facet keeps a
+claim the correction removed. Report `unable` when the cited material cannot
+be read or no reader other than the author was available.

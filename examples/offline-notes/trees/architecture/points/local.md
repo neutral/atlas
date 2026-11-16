@@ -1,18 +1,20 @@
 ---
-{"id":"local-persistence","type":"observation","observedAt":"2026-09-20","sources":[{"uri":"sources/trial.md","title":"Fictional normal-restart trial","role":"evidence","locator":"Conditions and result; Limits"}],"uncertainty":"Evidence covers one fictional normal restart on the same device after the local-save indication. Crash and power-loss durability require separate evidence."}
+{"id":"local-persistence","type":"observation","observedAt":"2026-09-20","sources":[{"uri":"sources/trial.md#conditions-and-result","title":"Fictional normal-restart trial","role":"evidence","sha256":"908029ed3380d6aecf5a2088eb0790097e053af9bfcfb32275f6b5609747d5a4"},{"uri":"sources/trial.md#limits","title":"Fictional normal-restart trial","role":"evidence","sha256":"145813f0994f8119d31fdac0fe123b7a18cbc5aa1318299b17b091de97a9bd96"}],"uncertainty":"One fictional run on one device. Durability after a crash, a forced close or power loss needs its own evidence."}
 ---
-# The trial reopened an offline note
+# One trial reopened an offline note after a normal restart
 
-In one fictional run, a note created offline was still available after a normal
-app restart on the same device. The writer waited for the local-save indication
-before closing the app. The [trial record](../../../sources/trial.md) gives the
-conditions and the outcomes it did not test.
+In one fictional run with no network, a writer created a note, waited for the
+local-save indication, closed the app normally and reopened it on the same
+device. The note's text was there. The [trial
+record](../../../sources/trial.md#conditions-and-result) gives these
+conditions.
 
-This result supports the normal-restart part of the intended experience under
-those conditions. It says nothing about an interrupted write, unexpected
-termination, power loss or delivery to a server. [The receipt policy](sync.md)
-therefore needs separate verification.
+The result supports the normal-restart part of [saving on the
+device](purpose.md), under exactly those conditions. The trial [did not
+test](../../../sources/trial.md#limits) an interrupted write, a forced close,
+lost storage or lost power, and it never reconnected, so it says nothing about
+delivery. [The receipt rule](sync.md) needs evidence of its own.
 
-Product uses this observation to [qualify the editing account](../../product/facets/local-limit.md).
-That Facet explains the consequence for the product promise; this Point retains
-the observation and its limits.
+Product reads this observation as a [limit on its offline
+promise](../../product/facets/local-limit.md). That Facet owns the consequence
+for the product; this Point keeps the observation and its limits.

@@ -1,19 +1,20 @@
 ---
-{"id":"storage-purpose","sources":[{"uri":"sources/brief.md","title":"Fictional product brief","role":"background","locator":"Offline work; Save and delivery states"}]}
+{"id":"storage-purpose","sources":[{"uri":"sources/brief.md","title":"Fictional product brief","role":"background","sha256":"29d66f96b04b298fafe587351b1dd6bb538a54aab60d778ec2872f615c38780c"}],"uncertainty":"How storage fails, how conflicting revisions are resolved and how a receipt is validated are not yet explained or verified."}
 ---
-# Persistence and delivery are separate outcomes
+# Saving on the device and delivery to the server are separate outcomes
 
-Local persistence and synchronization answer different questions. Persistence
-asks whether this device can reopen the work. Synchronization asks whether a
-server has accepted a particular revision for later delivery. Network loss must
-not prevent the first outcome merely because it delays the second.
+Two questions follow a note through the app. Can this device reopen it? Has a
+server accepted this revision for delivery? The first is local persistence,
+the second synchronization. A lost connection delays the second; it must not
+stop the first.
 
-[The local trial](local.md) records a narrow normal-restart observation.
-[The receipt policy](sync.md) records the selected synchronization rule. Read
-their different standing together: one is a dated demonstration result, the
-other a decision still awaiting implementation evidence.
+This account keeps one Point for each, and they have different standing. [One
+trial reopened an offline note](local.md) is a dated observation of a single
+normal restart. [Delivery is reported only after a receipt](sync.md) is a
+selected rule with no implementation evidence yet. Read together, they say
+what the app has shown and what it has only chosen.
 
-The [fictional brief](../../../sources/brief.md) supplies the requirements.
-[Product's account](../../product/points/purpose.md) explains why a writer needs
-these outcomes to be visible separately. Storage failures, conflicting revisions
-and cross-device receipt remain work to explain and verify.
+[Product's account](../../product/points/purpose.md) explains why a writer
+needs to see the two outcomes apart. The [fictional
+brief](../../../sources/brief.md) supplies the requirements. Storage failures,
+conflicting revisions and receipt validation are not explained here yet.

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { validateFiles } from '../src/model.mjs';
 import { route } from '../src/route.mjs';
-import { inspectAbsorb, prepareAbsorb, reviewImpact } from '../src/absorb.mjs';
+import { inspectAbsorb } from '../src/absorb.mjs';
 
 const source = { uri: 'sources/design.md', role: 'evidence', revision: 'reviewed-1' };
 const markdown = (header, title, body) => `---\n${JSON.stringify(header)}\n---\n# ${title}\n\n${body}\n`;
@@ -10,12 +10,13 @@ const json = (value) => `${JSON.stringify(value, null, 2)}\n`;
 
 function fixture() {
   const files = new Map([
-    ['atlas.json', json({ format: 'atlas/1', id: 'example', title: 'Example', trees: ['trees/service', 'trees/evidence'] })],
+    ['atlas.json', json({ format: 'atlas/1.2', id: 'example', title: 'Example', trees: ['trees/service', 'trees/evidence'] })],
+    ['style.md', '# Perspectives\n\nService duties and the evidence for them are separate accounts.\n'],
     ['trees/service/tree.json', json({ id: 'service', title: 'Service design', scope: 'Custody and recovery duties.', base: 'purpose', children: [
-      { branch: 'recovery', title: 'Recovery', children: [{ point: 'lifecycle', children: [{ point: 'shutdown' }] }] },
+      { point: 'lifecycle', children: [{ point: 'shutdown' }] },
     ] })],
     ['trees/evidence/tree.json', json({ id: 'evidence', title: 'Evidence architecture', scope: 'Proof production and verification.', base: 'assurance', children: [
-      { branch: 'production', title: 'Production', children: [{ point: 'proof-inputs' }, { point: 'measurement' }] },
+      { point: 'proof-inputs' }, { point: 'measurement' },
     ] })],
     ['trees/service/points/purpose.md', markdown({ id: 'purpose', sources: [source] }, 'Small services', 'Users retain receipts under declared duties.')],
     ['trees/service/points/lifecycle.md', markdown({ id: 'lifecycle', uncertainty: 'Concrete recovery remains untested.' }, 'Recovery follows the service lifecycle', 'An outage and terminal shutdown differ.')],
@@ -23,22 +24,14 @@ function fixture() {
     ['trees/evidence/points/assurance.md', markdown({ id: 'assurance' }, 'Evidence preserves its scope', 'A proof establishes only its declared computation.')],
     ['trees/evidence/points/proof-inputs.md', markdown({ id: 'proof-inputs', type: 'decision', status: 'selected', sources: [source], uncertainty: 'Implementation is not established.' }, 'Operator proof inputs', 'The operator captures original witnesses for proof production.')],
     ['trees/evidence/points/measurement.md', markdown({ id: 'measurement', type: 'observation', observedAt: '2026-09-27', sources: [source] }, 'Measured proving time', 'This observation describes one recorded workload.')],
-    ['trees/service/facets/assurance.md', markdown({ id: 'assurance', on: { point: 'lifecycle' }, via: 'evidence', targets: [{ point: 'proof-inputs' }], sources: [source], uncertainty: 'Receiving sufficiency is domain-specific.' }, 'Recovery does not complete absent proof', 'Useful receiving operations do not produce missing source evidence.')],
-    ['trees/service/facets/branch-cost.md', markdown({ id: 'branch-cost', on: { branch: 'recovery' }, via: 'evidence', targets: [{ branch: 'production' }] }, 'Recovery cost depends on retained work', 'Material needed by source production remains a separate responsibility.')],
-    ['trees/evidence/facets/service.md', markdown({ id: 'service', on: { point: 'proof-inputs' }, via: 'service', targets: [{ branch: 'recovery' }] }, 'Production qualifies recovery', 'Service reconstruction and proof production establish different outcomes.')],
-    ['trees/evidence/facets/base-scope.md', markdown({ id: 'base-scope', on: { point: 'assurance' }, via: 'service', targets: [{ tree: 'service' }] }, 'Evidence informs service promises', 'The service account chooses which evidence its declared functions need.')],
+    ['trees/service/facets/assurance.md', markdown({ id: 'assurance', on: 'lifecycle', via: 'evidence', targets: ['proof-inputs'], sources: [source], uncertainty: 'Receiving sufficiency is domain-specific.' }, 'Recovery does not complete absent proof', 'Useful receiving operations do not produce missing source evidence.')],
+    ['trees/service/facets/recovery-cost.md', markdown({ id: 'recovery-cost', on: 'purpose', via: 'evidence', targets: ['measurement'] }, 'Recovery cost depends on retained work', 'Material needed by source production remains a separate responsibility.')],
+    ['trees/evidence/facets/service.md', markdown({ id: 'service', on: 'proof-inputs', via: 'service', targets: ['lifecycle'] }, 'Production qualifies recovery', 'Service reconstruction and proof production establish different outcomes.')],
+    ['trees/evidence/facets/base-scope.md', markdown({ id: 'base-scope', on: 'assurance', via: 'service', targets: ['purpose'] }, 'Evidence informs service promises', 'The service account chooses which evidence its declared functions need.')],
   ]);
   const view = validateFiles(files, { root: '/tmp/atlas-route-absorb-fixture' });
   assert.equal(view.status, 'ready', JSON.stringify(view.diagnostics));
   return { files, view };
-}
-
-function changedView(files, changes) {
-  const result = new Map(files);
-  for (const { path, content } of changes) content === null ? result.delete(path) : result.set(path, content);
-  const view = validateFiles(result, { root: '/tmp/atlas-route-absorb-fixture' });
-  assert.equal(view.status, 'ready', JSON.stringify(view.diagnostics));
-  return view;
 }
 
 test('exact Route retains owning orientation, ancestor explanations, type and source limits', () => {
@@ -58,16 +51,35 @@ test('exact Route retains owning orientation, ancestor explanations, type and so
   assert.equal(view.atlas.points.find((point) => point.id === 'proof-inputs').sources[0].uri, source.uri);
 });
 
-test('Route bounds descendants by explanatory Point depth and preserves Branch attachment scope', () => {
+test('Route bounds descendants by Point depth and keeps a Facet on a Point above distinct from one on the selection', () => {
   const { view } = fixture();
   const standard = route(view, { tree: 'service' });
   assert.deepEqual(standard.supporting.map(({ point }) => point.id), ['lifecycle']);
+  assert.deepEqual(standard.supporting[0].reasons, [{ kind: 'authored-descendant', point: 'purpose', pointDepth: 1 }]);
   const deep = route(view, { tree: 'service', detail: 'deep', limit: 1 });
   assert.deepEqual(deep.supporting.map(({ point }) => point.id), ['lifecycle']);
   assert.equal(deep.bounds.supporting.available, 2);
+  assert.deepEqual(route(view, { tree: 'service', detail: 'deep' }).supporting[1].reasons, [{ kind: 'authored-descendant', point: 'purpose', pointDepth: 2 }]);
   const detail = route(view, { point: 'shutdown' });
-  assert.ok(detail.orientation[0].ancestors.some((entry) => entry.id === 'lifecycle' && entry.record.body.includes('outage')));
-  assert.ok(detail.facets.some(({ reasons }) => reasons.some((reason) => reason.kind === 'attached-ancestor-branch' && reason.limit.includes('separate judgment'))));
+  assert.deepEqual(detail.orientation[0].ancestors.map(({ record, ...ancestor }) => ancestor), [{ id: 'lifecycle', tree: 'service' }]);
+  assert.ok(detail.orientation[0].ancestors[0].record.body.includes('outage'));
+  const reasons = Object.fromEntries(detail.facets.map(({ facet, reasons }) => [`${facet.tree}/${facet.id}`, reasons.map(reason => reason.kind)]));
+  assert.deepEqual(reasons, { 'service/assurance': ['attached-ancestor-point'], 'service/recovery-cost': ['attached-ancestor-point'], 'evidence/service': ['incoming-ancestor-point-reference'], 'evidence/base-scope': ['incoming-ancestor-point-reference'] });
+  assert.ok(detail.facets[0].reasons[0].limit.includes('separate judgment'));
+});
+
+test('Route describes each Facet by the Point it attaches to and the Points it targets', () => {
+  const { view } = fixture();
+  const account = route(view, { tree: 'service', detail: 'overview' });
+  assert.deepEqual(account.facets.map(({ facet, reasons }) => [facet.tree, facet.id, reasons.map(reason => reason.kind)]), [['service', 'recovery-cost', ['attached-point']], ['evidence', 'base-scope', ['incoming-point-reference']]]);
+  const reading = route(view, { tree: 'service', facet: 'assurance' }).facets[0];
+  assert.deepEqual([reading.facet.on, reading.facet.via, reading.facet.targets], ['lifecycle', 'evidence', ['proof-inputs']]);
+  assert.deepEqual(reading.host, { id: 'lifecycle', tree: 'service', title: 'Recovery follows the service lifecycle', path: 'trees/service/points/lifecycle.md', uncertainty: 'Concrete recovery remains untested.', reference: true, selector: { point: 'lifecycle' } });
+  assert.deepEqual(reading.targets, [{ id: 'proof-inputs', tree: 'evidence', title: 'Operator proof inputs', path: 'trees/evidence/points/proof-inputs.md', type: 'decision', status: 'selected', uncertainty: 'Implementation is not established.', reference: true, selector: { point: 'proof-inputs' } }]);
+  assert.deepEqual([reading.owner.id, reading.viaTree.id], ['service', 'evidence']);
+  const selected = route(view, { tree: 'service', facet: 'assurance' });
+  assert.deepEqual(selected.orientation[0].forPoints, ['lifecycle']);
+  assert.equal(selected.orientation[0].base.id, 'purpose');
 });
 
 test('Route keeps lexical alternatives ambiguous, exact misses explicit and dates visible', () => {
@@ -103,7 +115,11 @@ test('Absorb inspection preserves original incoming material and makes no owners
   assert.ok(result.candidates.some(({ point }) => point.id === 'proof-inputs'));
   assert.ok(result.owners.some(({ tree, reasons }) => tree.id === 'evidence' && reasons.length));
   assert.ok(result.interpretations.some(({ facet }) => facet.id === 'assurance'));
-  assert.equal(Object.hasOwn(result, 'contributions'), false);
+  assert.deepEqual(result.candidates.map(({ point }) => point.id), ['proof-inputs', 'lifecycle', 'assurance']);
+  assert.deepEqual(result.interpretations.find(({ facet }) => facet.tree === 'service' && facet.id === 'assurance').reasons, [{ kind: 'attached-candidate', point: 'lifecycle' }, { kind: 'incoming-candidate-reference', point: 'proof-inputs' }]);
+  assert.deepEqual(result.interpretations.find(({ facet }) => facet.id === 'service').reasons, [{ kind: 'attached-candidate', point: 'proof-inputs' }, { kind: 'incoming-candidate-reference', point: 'lifecycle' }]);
+  assert.deepEqual(result.style, { title: 'Perspectives', body: 'Service duties and the evidence for them are separate accounts.', path: 'style.md' });
+  assert.deepEqual(Object.keys(result), ['format', 'status', 'identity', 'incoming', 'candidates', 'owners', 'interpretations', 'limits', 'style', 'terms', 'bounds']);
   assert.equal(inspectAbsorb(view, { text: incoming, source, tree: 'absent' }).status, 'missing');
   assert.equal(inspectAbsorb(view, { text: 'quartz ziggurat', source }).status, 'no-candidates');
 });
@@ -115,119 +131,4 @@ test('Absorb source metadata follows the source grammar without granting source 
   }
   const reference = { uri: '../external.md', sha256: 'a'.repeat(64), locator: 'Section 2' };
   assert.deepEqual(inspectAbsorb(view, { text: 'proof', source: reference }).incoming.source, reference);
-});
-
-test('impact retains both sides of standing/date changes, ancestry and removed incoming Facets', () => {
-  const { view, files } = fixture();
-  const after = changedView(files, [
-    { path: 'trees/evidence/points/proof-inputs.md', content: markdown({ id: 'proof-inputs', type: 'decision', status: 'superseded', sources: [source] }, 'Operator proof inputs', 'This source decision was superseded.') },
-    { path: 'trees/evidence/points/measurement.md', content: markdown({ id: 'measurement', type: 'observation', observedAt: '2026-09-28', sources: [source] }, 'Measured proving time', 'A later observation describes another workload.') },
-    { path: 'trees/service/facets/assurance.md', content: null },
-  ]);
-  const result = reviewImpact(view, after);
-  assert.equal(result.status, 'ready');
-  assert.ok(result.changedPoints.find((point) => point.id === 'proof-inputs').changes.includes('decision-status'));
-  assert.ok(result.changedPoints.find((point) => point.id === 'measurement').changes.includes('observation-date'));
-  assert.ok(result.review.before.points.some(({ record }) => record.id === 'assurance'));
-  assert.ok(result.review.after.branches.some(({ record }) => record.id === 'production'));
-  assert.ok(result.review.before.facets.some(({ record }) => record.tree === 'service' && record.id === 'assurance'));
-  assert.ok(!result.review.after.facets.some(({ record }) => record.tree === 'service' && record.id === 'assurance'));
-  assert.ok(result.limits.some((limit) => limit.includes('Additional consequences may require investigation')));
-});
-
-test('impact reviews direct relationships without propagating to every connected account', () => {
-  const { view, files } = fixture();
-  const after = changedView(files, [{ path: 'trees/evidence/points/proof-inputs.md', content: markdown({ id: 'proof-inputs', type: 'decision', status: 'open', sources: [source] }, 'Operator proof inputs', 'The source decision is reopened.') }]);
-  const result = reviewImpact(view, after);
-  assert.ok(result.review.after.facets.some(({ record }) => record.id === 'assurance'));
-  assert.ok(result.review.after.points.some(({ record, reasons }) => record.id === 'lifecycle' && reasons.some(reason => reason.kind === 'incoming-facet-host')));
-  assert.ok(!result.review.after.points.some(({ record }) => record.id === 'shutdown')); // no descendants or graph closure
-  assert.deepEqual(reviewImpact(view, view).changedPoints, []);
-});
-
-test('prepareAbsorb validates explicit changes without mutating the baseline; repetition is no-op', () => {
-  const { view, files } = fixture();
-  const change = { path: 'trees/evidence/points/proof-inputs.md', content: markdown({ id: 'proof-inputs', type: 'decision', status: 'open', sources: [source] }, 'Operator proof inputs', 'The producer responsibility is unresolved.') };
-  const input = { source, contributions: [{ disposition: 'update', point: 'proof-inputs', rationale: 'The source reopens this decision.' }], changes: [change], rationale: 'Preserve the new decision status.', unresolved: ['The replacement arrangement remains open.'] };
-  const proposal = prepareAbsorb(view, input);
-  assert.equal(proposal.status, 'ready');
-  assert.equal(proposal.plan.changes[0].before, files.get(change.path));
-  assert.equal(view.atlas.points.find((point) => point.id === 'proof-inputs').status, 'selected');
-  assert.ok(proposal.impact.changedPoints[0].changes.includes('decision-status'));
-  const repeated = prepareAbsorb(proposal.plan.candidate, input);
-  assert.equal(repeated.status, 'noop');
-  assert.deepEqual(repeated.plan.changes, []);
-});
-
-test('creation has one explicit owner and identical repeated creation is no-op', () => {
-  const { view, files } = fixture();
-  const tree = JSON.parse(files.get('trees/service/tree.json'));
-  tree.children.push({ point: 'consent' });
-  const input = { source, contributions: [{ disposition: 'create', point: 'consent', tree: 'service', rationale: 'Consent needs an independent explanation.' }],
-    changes: [{ path: 'trees/service/tree.json', content: json(tree) }, { path: 'trees/service/points/consent.md', content: markdown({ id: 'consent', sources: [source] }, 'Users authorize release', 'Receipt delivery is not standing release permission.') }], rationale: 'Record consent in the service account.' };
-  const proposal = prepareAbsorb(view, input);
-  assert.equal(proposal.status, 'ready');
-  assert.equal(prepareAbsorb(proposal.plan.candidate, input).status, 'noop');
-  const wrongOwner = prepareAbsorb(view, { ...input, contributions: [{ ...input.contributions[0], tree: 'evidence' }] });
-  assert.equal(wrongOwner.status, 'invalid');
-  assert.match(wrongOwner.decisionDiagnostics[0].message, /owning Tree/);
-});
-
-test('Facet, conflict, reference-only and non-integration remain distinct contribution decisions', () => {
-  const { view, files } = fixture();
-  const facet = prepareAbsorb(view, { source, contributions: [{ disposition: 'facet', tree: 'service', facet: 'assurance', rationale: 'Keep this contextual interpretation.' }], changes: [], rationale: 'The existing interpretation already covers the source.' });
-  assert.equal(facet.status, 'noop');
-  const conflict = prepareAbsorb(view, { source, contributions: [{ disposition: 'conflict', point: 'proof-inputs', rationale: 'The incoming account conflicts with this selected decision.' }], changes: [], rationale: 'Leave the conflict explicit for author review.', unresolved: ['Which source governs?'] });
-  assert.equal(conflict.status, 'noop');
-  assert.equal(conflict.contributions[0].disposition, 'conflict');
-  const reference = prepareAbsorb(view, { source, contributions: [{ disposition: 'reference-only', point: 'purpose', rationale: 'Add background without changing the explanation.' }], changes: [{ path: 'trees/service/points/purpose.md', content: markdown({ id: 'purpose', sources: [source, { uri: 'sources/background.md', role: 'background' }] }, 'Small services', 'Users retain receipts under declared duties.') }], rationale: 'Retain an additional reference.' });
-  assert.equal(reference.status, 'ready');
-  const badReference = prepareAbsorb(view, { source, contributions: [{ disposition: 'reference-only', point: 'purpose', rationale: 'Claim a source-only edit.' }], changes: [{ path: 'trees/service/points/purpose.md', content: files.get('trees/service/points/purpose.md').replace('declared duties', 'different duties') }], rationale: 'Misclassified proposal.' });
-  assert.equal(badReference.status, 'invalid');
-  const lostReference = prepareAbsorb(view, { source, contributions: [{ disposition: 'reference-only', point: 'purpose', rationale: 'Replace the reference.' }], changes: [{ path: 'trees/service/points/purpose.md', content: markdown({ id: 'purpose', sources: [] }, 'Small services', 'Users retain receipts under declared duties.') }], rationale: 'A reference-only addition cannot remove evidence.' });
-  assert.equal(lostReference.status, 'invalid');
-  assert.ok(lostReference.decisionDiagnostics.some((item) => item.message.includes('preserve existing')));
-  const noIntegration = { source, contributions: [{ disposition: 'non-integration', rationale: 'The material adds no useful meaning.' }], changes: [], rationale: 'Keep the current account.' };
-  assert.equal(prepareAbsorb(view, noIntegration).status, 'noop');
-  assert.throws(() => prepareAbsorb(view, { ...noIntegration, changes: [{ path: 'atlas.json', content: files.get('atlas.json') }] }), { code: 'atlas.absorb.invalid-argument' });
-});
-
-test('every changed Point or Facet needs an explicit contribution decision', () => {
-  const { view, files } = fixture();
-  const proposal = prepareAbsorb(view, { source,
-    contributions: [{ disposition: 'update', point: 'purpose', rationale: 'Revise the purpose.' }],
-    changes: [{ path: 'trees/service/points/shutdown.md', content: files.get('trees/service/points/shutdown.md').replace('unfulfilled', 'unfulfilled and visible') },
-      { path: 'trees/service/facets/assurance.md', content: files.get('trees/service/facets/assurance.md').replace('missing source evidence', 'missing original source evidence') }],
-    rationale: 'The supplied changes target different identities.' });
-  assert.equal(proposal.status, 'invalid');
-  assert.ok(proposal.decisionDiagnostics.some((item) => item.point === 'shutdown'));
-  assert.ok(proposal.decisionDiagnostics.some((item) => item.facet === 'service/assurance'));
-});
-
-test('invalid candidates remain inspectable and invalid contribution requests are rejected', () => {
-  const { view } = fixture();
-  const input = { source, contributions: [{ disposition: 'update', point: 'purpose', rationale: 'Repair the current explanation.' }], changes: [{ path: 'trees/service/points/purpose.md', content: 'invalid record' }], rationale: 'Inspect the proposed repair.' };
-  const proposal = prepareAbsorb(view, input);
-  assert.equal(proposal.status, 'invalid');
-  assert.equal(proposal.plan.candidate.status, 'invalid');
-  assert.ok(proposal.plan.validation.diagnostics.length);
-  assert.equal(proposal.impact.status, 'unavailable');
-  for (const contributions of [[], [{ disposition: 'merge', point: 'purpose', rationale: 'Not a supported decision.' }], [{ disposition: 'update', point: 'missing', rationale: 'Not an existing identity.' }], [{ disposition: 'non-integration', point: 'purpose', rationale: 'No target is assigned.' }]]) {
-    assert.throws(() => prepareAbsorb(view, { ...input, contributions }), { code: 'atlas.absorb.invalid-argument' });
-  }
-});
-
-test('Absorb carries explicit local evidence hashes into apply preconditions without fetching URLs', () => {
-  const { view } = fixture();
-  const input = { source: { uri: 'sources/design.md#retention', sha256: 'a'.repeat(64), revision: 'reviewed-1' },
-    contributions: [{ disposition: 'conflict', point: 'purpose', rationale: 'Keep the disagreement explicit.' }], changes: [], rationale: 'Preserve the source boundary.' };
-  const local = prepareAbsorb(view, input);
-  assert.deepEqual(local.plan.sourcePreconditions, [{ uri: input.source.uri, sha256: input.source.sha256 }]);
-  assert.deepEqual(local.source, input.source);
-  assert.deepEqual(prepareAbsorb(view, { ...input, source: { uri: 'https://example.test/design', sha256: input.source.sha256 } }).plan.sourcePreconditions, []);
-  assert.deepEqual(prepareAbsorb(view, { ...input, source: { uri: 'sources/design.md' } }).plan.sourcePreconditions, []);
-  assert.throws(() => prepareAbsorb(view, { ...input, source: { ...input.source, allowedRoots: ['/'] } }), { code: 'atlas.absorb.invalid-argument' });
-  assert.deepEqual(prepareAbsorb(view, { ...input, sourcePreconditions: [] }).plan.sourcePreconditions, local.plan.sourcePreconditions);
-  assert.throws(() => prepareAbsorb(view, { ...input, sourcePreconditions: [{ uri: input.source.uri, sha256: 'b'.repeat(64) }] }), { code: 'atlas.absorb.invalid-argument' });
-  assert.throws(() => prepareAbsorb(view, { ...input, sourcePreconditions: [null] }), { code: 'INVALID_REQUEST' });
 });

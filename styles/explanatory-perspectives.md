@@ -1,36 +1,27 @@
----
-{"id":"explanatory-perspectives","revision":"2"}
----
 # Explanatory perspectives
 
-This Style organizes a project through distinct perspectives on shared subjects.
-Each Tree develops the claims and reasoning that belong to one perspective. Its
-Base establishes that perspective's scope and principal understanding. Tree
-boundaries follow the questions and claims each account owns. A subject name can
-label a perspective; its scope and explanations establish that role. The primary
-explanation of a claim belongs to one account; other perspectives develop its
-consequences for their own claims.
+## Accounts
 
-Points develop an argument from its broad explanation into reasons, choices,
-observations and detail. A development receives its own Point when it is useful
-to understand, reference or revise independently. Higher Points explain its
-significance and retain the qualifications needed to understand their claims.
-Branches label coherent groups of developments. Facets explain how another
-perspective changes the understanding of a host claim; links provide further
-reading.
+Each Tree is one perspective on the whole project: a set of questions it
+answers and the claims it owns. A product perspective can say what the
+project is for, an architecture perspective how it is built, a reliability
+perspective what shows that it works. The same subject appears in several
+Trees, and each explains only what belongs to its perspective. A Tree's
+scope and Base state the perspective; a subject name in its title does not
+make it a subject account.
 
-Atlas carries the main arguments: important choices, reasons, alternatives,
-consequences and limits. Examples and counterexamples remain with an explanation
-when understanding depends on them. Exhaustive procedures, code listings and raw
-evidence remain in sources. Where a source owns exact requirements or procedures,
-Atlas explains their reasons and consequences while preserving that source's
-authority. The account summarizes relevant evidence and cites its scope, so
-readers can understand the argument in Atlas and inspect its basis in the sources.
+A claim is explained in full in the one perspective that owns it. Other
+perspectives say what it means for their own claims and link to it. A Facet
+says how another perspective changes the reading of a claim: what that
+account holds, and what follows here. A new Tree is warranted when a distinct
+perspective needs a sustained account with a top claim of its own.
 
-New material updates its owning explanation, with higher explanations and
-connected Facets reviewed for changed meaning. A new Tree is warranted when a
-distinct perspective needs a sustained account and reader entry point.
-Restructuring addresses an identified reading or maintenance problem while
-preserving conditions, reasoning and identity. It is complete when representative
-questions have coherent reading paths, relevant qualifications remain visible
-and the identified problem is resolved.
+## Depth
+
+The Atlas carries the main arguments: the reasons, the alternatives that
+mattered, the consequences and the limits, with the examples that
+understanding depends on. A reader can follow an argument here without
+opening a source, and goes to a source to verify it or to act on it. Exact
+requirements, procedures, code and raw evidence stay in the sources, which
+keep authority over them; the Atlas explains why they are so and what
+follows, and cites the part it relies on.

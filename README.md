@@ -3,23 +3,39 @@
 Atlas makes the context around a project navigable, helping agents and people
 build a better understanding.
 
-Start with an overview or a question, follow an explanation into its detail,
-and inspect the material behind it. Trees organize these accounts; their Points
-carry explanations, and Facets show how another Tree's perspective matters.
-People and agents work with the same portable files.
+An Atlas is an explanation of a project, kept in plain files beside it. Each of
+its Trees owns one account of the project: a top claim and the Points that
+develop it, down to the documents and code they cite. A Point states one
+claim in its title and explains it beneath. A Facet says what another Tree
+changes about how a Point reads. The Atlas's Style says how it is written.
 
-This source tree is version 1.1.1.
+This source tree is version 1.2.0.
+
+## What you do with it
+
+- **Read it.** `atlas open` serves the Portal on your machine: one page for each
+  Point, the Points around it in the margin, its sources under it, Outline for
+  the whole Atlas and Help for its words. Reading changes nothing.
+- **Have your agent keep it.** Connect your agent through the MCP server. It
+  edits a copy of the Atlas and prepares the change whole, as a draft. You read
+  the draft in the Portal, with what differs marked, and say apply.
+- **Keep it true.** The agent stamps each source it read a Point against. When
+  the project changes, `atlas stale` lists the sources that changed and the
+  Points and Facets that cite them, and the Portal marks them.
+- **Publish it.** `atlas export` writes the pages of the Trees you choose, for
+  any web server.
 
 ## Install
 
-With Node.js installed, install Atlas globally and open a project:
+With Node.js 22.23.2 or later:
 
 ```sh
 npm install --global --ignore-scripts @neutral/atlas
 atlas open /path/to/project
 ```
 
-See the [installation guide](docs/install.md) for other installation options.
+[Install Atlas](docs/how-to/install.md) covers an install in one project, the
+source checkout, a tarball and a runtime bundle.
 
 ## Start from source
 
@@ -30,53 +46,52 @@ pnpm install --frozen-lockfile --ignore-scripts
 pnpm atlas open examples/offline-notes
 ```
 
-The Editor opens in your browser. Choose a Point to read its explanation beside
-the Tree, or use **Search Atlas** to find a starting Point across Trees. Follow
-Facets into related accounts, expand **Focus reading**, and open cited Markdown
-as readable source material. Stop the server with Ctrl+C.
+`atlas open` serves the shipped example, prints its address and asks your
+browser to open it; `Ctrl+C` stops it. Type `pnpm atlas` wherever a guide shows
+`atlas`. pnpm runs it from the repository root, so give paths from there or in
+full.
 
-Open another project with `pnpm atlas open /path/to/project`. Atlas finds its
-collection or offers creation. For a read-only Portal:
+## Documentation
 
-```sh
-pnpm atlas --root examples/offline-notes serve
-```
+The [documentation](docs/README.md) has three kinds of page:
 
-When the underlying material changes, **Review sources** identifies the accounts
-that cite it. Prepare a draft, inspect the changed explanation and its surrounding
-context, then apply the exact revision you reviewed. Absorb drafts retain the
-reason for each contribution, unresolved questions and any candidate Check
-evidence. Drafts and recovery files live in private user storage.
+- **How-to guides**, for a task: [start an Atlas](docs/how-to/start-an-atlas.md),
+  [connect an agent](docs/how-to/connect-an-agent.md), [read an
+  Atlas](docs/how-to/read-an-atlas.md), [ask your agent for a
+  change](docs/how-to/ask-for-a-change.md), [keep it true as the project
+  changes](docs/how-to/keep-it-true.md), [publish it](docs/how-to/publish.md)
+  and more.
+- **Explanation**, for why Atlas works as it does, from [what an Atlas is
+  for](docs/explanation/what-an-atlas-is.md) to [how changes
+  land](docs/explanation/how-changes-land.md).
+- **Reference**, for looking something up: [the atlas
+  command](docs/reference/cli.md), [the MCP server](docs/reference/mcp.md),
+  [the Portal](docs/reference/portal.md) and the rest.
 
-Connected agents use Route to discover candidate explanations, read a selected
-Point in full and continue through bounded pages of detail. They can prepare the
-same reviewable drafts. Use **Connect an agent** for setup and **Export site** to share
-a selected reading site.
-
-Continue with [getting started](docs/getting-started.md), choose a task in the
-[documentation](docs/README.md), or embed the [Library](library/README.md).
+The rules are not in the documentation. The [specification](spec/SPEC.md)
+owns them, and [Working with Atlas](spec/OPERATING.md) is the guide every
+agent is handed.
 
 ## Repository
 
-| Path | Responsibility |
+| Path | Holds |
 | --- | --- |
-| `spec/` | Meaning, file format and operation contracts |
-| `library/` | Validation, reading, Absorb, Route and safe authoring |
-| `apps/cli/` | Command-line application |
-| `apps/agent/` | MCP server |
-| `apps/portal/` | Search, focused reading and selected publications |
-| `apps/editor/` | Reviewed authoring and source review |
-| `apps/installer/` | Runtime-bundle installer and integrity checks |
-| `styles/` | Curated organizing and source-depth policies |
-| `checks/` | Optional project Checks |
-| `tests/` | Source test support and separate-reader checks |
-| `docs/` | User guides and technical references |
-| `examples/` | Runnable sample Atlas |
+| [`spec/`](spec/SPEC.md) | The specification (meaning, file format, operations, project workflow) and [Working with Atlas](spec/OPERATING.md), the guide every agent is handed |
+| [`library/`](library/README.md) | The Library: reading, validation, search, Route, the change path, stamps and the stale report |
+| [`apps/cli/`](apps/cli/README.md) | The `atlas` command |
+| [`apps/agent/`](apps/agent/README.md) | The MCP server |
+| [`apps/portal/`](apps/portal/README.md) | The Portal: the reader's pages, served on this machine or exported |
+| `apps/installer/` | The installer shipped in runtime bundles |
+| [`styles/`](styles/README.md) | The six curated Styles |
+| [`checks/`](checks/README.md) | The shipped Checks |
+| [`docs/`](docs/README.md) | How-to guides, explanation and reference |
+| [`examples/`](examples/README.md) | The shipped example Atlas and the worked comparison of the Styles |
+| [`tests/`](tests/README.md) | Test support and the independent reader |
 
-Atlas readers accept `atlas/1`. For development, read the
-[specification](spec/SPEC.md) and [tests](tests/README.md).
+## Licence and policies
 
-Original material is available under [CC0 1.0 Universal or 0BSD](LICENSE).
-[Feedback and submission policy](CONTRIBUTING.md) explains how to send questions.
-[Third-party material](THIRD_PARTY.md) retains its own terms. Read
-[Security](SECURITY.md) for processing boundaries and reporting.
+Original material is available under [CC0 1.0 Universal or 0BSD](LICENSE), at
+your option. [Third-party material](THIRD_PARTY.md) keeps its own terms. The
+[feedback and submission policy](CONTRIBUTING.md) says how to send questions, and
+[Security](SECURITY.md) gives the processing boundaries and how to report a
+problem.

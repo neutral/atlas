@@ -1,0 +1,242 @@
+/* The reading sheet: white paper inside a single border, two inks, two faces, one red.
+   Ink and the proportional face are what an author wrote. Blue and the fixed-width face are
+   what Atlas says. Red is a difference the reader must attend to, and always comes with a word;
+   a mark that needs no such attention (a stamp, a source not read here) is the same word in blue.
+   An underlined name goes to its page. A name with ▸ opens here. The only bordered controls
+   are Outline, Help, Close and the search field. */
+:root {
+  color-scheme: light;
+  --paper: #ffffff; --ink: #15191e;
+  --blue-9: #1f3a5a; --blue-7: #3d6288; --blue-5: #5a7a9b; --blue-3: #b9cadb; --blue-1: #edf2f7; --blue-0: #f6f8fb;
+  --red: #b0412a;
+  --sans: -apple-system, BlinkMacSystemFont, Inter, 'Segoe UI', system-ui, sans-serif;
+  --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  --gutter: 2.2rem; --measure: 43rem;
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 16.5px/1.65 var(--sans); -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+.sheet { display: flex; flex-direction: column; margin: 12px; min-height: calc(100vh - 24px); border: 1px solid var(--blue-7); }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+a { color: inherit; text-decoration: underline; text-decoration-color: var(--blue-5); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:hover { text-decoration-color: var(--blue-9); }
+:focus-visible { outline: 2px solid var(--blue-7); outline-offset: 2px; }
+::selection { background: var(--blue-1); }
+h1, h2, h3, h4, p, ul, ol, pre { margin: 0; padding: 0; }
+ul, ol { list-style: none; }
+summary { cursor: pointer; list-style: none; }
+summary::-webkit-details-marker { display: none; }
+summary::before { content: '▸ '; content: '▸ ' / ''; }
+[open] > summary::before { content: '▾ '; content: '▾ ' / ''; }
+
+/* What Atlas says: the fixed-width face, in blue. Labels are small capitals. */
+.says { font: 12.5px/1.55 var(--mono); color: var(--blue-9); }
+.cap { font: 500 10.5px/1.6 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--blue-7); }
+.out::after { content: ' ↗'; font-family: var(--mono); font-size: 0.8em; color: var(--blue-7); }
+.file { display: block; font: 11.5px/1.5 var(--mono); color: var(--blue-7); overflow-wrap: anywhere; }
+.control, .close { display: inline-flex; flex: none; align-items: center; height: 28px; padding: 0 0.6rem; font: 12px/1 var(--mono); color: var(--blue-7); text-decoration: none; border: 1px solid var(--blue-7); border-radius: 3px; }
+.control:hover, .close:hover { color: var(--paper); background: var(--blue-7); }
+.close { height: 22px; margin-left: auto; padding: 0 0.45rem; font-size: 11.5px; }
+
+/* A difference: the word in red; what is removed, struck through; what stood before, behind a disclosure. */
+.red { font: 500 11.5px/1.5 var(--mono); letter-spacing: 0.02em; color: var(--red); }
+.blue { font: 500 11.5px/1.5 var(--mono); letter-spacing: 0.02em; color: var(--blue-7); }
+.gone { text-decoration: line-through; text-decoration-color: var(--red); text-decoration-thickness: 1px; }
+.gone .red { display: inline-block; }
+.before > summary { width: fit-content; font: 500 11.5px/1.5 var(--mono); letter-spacing: 0.02em; color: var(--red); }
+.before > :not(summary) { margin: 0.2rem 0 0.4rem; padding-left: 0.7rem; border-left: 1px solid var(--blue-3); }
+
+/* The title strip. */
+.strip { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 1.2rem; min-height: 52px; padding: 0.4rem var(--gutter); border-bottom: 1px solid var(--blue-7); }
+.strip a:not(.control) { font: 13px/1.6 var(--mono); color: var(--blue-9); text-decoration-color: var(--blue-3); }
+.strip a.title { flex: 0 1 auto; min-width: 3rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; letter-spacing: 0.02em; }
+.strip .red { flex: none; font-size: 13px; line-height: 1.6; font-weight: 600; }
+/* The reader's tools keep together at the right: Outline, the search field, "?". When the strip wraps, they move to the
+   next line as one group and fill it, "?" at its right end. */
+.strip .tools { display: flex; align-items: center; gap: 1.2rem; flex: 1 1 18rem; justify-content: flex-end; margin-left: auto; min-width: 0; }
+.ask { position: relative; flex: 1 1 7rem; max-width: 24rem; min-width: 0; }
+.strip .help { flex: none; justify-content: center; width: 28px; padding: 0; }
+.strip > .help { margin-left: auto; }
+.ask input { display: block; width: 100%; height: 32px; padding: 0 0.6rem; font: 13px var(--mono); color: var(--ink); background: var(--paper); border: 1px solid var(--blue-5); border-radius: 0; appearance: none; }
+.ask input::placeholder { color: var(--blue-7); opacity: 1; }
+.ask input:focus-visible { border-color: var(--blue-7); }
+.results { position: absolute; right: 0; top: 40px; z-index: 5; width: min(44rem, calc(100vw - 24px - var(--gutter) * 2)); max-height: 70vh; overflow: auto; background: var(--paper); border: 1px solid var(--blue-7); box-shadow: 0 8px 24px rgba(31, 58, 90, 0.18); }
+.results li { border-bottom: 1px solid var(--blue-3); }
+.results li:last-child { border-bottom: 0; }
+.results a { display: block; padding: 0.55rem 0.8rem; text-decoration: none; }
+.results a:hover, .results a:focus-visible { background: var(--blue-0); outline-offset: -2px; }
+.results .cap, .results .claim { display: block; }
+.results .claim { font: 14px/1.4 var(--sans); color: var(--ink); text-decoration: underline; text-decoration-color: var(--blue-5); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.results .excerpt { display: -webkit-box; margin-top: 0.15rem; overflow: hidden; font: 13px/1.45 var(--sans); color: var(--ink); -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; }
+.results p { padding: 0.7rem 0.8rem; }
+
+/* A Point and, beside it behind a ruled line with a tick, its margin. */
+.doc { display: flex; flex: 1; flex-direction: column; }
+.row { display: grid; grid-template-columns: minmax(0, calc(var(--measure) + var(--gutter) * 2)) minmax(0, 1fr); }
+.doc > .row { flex: 1; }
+.point { position: relative; min-width: 0; padding: 1.5rem var(--gutter) 2rem; border-right: 1px solid var(--blue-7); }
+.point::after { content: ''; position: absolute; right: -7px; top: 2.2rem; width: 13px; border-top: 1px solid var(--blue-7); transform: rotate(-35deg); }
+.point:only-child { border-right: 0; }
+.point:only-child::after { display: none; }
+.margin { position: sticky; top: 0; align-self: start; min-width: 0; max-height: 100vh; overflow-y: auto; padding: 1.5rem var(--gutter) 2rem 1.4rem; }
+.kind { display: flex; flex-wrap: wrap; gap: 0 0.8rem; align-items: center; max-width: var(--measure); min-height: 22px; margin: 0 0 0.4rem; }
+.point h1 { max-width: var(--measure); margin: 0 0 0.9rem; font: 600 24px/1.25 var(--sans); letter-spacing: -0.01em; }
+.point > h2 { max-width: var(--measure); margin: 0 0 0.8rem; font: 600 20px/1.3 var(--sans); }
+.point > h2 a { text-decoration-color: var(--blue-3); }
+.point h1 + .before { margin: -0.5rem 0 0.9rem; }
+.was { font: 600 17px/1.35 var(--sans); }
+.source h1 { font: 600 19px/1.35 var(--mono); color: var(--blue-9); overflow-wrap: anywhere; }
+.source .body > :is(h2, h3, h4, h5, h6) { scroll-margin-top: 1rem; }
+.source :target { background: var(--blue-1); box-shadow: 0 0 0 3px var(--blue-1); }
+.body { max-width: var(--measure); overflow-wrap: break-word; }
+.body p { margin: 0 0 0.9rem; }
+.body ul, .body ol { margin: 0 0 0.9rem; padding-left: 1.3rem; }
+.body ul { list-style: disc; }
+.body ol { list-style: decimal; }
+.body li { margin: 0.25rem 0; }
+.body li > ul, .body li > ol { margin-bottom: 0; }
+.body h2, .body h3, .body h4, .body h5, .body h6 { margin: 1.3rem 0 0.5rem; font: 600 17px/1.35 var(--sans); }
+.body h3, .body h4, .body h5, .body h6 { font-size: 15.5px; }
+.body code { padding: 0.05em 0.25em; font: 0.88em var(--mono); background: var(--blue-0); }
+.body pre { margin: 0 0 0.9rem; padding: 0.5rem 0.75rem; overflow-x: auto; font: 13px/1.55 var(--mono); border: 1px solid var(--blue-3); }
+.body pre code { padding: 0; font: inherit; background: none; }
+.body table { display: block; width: 100%; margin: 0 0 1rem; overflow-x: auto; border-collapse: collapse; font-size: 0.88em; line-height: 1.5; }
+.body th { padding: 0.3rem 0.8rem 0.3rem 0; text-align: left; font: 500 10.5px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--blue-7); border-bottom: 1px solid var(--blue-7); }
+.body th code, .body th .says, .body th .image, .body th .out::after { font-size: 1em; }
+.body td { padding: 0.4rem 0.8rem 0.4rem 0; vertical-align: top; border-bottom: 1px solid var(--blue-3); }
+.body blockquote { margin: 0 0 0.9rem; padding-left: 0.8rem; border-left: 1px solid var(--ink); }
+.body hr { margin: 1.2rem 0; border: 0; border-top: 1px solid var(--blue-3); }
+.body .says, .body .image { font: 0.76em var(--mono); color: var(--blue-7); }
+.body > .added, .body > .altered, .body > .gone { margin: 0 0 0.9rem -0.8rem; padding-left: calc(0.8rem - 2px); border-left: 2px solid var(--red); }
+.body > .added > .red { display: inline-block; }
+.body > .added > :last-child, .body > .gone > :last-child, .body > .altered > .before > :last-child { margin-bottom: 0; }
+
+/* Under the prose: what is not established, what it rests on, what comes next. */
+.foot { max-width: var(--measure); margin: 1.2rem 0 0; padding-top: 0.7rem; border-top: 1px solid var(--blue-3); }
+.unsure { margin: 0 0 0.7rem; }
+.unsure > p { padding-left: 0.7rem; font: 14.5px/1.55 var(--sans); border-left: 1px solid var(--blue-7); }
+.rests > summary { width: fit-content; font: 12.5px/1.6 var(--mono); color: var(--blue-9); }
+.rests > summary::before, .outline > summary::before { color: var(--blue-7); }
+.rests > .cap { display: block; margin: 0.6rem 0 0.2rem; }
+.sources li { margin: 0 0 0.35rem; font: 12.5px/1.5 var(--mono); color: var(--blue-9); }
+.sources .loc { color: var(--blue-7); }
+.sources .flag { display: block; overflow-wrap: anywhere; }
+.sources .gone + .red { margin-left: 0.6rem; }
+.onward { display: flex; gap: 0.8rem; align-items: baseline; max-width: var(--measure); margin: 0.9rem 0 0; padding-top: 0.6rem; border-top: 1px solid var(--blue-3); }
+.onward .cap { flex: none; }
+.onward a { font: 14.5px/1.5 var(--sans); }
+
+/* The map: one outline of Points in one style, in a margin and in Outline. */
+.map { max-width: 46rem; margin: 0 0 1.2rem; }
+.map > .cap { display: block; margin: 0 0 0.3rem; }
+.map ul ul { margin: 0.1rem 0 0.3rem 0.35rem; padding-left: 0.85rem; border-left: 1px solid var(--blue-3); }
+.map li { margin: 0.28rem 0; font: 14px/1.45 var(--sans); }
+.map .acct-name { font: 12px/1.5 var(--mono); color: var(--blue-9); }
+.map .red, .map .blue { margin-left: 0.5rem; }
+.map > .cap > .red { margin: 0; font: inherit; letter-spacing: inherit; }
+.opens { display: block; padding: 0.05rem 0.3rem 0.05rem 1.05rem; text-indent: -1.05rem; text-decoration: none; }
+.opens::before { content: '▸ '; content: '▸ ' / ''; font: 11px var(--mono); color: var(--blue-7); }
+.opens[aria-expanded="true"]::before { content: '▾ '; content: '▾ ' / ''; }
+.opens:hover { background: var(--blue-0); }
+.opens[aria-expanded="true"] { font-weight: 600; background: var(--blue-1); box-shadow: -2px 0 0 var(--blue-7); }
+.opens.gone { text-decoration: line-through; text-decoration-color: var(--red); }
+[aria-current="page"] { font-weight: 600; background: var(--blue-1); box-shadow: 0 0 0 3px var(--blue-1); }
+.here > [aria-current] { display: inline-block; margin: 0.05rem 0 0.05rem 0.2rem; }
+.std { font: 11.5px var(--mono); color: var(--blue-7); }
+.cited a { text-decoration-color: var(--blue-3); }
+
+/* A panel: what a margin item opens, in the main column under the Point whose margin named it. */
+.panel { margin: 0 0 0 var(--gutter); scroll-margin-top: 12px; background: var(--blue-0); border-top: 1px solid var(--blue-7); border-left: 2px solid var(--blue-7); }
+.panel .panel { margin-left: 1.5rem; }
+.panel > .row > .point { padding-top: 0.9rem; padding-left: 1.3rem; }
+.panel > .row > .point::after { top: 1.6rem; }
+.panel > .row > .margin { padding-top: 0.9rem; }
+.panel .body code { background: var(--paper); }
+.panel [aria-current="page"], .panel .opens[aria-expanded="true"] { background: var(--paper); }
+.panel [aria-current="page"] { box-shadow: 0 0 0 3px var(--paper); }
+
+/* Home and Outline: the Trees, each with its top Point, its scope and its outline. */
+.home { max-width: 66rem; padding: 2rem var(--gutter) 3rem; }
+.home h1 { margin: 0 0 1.6rem; font: 600 26px/1.2 var(--sans); }
+.accounts { border-top: 1px solid var(--blue-7); }
+.accounts > li { display: grid; grid-template-columns: 12rem minmax(0, 1fr); gap: 0 1.5rem; padding: 0.9rem 0; border-bottom: 1px solid var(--blue-3); }
+.tree { font: 400 13px/1.6 var(--mono); color: var(--blue-9); }
+.tree .red { margin-left: 0.6rem; }
+.claim { font: 600 16.5px/1.4 var(--sans); text-decoration-color: var(--blue-3); }
+.claim + .std { display: block; margin-top: 0.2rem; }
+.scope, .said { margin: 0.25rem 0 0; font-size: 14.5px; line-height: 1.55; }
+.outline { max-width: none; margin: 0.45rem 0 0; }
+.outline > summary { width: fit-content; font: 12.5px var(--mono); color: var(--blue-9); }
+.outline > ul { margin-top: 0.4rem; }
+.outline a { text-decoration-color: var(--blue-3); }
+.proposals { margin: 0 0 1.8rem; }
+.proposals > .cap { display: block; margin: 0 0 0.3rem; }
+.proposals li { padding: 0.7rem 0; border-top: 1px solid var(--blue-3); }
+.proposals li:first-child { border-top-color: var(--blue-7); }
+/* Each proposed change that could not be read is its own line under the list, apart from the next when it wraps. */
+.proposals > .red + .red { margin-top: 0.3rem; }
+
+/* A proposed change, and the pages that stand where there are none. */
+.proposal h1 { margin-bottom: 0.5rem; }
+.proposal section { margin-top: 1.8rem; }
+.proposal section > .cap { display: block; margin: 0 0 0.4rem; }
+.proposal section > h3.cap { margin-top: 1rem; }
+.proposal .map { margin: 0; }
+.proposal .map a, .claims a { text-decoration-color: var(--blue-3); }
+.claims > li { display: grid; grid-template-columns: 4.6rem minmax(0, 1fr); align-items: baseline; margin: 0 0 0.5rem; font: 14px/1.45 var(--sans); }
+.claims .cap, .claims .says { display: block; }
+.order { margin: 0.35rem 0 0; padding-left: 1.4rem; list-style: decimal; font: 13px/1.6 var(--mono); color: var(--blue-9); }
+.claims > li > .held { padding-bottom: 0.6rem; }
+.held .named { font: 600 15px/1.4 var(--sans); }
+.held > .body, .held > .before .body { margin-top: 0.45rem; }
+.held .body > :first-child { margin-top: 0; }
+.held .body h4 { margin: 0.6rem 0 0.15rem; font-size: 14px; }
+.held .body p { margin-bottom: 0.35rem; }
+.proposal .accounts .claims:not(:first-child) { margin-top: 0.5rem; }
+.command { padding: 0.6rem 0.8rem; overflow-x: auto; font: 12.5px/1.6 var(--mono); color: var(--blue-9); white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--blue-3); }
+.home > .says + .command { margin-top: 0.5rem; }
+.diagnostics { margin: 1rem 0 0; font: 12.5px/1.5 var(--mono); color: var(--blue-9); border-top: 1px solid var(--blue-7); }
+.diagnostics > li { display: grid; grid-template-columns: 12rem minmax(0, 1fr); gap: 0 1.5rem; align-items: baseline; padding: 0.5rem 0; overflow-wrap: anywhere; border-bottom: 1px solid var(--blue-3); }
+
+/* Help: the words, the moves and the marks, each a term in a column and what it means beside it. */
+.help section + section { margin-top: 1.4rem; }
+.help h2.cap { display: block; margin: 0 0 0.4rem; }
+.help dl { display: grid; grid-template-columns: 12rem minmax(0, 1fr); gap: 0.35rem 1.5rem; padding-top: 0.5rem; font: 12.5px/1.6 var(--mono); color: var(--blue-9); border-top: 1px solid var(--blue-7); }
+.help dt { font-weight: 600; }
+.help dd { margin: 0; }
+
+/* Outline and Help, laid over the page: Outline the whole Atlas for a long jump, Help what fits at a glance. */
+.layer { width: min(44rem, calc(100vw - 48px)); max-width: none; max-height: calc(100vh - 48px); padding: 0; color: var(--ink); background: var(--paper); border: 1px solid var(--blue-7); box-shadow: 0 8px 24px rgba(31, 58, 90, 0.18); }
+.layer.whole { width: min(76rem, calc(100vw - 48px)); height: calc(100vh - 48px); }
+.layer::backdrop { background: rgba(31, 58, 90, 0.28); }
+.layer > header { position: sticky; top: 0; z-index: 1; display: flex; gap: 1rem; align-items: center; height: 52px; padding: 0 var(--gutter); background: var(--paper); border-bottom: 1px solid var(--blue-7); }
+.layer > header .title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 13px var(--mono); letter-spacing: 0.02em; color: var(--blue-9); }
+.layer > header .cap { flex: none; }
+.layer .home { max-width: none; padding-top: 0.4rem; }
+.layer.help { width: min(76rem, calc(100vw - 48px)); }
+.layer.help .home { padding-top: 1.2rem; padding-bottom: 1.8rem; }
+.layer [data-help] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; column-gap: 2.5rem; }
+.layer [data-help] > :first-child { grid-row: span 2; }
+.layer [data-help] > :nth-child(2) { margin-top: 0; }
+.layer [data-help] dl { grid-template-columns: 9rem minmax(0, 1fr); gap: 0.35rem 1.2rem; }
+.layer .accounts { border-top: 0; }
+.layer a { scroll-margin: 5rem 0; }
+
+/* A narrow screen: the margin follows the prose. */
+@media (max-width: 70rem) {
+  :root { --gutter: 1.1rem; }
+  .row { grid-template-columns: minmax(0, 1fr); }
+  .point { padding-bottom: 1.2rem; border-right: 0; }
+  .point::after { display: none; }
+  .margin { position: static; max-height: none; padding: 1.1rem var(--gutter) 1.6rem; border-top: 1px solid var(--blue-7); }
+  .point h1 { font-size: 21px; }
+  .home h1 { font-size: 22px; }
+  .accounts > li, .diagnostics > li, .help dl, .layer [data-help], .layer [data-help] dl { grid-template-columns: minmax(0, 1fr); }
+  .layer [data-help] > :nth-child(2) { margin-top: 1.4rem; }
+  .help dl, .layer [data-help] dl { gap: 0; }
+  .help dd { margin-bottom: 0.45rem; }
+  .panel, .panel .panel { margin-left: 0.5rem; }
+}
+@media (pointer: coarse) {
+  .ask input { font-size: 16px; }
+}

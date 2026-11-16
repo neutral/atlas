@@ -53,25 +53,33 @@ export function facetSummary(facet, matches = []) {
     selector: { tree: facet.tree, facet: facet.id } };
 }
 
-/** Search separate typed records with the same lexical ranking in every consumer. */
-export function searchRecords(atlas, options = {}) {
+/** The records of an Atlas that a search of `kinds` ranks, each with its kind. */
+export function searchable(atlas, options = {}) {
   const kinds = options.kinds ?? ['point', 'facet'];
   if (!Array.isArray(kinds) || !kinds.length || kinds.length > 2 || new Set(kinds).size !== kinds.length || kinds.some(kind => !['point', 'facet'].includes(kind))) throw new TypeError('Search kinds must contain point, facet, or both without duplicates.');
-  const records = [
+  return [
     ...(kinds.includes('point') ? atlas.points.map(point => ({ ...point, kind: 'point' })) : []),
     ...(kinds.includes('facet') && !options.type ? atlas.facets.map(facet => ({ ...facet, kind: 'facet' })) : []),
   ];
-  return searchPoints(records, options);
 }
 
 /** Deterministic lexical candidates. Shared consumers still assess meaning. */
-export function searchPoints(points, { query, tree, type, limit = 20, offset = 0, presentation = 'full' } = {}) {
-  if (typeof query !== 'string' || query.length > 4096 || !query.trim()) return [];
+export function searchPoints(points, options = {}) {
+  return searchPage(points, options).results;
+}
+
+/**
+ * One page of the lexical candidates, `{ results, available }`: `results` as `searchPoints` returns them, and
+ * `available`, how many records matched in all, so that a list of results can say when some were left out.
+ */
+export function searchPage(points, { query, tree, type, limit = 20, offset = 0, presentation = 'full' } = {}) {
+  const none = { results: [], available: 0 };
+  if (typeof query !== 'string' || query.length > 4096 || !query.trim()) return none;
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) throw new TypeError('Search limit must be 1..100.');
   if (!Number.isSafeInteger(offset) || offset < 0 || offset > 100000) throw new TypeError('Search offset must be 0..100000.');
   if (!['full', 'summary'].includes(presentation)) throw new TypeError('Search presentation must be full or summary.');
   const terms = termsFor(query);
-  if (!terms.length) return [];
+  if (!terms.length) return none;
   const candidates = points.filter(point => (!tree || point.tree === tree) && (!type || (point.type ?? 'untyped') === type));
   const records = candidates.map(point => {
     const fields = { id: point.id, title: point.title, body: point.body, uncertainty: point.uncertainty ?? '' };
@@ -82,7 +90,7 @@ export function searchPoints(points, { query, tree, type, limit = 20, offset = 0
     return { point, matches, exact: normalized(query.trim()) === normalized(point.id) };
   });
   const frequencies = new Map(terms.map(term => [term, records.filter(record => record.matches.some(match => match.term === term)).length]));
-  return records.filter(record => record.exact || record.matches.length).map(({ point, matches, exact }) => {
+  const ranked = records.filter(record => record.exact || record.matches.length).map(({ point, matches, exact }) => {
     const coverage = new Set(matches.map(match => match.term)).size / terms.length;
     const score = Math.round((Number(exact) * 1000 + coverage * 12 + matches.reduce((total, match) => {
       const weight = 1 + Math.log2((candidates.length + 1) / (frequencies.get(match.term) + 1));
@@ -92,6 +100,6 @@ export function searchPoints(points, { query, tree, type, limit = 20, offset = 0
       ...(presentation === 'summary' ? point.on ? facetSummary(point, matches) : pointSummary(point, matches) : point), score, matches,
       reason: exact ? `Exact ${point.on ? 'Facet' : 'Point'} ID with lexical context; identity does not establish relevance or source support.` : 'Word matches, query coverage and corpus frequency rank lexical candidates; the reader assesses meaning.',
     } };
-  }).sort((left, right) => Number(right.exact) - Number(left.exact) || right.result.score - left.result.score || compare(left.result.id, right.result.id) || compare(left.result.kind ?? '', right.result.kind ?? '') || compare(left.result.tree, right.result.tree))
-    .slice(offset, offset + limit).map(({ result }) => result);
+  }).sort((left, right) => Number(right.exact) - Number(left.exact) || right.result.score - left.result.score || compare(left.result.id, right.result.id) || compare(left.result.kind ?? '', right.result.kind ?? '') || compare(left.result.tree, right.result.tree));
+  return { results: ranked.slice(offset, offset + limit).map(({ result }) => result), available: ranked.length };
 }

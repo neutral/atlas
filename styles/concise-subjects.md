@@ -1,36 +1,25 @@
----
-{"id":"concise-subjects","revision":"2"}
----
 # Concise subjects
 
-This Style organizes a project around durable subjects or capabilities. Each Tree
-combines one subject's meaning, relevant mechanisms and current evidence
-in a single account. Its Base establishes the subject's scope, central
-understanding and important limits. Tree boundaries follow the subjects readers
-need to understand and maintain independently. The primary explanation of a shared
-mechanism or finding belongs to one subject account; other subjects develop its
-consequences for them.
+## Accounts
 
-Points explain the subject's main distinctions, choices and qualifications.
-Closely related explanation stays together until it needs separate reference,
-assessment or revision. Higher Points orient readers to their detail. Branches
-label useful groups within the subject. Facets explain consequential interactions
-with other subjects; links provide further reading. Moving between the subject's
-meaning, mechanisms and evidence develops the same account.
+Each Tree keeps one durable subject or capability whole: what it is for, how
+it works, the choices behind it, where it fails and what shows that. A
+reader who needs to understand or maintain that subject finds its account in
+one place. Tree boundaries follow the subjects readers need to understand
+and maintain independently.
 
-Atlas carries the central claims, essential reasoning and qualifications needed
-to understand the subject and choose the next source. Extended arguments,
-exhaustive procedures, implementation detail and raw evidence remain in sources,
-with precise references explaining their contribution. Source reading is an
-expected part of the task. The account expands when readers repeatedly need to
-reconstruct the same important connection from the underlying material. Sources
-retain authority over the exact requirements or procedures they own.
+A mechanism or finding that several subjects share is explained in full in
+one of them. The others say what it means for them and link to it. A Facet
+says how another subject bears on a claim: what that account holds, and what
+follows here. New detail stays in its subject's Tree while that Tree's top
+claim can still explain the whole. A new Tree is warranted when a subject
+needs its own entry point and its own upkeep.
 
-Changes update the concise explanation and its references together, with higher
-explanations and connected Facets reviewed for changed meaning. New detail stays
-within the current Tree while its overview can explain the subject
-coherently. A separate Tree is warranted when a durable subject needs its own
-reader entry point and maintenance. Restructuring addresses an identified
-failure to find, understand or update the subject, preserving identity and
-important conflicts or limits. It is complete when readers can explain the
-central meaning and limits, find the needed detail and maintain that path.
+## Depth
+
+The Atlas carries each claim, its essential reason and the qualifications
+that limit it, and names the place in a source that holds the extended
+argument. Reading sources is an expected part of understanding a subject in
+depth. Exact requirements, procedures, code and raw evidence stay in the
+sources, which keep authority over them. A Point grows when readers
+repeatedly have to reconstruct the same connection from the sources.

@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateFiles, searchAtlas, getPoint } from '../src/model.mjs';
+import { validateFiles, searchAtlas, searchAtlasPage, getPoint } from '../src/model.mjs';
 import { searchPoints } from '../src/search.mjs';
 import { route } from '../src/route.mjs';
 
 const text = (header, title, body) => `---\n${JSON.stringify(header)}\n---\n# ${title}\n\n${body}\n`;
 function fixture() {
   const files = new Map([
-    ['atlas.json', JSON.stringify({ format: 'atlas/1', id: 'work', title: 'Work', trees: ['trees/design', 'trees/evidence'] })],
+    ['atlas.json', JSON.stringify({ format: 'atlas/1.2', id: 'work', title: 'Work', trees: ['trees/design', 'trees/evidence'] })],
+    ['style.md', '# Perspectives\n\nDesign owns the experience. Evidence owns dated results.\n'],
     ['trees/design/tree.json', JSON.stringify({ id: 'design', title: 'Design', scope: 'User experience.', base: 'purpose', children: [
       { point: 'editor-recovery', children: [{ point: 'draft-storage' }, { point: 'unsaved-text' }, { point: 'restart-review' }] },
       { point: 'qualification' }, { point: 'international' },
@@ -21,7 +22,7 @@ function fixture() {
     ['trees/design/points/qualification.md', text({ id: 'qualification' }, 'Qualification records', 'The tested package has a measured size.')],
     ['trees/design/points/international.md', text({ id: 'international' }, '日本語の保存とcafé', '文章を保存する。Le café accueille les lecteurs.')],
     ['trees/evidence/points/observed.md', text({ id: 'observed', type: 'observation', observedAt: '2026-09-27', uncertainty: 'Only one tested workload.', sources: [{ uri: 'report.md', role: 'evidence' }] }, 'Observed draft recovery', 'One saved draft survived a restart. '.repeat(20))],
-    ...['editor-recovery', 'draft-storage', 'restart-review'].map((host, index) => [`trees/design/facets/proof-${index}.md`, text({ id: `proof-${index}`, on: { point: host }, via: 'evidence', targets: [{ point: 'observed' }] }, 'Recovery has bounded evidence', `The ${host} account must respect the observed workload.`)]),
+    ...['editor-recovery', 'draft-storage', 'restart-review'].map((host, index) => [`trees/design/facets/proof-${index}.md`, text({ id: `proof-${index}`, on: host, via: 'evidence', targets: ['observed'] }, 'Recovery has bounded evidence', `The ${host} account must respect the observed workload.`)]),
   ]);
   const view = validateFiles(files, { root: '/tmp/atlas-reading-paths' });
   assert.equal(view.status, 'ready', JSON.stringify(view.diagnostics));
@@ -42,6 +43,19 @@ test('question search uses words, meaningful coverage and exact identity rather 
   assert.ok(searchAtlas(view, { query: 'draft' }).some(point => point.id === 'draft-storage'));
   assert.deepEqual(searchAtlas(view, { query: 'draft', tree: 'evidence' }).map(point => point.id), ['observed']);
   assert.equal(searchAtlas(view, { query: 'draft', type: 'observation' })[0].observedAt, '2026-09-27');
+});
+
+test('a page of search results comes with how many matched in all, and Route says how many its window left out', () => {
+  const { view } = fixture();
+  const all = searchAtlas(view, { query: 'draft', kinds: ['point', 'facet'], limit: 100 });
+  const page = searchAtlasPage(view, { query: 'draft', kinds: ['point', 'facet'], limit: 2, offset: 1 });
+  assert.ok(all.length > 3);
+  assert.deepEqual([page.available, page.results.map(found => found.id)], [all.length, all.slice(1, 3).map(found => found.id)]);
+  assert.deepEqual(searchAtlasPage(view, { query: 'cat' }), { results: [], available: 0 });
+  assert.deepEqual(searchAtlasPage(validateFiles(new Map([['atlas.json', '{}']]), { root: '/tmp/atlas-reading-paths' }), { query: 'draft' }), { results: [], available: 0 });
+  const discovered = route(view, { query: 'draft', mode: 'discover', limit: 1 });
+  assert.deepEqual([discovered.search.window, discovered.search.available, discovered.search.exhaustive], [100, all.length, true]);
+  assert.deepEqual([discovered.bounds.selected.returned, discovered.bounds.selected.available + discovered.bounds.facets.available], [1, all.length]);
 });
 
 test('exact Point identity stays first even when another candidate has a higher lexical score', () => {
@@ -147,9 +161,9 @@ test('mixed discovery treats Facets as owned interpretations with complete readi
   assert.ok(found.some(result => result.kind === 'facet'));
   const facet = found.find(result => result.kind === 'facet');
   assert.deepEqual(facet.selector, { tree: 'design', facet: facet.id });
-  assert.ok(facet.on.point);
+  assert.ok(['editor-recovery', 'draft-storage', 'restart-review'].includes(facet.on));
   assert.equal(facet.via, 'evidence');
-  assert.deepEqual(facet.targets, [{ point: 'observed' }]);
+  assert.deepEqual(facet.targets, ['observed']);
   assert.equal(facet.body, undefined);
   const read = route(view, facet.selector);
   assert.equal(read.status, 'ready');
