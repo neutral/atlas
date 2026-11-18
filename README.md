@@ -1,5 +1,7 @@
 # Atlas
 
+> Atlas has moved to [github.com/methodologies/atlas](https://github.com/methodologies/atlas), and its npm package to [`@methodologies/atlas`](https://www.npmjs.com/package/@methodologies/atlas). This repository is archived; it keeps Atlas's history through 1.2.0.
+
 Atlas makes the context around a project navigable, helping agents and people
 build a better understanding.
 
